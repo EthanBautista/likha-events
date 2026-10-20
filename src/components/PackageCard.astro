@@ -1,0 +1,72 @@
+---
+import { formatPrice, type Package } from "../packages";
+
+interface Props {
+  pkg: Package;
+}
+
+const { name, price, included, sample } = Astro.props.pkg.data;
+---
+
+<article class="package-card">
+  {sample && <span class="sample">Sample</span>}
+  <h3>{name}</h3>
+  <p class="price">{formatPrice(price)}</p>
+  <ul aria-label={`Included in ${name}`}>
+    {included.map((line) => <li>{line}</li>)}
+  </ul>
+</article>
+
+<style>
+  .package-card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-lg) var(--space-md);
+    border: 1px solid var(--color-line);
+    border-radius: 100vmax 100vmax var(--radius) var(--radius) / 8rem 8rem var(--radius) var(--radius);
+    background: var(--color-bg);
+    text-align: center;
+  }
+
+  .sample {
+    align-self: center;
+    margin-bottom: var(--space-sm);
+    padding: 0.125rem var(--space-xs);
+    border-radius: var(--radius);
+    background: var(--color-action);
+    color: var(--color-on-action);
+    font-size: var(--text-sm);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  h3 {
+    margin: 0;
+    font-size: var(--text-xl);
+  }
+
+  .price {
+    margin: var(--space-xs) auto var(--space-md);
+    font-family: var(--font-heading);
+    font-size: var(--text-2xl);
+    line-height: 1;
+    color: var(--color-action);
+  }
+
+  ul {
+    margin: 0;
+    padding: var(--space-md) 0 0;
+    border-top: 1px solid var(--color-line);
+    list-style: none;
+    text-align: left;
+  }
+
+  li {
+    padding-block: 0.375rem;
+  }
+
+  li + li {
+    border-top: 1px solid var(--color-line);
+  }
+</style>

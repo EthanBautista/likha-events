@@ -32,6 +32,12 @@ test("a valid Setup builds", () => {
   expect(exitCode, output).toBe(0);
 });
 
+test("a valid Package builds", () => {
+  const { exitCode, output } = buildWithOnly("packages", join(repoRoot, "src/content/packages/sample-classic.json"));
+
+  expect(exitCode, output).toBe(0);
+});
+
 for (const collection of readdirSync(casesDir)) {
   for (const name of readdirSync(join(casesDir, collection))) {
     test(`the build fails on an invalid ${collection} entry: ${name}`, () => {

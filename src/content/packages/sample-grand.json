@@ -1,0 +1,13 @@
+{
+  "name": "Grand",
+  "price": 1200,
+  "included": [
+    "Everything in Signature",
+    "Two backdrops with layered balloon arches",
+    "Dessert table styling",
+    "Welcome sign on an easel",
+    "Neon sign rental"
+  ],
+  "order": 3,
+  "sample": true
+}

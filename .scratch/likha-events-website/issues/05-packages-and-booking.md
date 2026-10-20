@@ -10,16 +10,16 @@ This ticket introduces the Package collection, with sample content. Rentals come
 
 **Status:** ready-for-agent
 
-- [ ] Package collection schema:
+- [x] Package collection schema:
   - required: name, price in CAD (whole dollars), what's included (list), display order,
   - sample flag
-- [ ] 3 sample Packages (the cheapest at $450), visibly marked sample
-- [ ] Packages render in display order
-- [ ] "Packages from $X" uses the lowest Package price from the content, not a hard-coded value. The value is exposed so the homepage can reuse it
-- [ ] A custom-quote link and a link to Contact
-- [ ] A "How booking works" section on a sage band, with the Down payment and travel-fee wording
-- [ ] The build fails on an invalid Package, such as one with no price. This is a new case in the known-bad fixture test
-- [ ] Playwright tests:
+- [x] 3 sample Packages (the cheapest at $450), visibly marked sample
+- [x] Packages render in display order
+- [x] "Packages from $X" uses the lowest Package price from the content, not a hard-coded value. The value is exposed so the homepage can reuse it
+- [x] A custom-quote link and a link to Contact
+- [x] A "How booking works" section on a sage band, with the Down payment and travel-fee wording
+- [x] The build fails on an invalid Package, such as one with no price. This is a new case in the known-bad fixture test
+- [x] Playwright tests:
   - each Package renders with its fields, in display order,
   - "from $X" matches the cheapest Package,
   - the booking steps and travel-fee note are present

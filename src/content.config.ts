@@ -25,4 +25,19 @@ const setups = defineCollection({
   }),
 });
 
-export const collections = { setups };
+const packages = defineCollection({
+  loader: glob({ pattern: "*.json", base: "./src/content/packages" }),
+  schema: z.object({
+    name: z.string().trim().min(1),
+    /** In CAD, whole dollars. */
+    price: z.number().int().positive(),
+    /** What's included, one short line each. */
+    included: z.array(z.string().trim().min(1)).min(1),
+    /** Where the Package appears on the page, lowest first. */
+    order: z.number(),
+    /** Placeholder content shipped before launch, marked "Sample" on the site. */
+    sample: z.boolean().default(false),
+  }),
+});
+
+export const collections = { setups, packages };
