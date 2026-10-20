@@ -1,8 +1,10 @@
 ---
+import type { social } from "../site-settings";
+
 // An outline icon for one of the social networks in site settings. Decorative: the link it sits in
 // carries the name.
 interface Props {
-  network: "instagram" | "facebook";
+  network: keyof typeof social;
 }
 
 const { network } = Astro.props;

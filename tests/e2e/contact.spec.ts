@@ -11,13 +11,13 @@ const requiredFields = [
   },
   { label: "Event date", answer: "2027-05-15", message: "Please choose the date of your event." },
   { label: "Venue or city", answer: "Markham", message: "Please enter the venue or city." },
-  { label: "Event type", answer: "Baby shower", message: "Please choose an Event type." },
+  { label: "Event type", answer: "Baby shower", message: "Please choose an Event type.", chosenFromList: true },
 ];
 
 async function fillIn(page: Page, fields: typeof requiredFields) {
-  for (const { label, answer } of fields) {
+  for (const { label, answer, chosenFromList } of fields) {
     const field = page.getByLabel(label);
-    if ((await field.evaluate((element) => element.tagName)) === "SELECT") {
+    if (chosenFromList) {
       await field.selectOption(answer);
     } else {
       await field.fill(answer);
