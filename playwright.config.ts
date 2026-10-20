@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const port = 4322;
+// Set TEST_PORT to give each parallel worktree its own preview server.
+const port = Number(process.env.TEST_PORT ?? 4322);
 
 // Browser tests run against the production build, served locally by `astro preview`.
 // The content-gate tests run their own builds and need no browser.
