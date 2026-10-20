@@ -1,5 +1,6 @@
 ---
 import SetupCard from "../components/SetupCard.astro";
+import { eventTypes } from "../event-types";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { getSetupsNewestFirst } from "../setups";
 
@@ -17,10 +18,23 @@ const setups = await getSetupsNewestFirst();
       <a class="quote" href="/contact/">Get a quote</a>
     </header>
 
+    <!-- Hidden until the script runs, so without JavaScript every Setup simply stays shown. -->
+    <div class="filter" role="group" aria-label="Filter by Event type" hidden>
+      <button type="button" aria-pressed="true">All</button>
+      {
+        eventTypes.map((eventType) => (
+          <button type="button" aria-pressed="false" data-event-type={eventType}>
+            {eventType}
+          </button>
+        ))
+      }
+    </div>
+    <p class="filter-status visually-hidden" role="status"></p>
+
     <ul class="grid" aria-label="Setups">
       {
         setups.map((setup) => (
-          <li>
+          <li data-event-type={setup.data.eventType}>
             <SetupCard setup={setup} sizes="(min-width: 72rem) 22rem, (min-width: 40rem) 45vw, 90vw" />
           </li>
         ))
@@ -28,6 +42,51 @@ const setups = await getSetupsNewestFirst();
     </ul>
   </section>
 </BaseLayout>
+
+<script>
+  import { eventTypes, eventTypeSlug, type EventType } from "../event-types";
+
+  const filter = document.querySelector<HTMLElement>(".filter")!;
+  const buttons = [...filter.querySelectorAll<HTMLButtonElement>("button")];
+  const setups = [...document.querySelectorAll<HTMLElement>(".grid > li")];
+  const status = document.querySelector<HTMLElement>(".filter-status")!;
+
+  // An undefined Event type means "All".
+  const show = (eventType: EventType | undefined) => {
+    for (const button of buttons) {
+      button.setAttribute("aria-pressed", String(button.dataset.eventType === eventType));
+    }
+    for (const setup of setups) {
+      setup.hidden = eventType !== undefined && setup.dataset.eventType !== eventType;
+    }
+  };
+
+  const eventTypeNamed = (name: string | undefined) => eventTypes.find((eventType) => eventType === name);
+
+  // The chosen Event type is kept in the URL, so a filtered gallery can be shared or linked to.
+  // An unknown value shows every Setup.
+  const fromUrl = () => {
+    const slug = new URLSearchParams(location.search).get("type");
+    return eventTypes.find((eventType) => eventTypeSlug(eventType) === slug);
+  };
+
+  const choose = (eventType: EventType | undefined) => {
+    const url = new URL(location.href);
+    if (eventType) url.searchParams.set("type", eventTypeSlug(eventType));
+    else url.searchParams.delete("type");
+    history.replaceState(history.state, "", url);
+    show(eventType);
+    // Announced only when the visitor chooses, not on load.
+    const shown = setups.filter((setup) => !setup.hidden).length;
+    status.textContent = `Showing ${shown} ${shown === 1 ? "Setup" : "Setups"}`;
+  };
+
+  filter.hidden = false;
+  show(fromUrl());
+  for (const button of buttons) {
+    button.addEventListener("click", () => choose(eventTypeNamed(button.dataset.eventType)));
+  }
+</script>
 
 <style>
   .gallery {
@@ -53,6 +112,37 @@ const setups = await getSetupsNewestFirst();
 
   .quote:hover {
     background: var(--color-action-hover);
+    color: var(--color-on-action);
+  }
+
+  .filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+    margin-bottom: var(--space-lg);
+  }
+
+  .filter[hidden] {
+    display: none;
+  }
+
+  .filter button {
+    min-height: 2.75rem;
+    padding: var(--space-xs) var(--space-md);
+    border: 1px solid var(--color-action);
+    border-radius: 100vmax;
+    background: transparent;
+    color: var(--color-action);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .filter button:hover {
+    background: var(--color-sage-band);
+  }
+
+  .filter button[aria-pressed="true"] {
+    background: var(--color-action);
     color: var(--color-on-action);
   }
 
