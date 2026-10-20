@@ -4,7 +4,8 @@ import { defineConfig, devices } from "@playwright/test";
 const port = Number(process.env.TEST_PORT ?? 4322);
 
 // Browser tests run against the production build, served locally by `astro preview`.
-// The content-gate tests run their own builds and need no browser. The fixture-site tests build
+// The content-gate tests run their own builds and need no browser. The editor tests read the editor
+// configuration the built site serves, also without a browser. The fixture-site tests build
 // the site with fixture content in place of its own, for cases the shipped content doesn't show.
 export default defineConfig({
   fullyParallel: true,
@@ -23,6 +24,7 @@ export default defineConfig({
     { name: "phone", testDir: "tests/e2e", use: { ...devices["Pixel 5"], viewport: { width: 375, height: 812 } } },
     { name: "content-gate", testDir: "tests/build" },
     { name: "fixture-sites", testDir: "tests/fixture-sites" },
+    { name: "editor", testDir: "tests/editor" },
   ],
   webServer: {
     command: `npm run build && npm run preview -- --port ${port}`,

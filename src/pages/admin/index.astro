@@ -1,0 +1,25 @@
+---
+import { siteName } from "../../site-settings";
+
+// The owner's editor page (ADR 0001): Sveltia CMS, bundled from npm so its version is pinned in
+// package-lock.json. It loads its configuration from /admin/config.json.
+---
+
+<!doctype html>
+<html lang="en-CA">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Editor · {siteName}</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <script>
+      import CMS from "@sveltia/cms";
+
+      const response = await fetch("/admin/config.json");
+      await CMS.init({ config: await response.json() });
+    </script>
+  </body>
+</html>
