@@ -1,10 +1,13 @@
 ---
 import PackageCard from "../components/PackageCard.astro";
+import RentalCard from "../components/RentalCard.astro";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { formatPrice, getLowestPackagePrice, getPackagesInOrder } from "../packages";
+import { getRentalsInOrder } from "../rentals";
 
 const packages = await getPackagesInOrder();
 const lowestPrice = await getLowestPackagePrice();
+const rentals = await getRentalsInOrder();
 ---
 
 <BaseLayout
@@ -39,6 +42,24 @@ const lowestPrice = await getLowestPackagePrice();
       )
     }
   </section>
+
+  {
+    rentals.length > 0 && (
+      <section class="container rentals" aria-labelledby="rentals-heading">
+        <h2 id="rentals-heading">Rentals</h2>
+        <p class="lead">
+          Hire a single piece for your own setup, no Package needed. <a href="/contact/">Ask us about a Rental</a>.
+        </p>
+        <ul class="rental-grid" aria-label="Rentals">
+          {rentals.map((rental) => (
+            <li>
+              <RentalCard rental={rental} sizes="(min-width: 60rem) 16rem, (min-width: 30rem) 45vw, 90vw" />
+            </li>
+          ))}
+        </ul>
+      </section>
+    )
+  }
 
   <section class="booking" aria-labelledby="booking-heading">
     <div class="container">
@@ -84,6 +105,23 @@ const lowestPrice = await getLowestPackagePrice();
     padding: 0;
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+    gap: var(--space-lg);
+  }
+
+  .rentals {
+    padding-block: 0 var(--space-2xl);
+  }
+
+  .rentals h2 {
+    margin-top: 0;
+  }
+
+  .rental-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
     gap: var(--space-lg);
   }
 

@@ -40,4 +40,20 @@ const packages = defineCollection({
   }),
 });
 
-export const collections = { setups, packages };
+const rentals = defineCollection({
+  loader: glob({ pattern: "*.json", base: "./src/content/rentals" }),
+  schema: z.object({
+    name: z.string().trim().min(1),
+    photo,
+    /** Per event, in CAD, whole dollars. */
+    price: z.number().int().positive(),
+    /** One line saying what the Rental is. */
+    description: z.string().trim().min(1),
+    /** Where the Rental appears on the page: 1 first, then 2, and so on. */
+    order: z.number().int().min(1),
+    /** Placeholder content shipped before launch, marked "Sample" on the site. */
+    sample: z.boolean().default(false),
+  }),
+});
+
+export const collections = { setups, packages, rentals };

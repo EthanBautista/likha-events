@@ -38,6 +38,12 @@ test("a valid Package builds", () => {
   expect(exitCode, output).toBe(0);
 });
 
+test("a valid Rental builds", () => {
+  const { exitCode, output } = buildWithOnly("rentals", join(repoRoot, "src/content/rentals/sample-round-backdrop-stand.json"));
+
+  expect(exitCode, output).toBe(0);
+});
+
 for (const collection of readdirSync(casesDir)) {
   for (const name of readdirSync(join(casesDir, collection))) {
     test(`the build fails on an invalid ${collection} entry: ${name}`, () => {
