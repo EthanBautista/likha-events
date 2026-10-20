@@ -35,7 +35,9 @@ test("each Rental shows its name, photo, price per event and description, in dis
     const card = cards.nth(index);
 
     await expect(card.getByRole("heading")).toHaveText(rental.name);
-    await expect(card.getByRole("img", { name: rental.name })).toHaveAttribute("src", rental.photo);
+    const photo = card.getByRole("img", { name: rental.name });
+    await photo.scrollIntoViewIfNeeded();
+    await expect.poll(() => photo.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
     await expect(card).toContainText(`${dollars(rental.price)} per event`);
     await expect(card).toContainText(rental.description);
     if (rental.sample) {
