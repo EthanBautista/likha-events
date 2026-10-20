@@ -3,3 +3,6 @@
 export const eventTypes = ["Baby shower", "Birthday", "Other"] as const;
 
 export type EventType = (typeof eventTypes)[number];
+
+/** How an Event type is written in a URL, such as the gallery's `?type=baby-shower`. */
+export const eventTypeSlug = (eventType: EventType) => eventType.toLowerCase().replaceAll(" ", "-");
