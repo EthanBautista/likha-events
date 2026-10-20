@@ -1,4 +1,4 @@
-# 06: Homepage
+# 09: Homepage
 
 **What to build:** A visitor lands on the homepage and sees, top to bottom:
 1. the logo, "We create. You celebrate.", one photo in an arch frame, and a "Get a quote" button,
@@ -9,7 +9,7 @@
 
 See the spec: `.scratch/likha-events-website/spec.md`.
 
-**Blocked by:** 02 (Gallery: Setups and Event type filter), 04 (Packages & Rentals page)
+**Blocked by:** 02 (Gallery: Setups), 05 (Packages & Rentals page: Packages and booking)
 
 **Status:** ready-for-agent
 

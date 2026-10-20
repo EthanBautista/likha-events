@@ -1,8 +1,8 @@
-# 03: Setup photo viewer
+# 04: Setup photo viewer
 
 **What to build:** A visitor taps a Setup in the Gallery and sees all of its photos (the cover plus up to 8 more) in an accessible viewer. They close it with a button, the Escape key or the back gesture, and land back where they were in the gallery. See the spec: `.scratch/likha-events-website/spec.md`.
 
-**Blocked by:** 02 (Gallery: Setups and Event type filter)
+**Blocked by:** 03 (Gallery: Event type filter)
 
 **Status:** ready-for-agent
 
