@@ -4,13 +4,13 @@
 
 **Blocked by:** 03 (Gallery: Event type filter)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Tapping a Setup opens a viewer showing all of its photos with the caption
-- [ ] The viewer works with a keyboard and a screen reader: focus moves into it and returns to the Setup on close, and photos have descriptions
-- [ ] It closes with the close button, Escape, or the browser or phone back gesture, without leaving the Gallery
-- [ ] The gallery's scroll position and active filter are kept after closing
-- [ ] Playwright tests:
+- [x] Tapping a Setup opens a viewer showing all of its photos with the caption
+- [x] The viewer works with a keyboard and a screen reader: focus moves into it and returns to the Setup on close, and photos have descriptions
+- [x] It closes with the close button, Escape, or the browser or phone back gesture, without leaving the Gallery
+- [x] The gallery's scroll position and active filter are kept after closing
+- [x] Playwright tests:
   - opening shows the right number of photos,
   - each way of closing works,
   - the filter survives opening and closing

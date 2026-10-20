@@ -4,7 +4,10 @@ import Photo from "./Photo.astro";
 
 interface Props {
   setup: Setup;
-  /** The viewer's element id, which the button that opens it points at. */
+  /**
+   * The viewer's element id. The page gives each viewer a hidden button with `aria-controls` set to
+   * this id, which the script shows and makes open the viewer.
+   */
   id: string;
 }
 
@@ -36,6 +39,42 @@ const allPhotos = [coverPhoto, ...photos];
   </ul>
 </dialog>
 
+<script>
+  // An open viewer has its own history entry at the same URL, recording which viewer is open. So the
+  // browser or phone back gesture closes it instead of leaving the page, and forward or a reload opens it again.
+  interface ViewerEntry {
+    setupViewer: string;
+  }
+  const viewerIn = (state: unknown) => (state as Partial<ViewerEntry> | null)?.setupViewer;
+
+  const viewers = [...document.querySelectorAll<HTMLDialogElement>(".setup-viewer")];
+
+  const showViewerFromHistory = () => {
+    const id = viewerIn(history.state);
+    for (const viewer of viewers) {
+      if (viewer.id === id && !viewer.open) viewer.showModal();
+      if (viewer.id !== id && viewer.open) viewer.close();
+    }
+  };
+
+  for (const viewer of viewers) {
+    const opener = document.querySelector<HTMLButtonElement>(`[aria-controls="${viewer.id}"]`)!;
+    opener.hidden = false;
+    opener.addEventListener("click", () => {
+      history.pushState({ setupViewer: viewer.id } satisfies ViewerEntry, "");
+      viewer.showModal();
+    });
+    viewer.addEventListener("close", () => {
+      // Closed with the Close button or Escape, still on its entry: go back off it, so back then leaves the page.
+      if (viewerIn(history.state) === viewer.id) history.back();
+      opener.focus();
+    });
+  }
+
+  addEventListener("popstate", showViewerFromHistory);
+  showViewerFromHistory();
+</script>
+
 <style>
   .setup-viewer {
     width: 100%;
@@ -49,7 +88,11 @@ const allPhotos = [coverPhoto, ...photos];
     color: var(--color-text);
   }
 
-  /* The gallery behind stays where it was while the viewer is open. */
+  /* The page behind stays where it was while a viewer is open, without shifting sideways as its scrollbar goes. */
+  :global(html:has(.setup-viewer)) {
+    scrollbar-gutter: stable;
+  }
+
   :global(html:has(.setup-viewer[open])) {
     overflow: hidden;
   }

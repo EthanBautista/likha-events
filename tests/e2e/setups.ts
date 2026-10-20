@@ -8,7 +8,7 @@ const setupsDir = join(import.meta.dirname, "../../src/content/setups");
 export interface SetupFile {
   caption: string;
   eventType: string;
-  coverPhoto: string;
+  /** The photos after the cover. */
   photos?: string[];
   date?: string;
   sample?: boolean;

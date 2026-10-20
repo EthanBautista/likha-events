@@ -38,8 +38,8 @@ const viewerId = (setup: Setup) => `setup-${setup.id}`;
         setups.map((setup) => (
           <li data-event-type={setup.data.eventType}>
             <SetupCard setup={setup} sizes="(min-width: 72rem) 22rem, (min-width: 40rem) 45vw, 90vw" />
-            {/* Covers the whole card. Hidden until the script runs, as it needs the script to open its viewer. */}
-            <button type="button" class="open" aria-haspopup="dialog" aria-controls={viewerId(setup)} hidden>
+            {/* Covers the whole card. The viewer's script shows it, as it needs the script to open. */}
+            <button type="button" class="open-viewer" aria-haspopup="dialog" aria-controls={viewerId(setup)} hidden>
               <span class="visually-hidden">See all photos: {setup.data.caption}</span>
             </button>
           </li>
@@ -94,28 +94,6 @@ const viewerId = (setup: Setup) => `setup-${setup.id}`;
   for (const button of buttons) {
     button.addEventListener("click", () => choose(eventTypeNamed(button.dataset.eventType)));
   }
-
-  // Tapping a Setup opens its viewer with all of its photos. An open viewer has its own history
-  // entry, at the same URL, so the browser or phone back gesture closes it instead of leaving the Gallery.
-  const viewerOpen = "setup-viewer-open";
-  // A reload while a viewer was open leaves its entry behind with the viewer closed.
-  if (history.state === viewerOpen) history.replaceState(null, "");
-
-  for (const opener of document.querySelectorAll<HTMLButtonElement>(".grid .open")) {
-    const viewer = document.getElementById(opener.getAttribute("aria-controls")!) as HTMLDialogElement;
-    opener.hidden = false;
-    opener.addEventListener("click", () => {
-      history.pushState(viewerOpen, "");
-      viewer.showModal();
-    });
-    viewer.addEventListener("close", () => {
-      // Closed with the Close button or Escape: drop the viewer's entry, so back still leaves the Gallery.
-      if (history.state === viewerOpen) history.back();
-      opener.focus();
-    });
-  }
-
-  addEventListener("popstate", () => document.querySelector<HTMLDialogElement>("dialog[open]")?.close());
 </script>
 
 <style>
@@ -180,7 +158,7 @@ const viewerId = (setup: Setup) => `setup-${setup.id}`;
     position: relative;
   }
 
-  .open {
+  .open-viewer {
     position: absolute;
     inset: 0;
     padding: 0;
@@ -190,7 +168,7 @@ const viewerId = (setup: Setup) => `setup-${setup.id}`;
     cursor: pointer;
   }
 
-  .open[hidden] {
+  .open-viewer[hidden] {
     display: none;
   }
 
