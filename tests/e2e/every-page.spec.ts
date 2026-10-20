@@ -1,8 +1,8 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
-import { sitePages } from "./site-pages";
+import { allPages } from "./site-pages";
 
-for (const { name, path } of sitePages) {
+for (const { name, path } of allPages) {
   test.describe(name, () => {
     test.beforeEach(async ({ page }) => {
       await page.goto(path);

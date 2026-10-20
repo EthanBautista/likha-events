@@ -5,3 +5,6 @@ export const sitePages = [
   { name: "Packages & Rentals", path: "/packages-and-rentals/" },
   { name: "Contact", path: "/contact/" },
 ] as const;
+
+// Every page on the site: the menu pages plus those reached another way, such as after sending an Inquiry.
+export const allPages = [...sitePages, { name: "Thank you", path: "/contact/thanks/" }] as const;

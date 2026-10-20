@@ -1,0 +1,28 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { inquiryReplyTime, social } from "../../site-settings";
+---
+
+<!-- Where the Inquiry form lands after Netlify has taken it. -->
+<BaseLayout
+  title="Thank you"
+  description="Your inquiry is on its way to Likha Events, and we'll be in touch soon with a quote."
+>
+  <section class="container thanks">
+    <h1>Thank you for your inquiry</h1>
+    <p>
+      It's on its way to Likha Events. We'll reply {inquiryReplyTime} by phone or email, whichever you gave us,
+      with a quote for your event.
+    </p>
+    <p>
+      In the meantime, browse more <a href="/gallery/">Setups in the gallery</a> or see our latest work
+      on <a href={social.instagram}>Instagram</a>.
+    </p>
+  </section>
+</BaseLayout>
+
+<style>
+  .thanks {
+    padding-block: var(--space-xl) var(--space-2xl);
+  }
+</style>
