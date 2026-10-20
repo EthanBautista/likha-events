@@ -16,7 +16,7 @@ This is how to put a new Setup on the website using just your phone. It takes ab
 ## 3. Add the photos
 
 1. Under **Cover photo**, tap the button to add a photo. This opens Cloudinary, where the website's photos are kept.
-2. The first time, Cloudinary asks you to log in. Use the Likha Events Cloudinary login.
+2. The first time, Cloudinary asks you to log in. Use the Likha Events Cloudinary login, then type in the code it sends to check it's you.
 3. Tap **Upload**, then choose the photo from your phone. Pick your best photo for the cover: it's the one people see first in the gallery.
 4. When it has uploaded, select it and tap **Insert**.
 5. Under **More photos**, do the same for up to 8 more photos, such as the cake table and close-ups. You can choose several at once.
@@ -34,7 +34,7 @@ The Setup appears on the website after a couple of minutes.
 
 ## If something goes wrong
 
-- **It won't save**: look for a message in red next to a field. Every field needs filling in except More photos, Feature on homepage and Event date.
+- **It won't save**: look for a message in red next to a field. A Setup needs a caption, an Event type and a cover photo. The rest is up to you.
 - **"Choose photos from Cloudinary"**: add the photo with the button in step 3, rather than pasting a link to a photo somewhere else.
 - **To change or remove a Setup**: tap **Setups**, tap the Setup, then change it and tap **Save**, or delete it from the menu.
 - **Still stuck**: send Ethan a screenshot of the screen.

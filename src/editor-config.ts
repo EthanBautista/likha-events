@@ -62,7 +62,11 @@ export function editorConfig(nextOrders: NextDisplayOrders): CmsConfig {
     // Cloudinary itself: see docs/cloudinary-upload-preset.md.
     media_libraries: {
       default: false,
-      cloudinary: { config: { cloud_name: cloudinaryAccount.cloudName, api_key: cloudinaryAccount.apiKey } },
+      cloudinary: {
+        config: { cloud_name: cloudinaryAccount.cloudName, api_key: cloudinaryAccount.apiKey },
+        // Store the photo's own URL, never a resized copy's: the site asks Cloudinary for the size it needs.
+        use_transformations: false,
+      },
     },
     // An empty optional field, such as a Setup's date, is left out rather than saved blank.
     output: { omit_empty_optional_fields: true },

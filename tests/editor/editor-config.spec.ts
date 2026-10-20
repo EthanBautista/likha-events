@@ -32,7 +32,7 @@ interface EditorConfig {
   media_folder?: string;
   media_libraries?: {
     default?: unknown;
-    cloudinary?: { config?: Record<string, unknown>; output_filename_only?: boolean };
+    cloudinary?: { config?: Record<string, unknown>; output_filename_only?: boolean; use_transformations?: boolean };
   };
   collections: { name: string; fields: EditorField[] }[];
 }
@@ -102,6 +102,7 @@ test("every photo field uploads straight to Cloudinary and stores the photo's UR
   expect(cloudinary?.config?.cloud_name, "cloud name").toEqual(expect.any(String));
   expect(cloudinary?.config?.api_key, "API key").toEqual(expect.any(String));
   expect(cloudinary?.output_filename_only ?? false, "stores the full URL").toBe(false);
+  expect(cloudinary?.use_transformations, "stores the original photo's URL").toBe(false);
   expect(config.media_libraries?.default, "upload into the repo").toBe(false);
   expect(config.media_folder, "repo media folder").toBeUndefined();
 
