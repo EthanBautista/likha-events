@@ -22,10 +22,10 @@ const viewerId = (setup: Setup) => `setup-${setup.id}`;
 
     <!-- Hidden until the script runs, so without JavaScript every Setup simply stays shown. -->
     <div class="filter" role="group" aria-label="Filter by Event type" hidden>
-      <button type="button" aria-pressed="true">All</button>
+      <button type="button" class="pill" aria-pressed="true">All</button>
       {
         eventTypes.map((eventType) => (
-          <button type="button" aria-pressed="false" data-event-type={eventType}>
+          <button type="button" class="pill" aria-pressed="false" data-event-type={eventType}>
             {eventType}
           </button>
         ))
@@ -38,8 +38,8 @@ const viewerId = (setup: Setup) => `setup-${setup.id}`;
         setups.map((setup) => (
           <li data-event-type={setup.data.eventType}>
             <SetupCard setup={setup} sizes="(min-width: 72rem) 22rem, (min-width: 40rem) 45vw, 90vw" />
-            {/* Covers the whole card. The viewer's script shows it, as it needs the script to open. */}
-            <button type="button" class="open-viewer" aria-haspopup="dialog" aria-controls={viewerId(setup)} hidden>
+            {/* Covers the whole card. */}
+            <button type="button" class="open-viewer" aria-haspopup="dialog" commandfor={viewerId(setup)} command="show-modal">
               <span class="visually-hidden">See all photos: {setup.data.caption}</span>
             </button>
           </li>
@@ -134,26 +134,6 @@ const viewerId = (setup: Setup) => `setup-${setup.id}`;
     display: none;
   }
 
-  .filter button {
-    min-height: 2.75rem;
-    padding: var(--space-xs) var(--space-md);
-    border: 1px solid var(--color-action);
-    border-radius: 100vmax;
-    background: transparent;
-    color: var(--color-action);
-    font: inherit;
-    cursor: pointer;
-  }
-
-  .filter button:hover {
-    background: var(--color-sage-band);
-  }
-
-  .filter button[aria-pressed="true"] {
-    background: var(--color-action);
-    color: var(--color-on-action);
-  }
-
   .grid > li {
     position: relative;
   }
@@ -166,10 +146,6 @@ const viewerId = (setup: Setup) => `setup-${setup.id}`;
     border-radius: 100vmax 100vmax var(--radius) var(--radius);
     background: transparent;
     cursor: pointer;
-  }
-
-  .open-viewer[hidden] {
-    display: none;
   }
 
   .grid {

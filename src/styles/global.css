@@ -83,6 +83,32 @@ svg {
   white-space: nowrap;
 }
 
+/* A rounded button: outlined, or solid when it is the main action (.pill-solid) or pressed. */
+.pill {
+  min-height: 2.75rem;
+  padding: var(--space-xs) var(--space-md);
+  border: 1px solid var(--color-action);
+  border-radius: 100vmax;
+  background: transparent;
+  color: var(--color-action);
+  font: inherit;
+  cursor: pointer;
+}
+
+.pill:hover {
+  background: var(--color-sage-band);
+}
+
+.pill-solid,
+.pill[aria-pressed="true"] {
+  background: var(--color-action);
+  color: var(--color-on-action);
+}
+
+.pill-solid:hover {
+  background: var(--color-action-hover);
+}
+
 .skip-link {
   position: absolute;
   left: var(--space-xs);

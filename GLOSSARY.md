@@ -12,6 +12,10 @@ _Avoid_: Project, event, work, décor
 The kind of occasion a Setup was made for, such as Baby shower, Birthday or Other.
 _Avoid_: Category, occasion
 
+**Photo viewer**:
+Where a visitor sees all of one Setup's photos, opened from the Setup in the gallery.
+_Avoid_: Lightbox, modal, popup
+
 **Package**:
 A priced bundle of décor that Likha Events designs and sets up, starting at $450.
 _Avoid_: Plan, bundle, tier

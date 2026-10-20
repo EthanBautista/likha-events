@@ -89,18 +89,24 @@ test("reloading with a Setup open keeps it open, and back still closes it", asyn
   await expect(page).toHaveURL("/");
 });
 
-test("opening a Setup again straight after closing keeps it open, and back closes it", async ({ page }) => {
+test("opening another Setup straight after closing one keeps it open, and back closes it", async ({ page }) => {
+  const another = setups.find((each) => each !== setup)!;
+  // A slow phone, which takes a moment to go back.
+  await page.addInitScript(() => {
+    const back = history.back.bind(history);
+    history.back = () => setTimeout(back, 500);
+  });
   await page.goto("/");
   await page.goto("/gallery/");
   await open(page, setup);
 
-  // A quick second tap, before the browser has finished going back from the first close.
+  // A quick second tap, before the phone has finished going back from the first close.
   await viewer(page).getByRole("button", { name: "Close" }).click();
-  await card(page, setup).getByRole("button").click();
+  await card(page, another).getByRole("button").click();
 
-  await expect(viewer(page)).toBeVisible();
-  await page.waitForTimeout(300);
-  await expect(viewer(page)).toBeVisible();
+  await expect(viewer(page)).toHaveAccessibleName(another.caption);
+  await page.waitForTimeout(1_000);
+  await expect(viewer(page)).toHaveAccessibleName(another.caption);
   await page.goBack();
   await expect(viewer(page)).toBeHidden();
   await page.goBack();
@@ -155,4 +161,18 @@ test("the open viewer meets WCAG AA", async ({ page }) => {
   const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
 
   expect(results.violations).toEqual([]);
+});
+
+test.describe("without JavaScript", () => {
+  test.use({ javaScriptEnabled: false });
+
+  test("a Setup's photos still open and close", async ({ page }) => {
+    await page.goto("/gallery/");
+
+    await open(page, setup);
+    await expect(viewer(page).getByRole("img")).toHaveCount(photoCount(setup));
+
+    await viewer(page).getByRole("button", { name: "Close" }).click();
+    await expect(viewer(page)).toBeHidden();
+  });
 });

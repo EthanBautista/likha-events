@@ -5,8 +5,8 @@ import Photo from "./Photo.astro";
 interface Props {
   setup: Setup;
   /**
-   * The viewer's element id. The page gives each viewer a hidden button with `aria-controls` set to
-   * this id, which the script shows and makes open the viewer.
+   * The viewer's element id. The page opens each viewer with a button that has `commandfor` set to this
+   * id and `command="show-modal"`, which works without JavaScript.
    */
   id: string;
 }
@@ -21,7 +21,7 @@ const allPhotos = [coverPhoto, ...photos];
   <div class="bar">
     <h2 id={`${id}-caption`}>{caption}</h2>
     <form method="dialog">
-      <button type="submit" autofocus>Close</button>
+      <button type="submit" class="pill pill-solid" autofocus>Close</button>
     </form>
   </div>
   <ul class="photos" aria-label="Photos">
@@ -57,21 +57,40 @@ const allPhotos = [coverPhoto, ...photos];
     }
   };
 
+  const open = (viewer: HTMLDialogElement) => {
+    history.pushState({ setupViewer: viewer.id } satisfies ViewerEntry, "");
+    viewer.showModal();
+  };
+
+  // Going back takes a moment on a slow phone. A tap in that moment opens its viewer once the back is
+  // done, as otherwise the late back would land on the closed viewer's entry and show that one again.
+  let goingBack = false;
+  let openWhenBack: HTMLDialogElement | undefined;
+
   for (const viewer of viewers) {
-    const opener = document.querySelector<HTMLButtonElement>(`[aria-controls="${viewer.id}"]`)!;
-    opener.hidden = false;
-    opener.addEventListener("click", () => {
-      history.pushState({ setupViewer: viewer.id } satisfies ViewerEntry, "");
-      viewer.showModal();
+    const opener = document.querySelector<HTMLButtonElement>(`[commandfor="${viewer.id}"]`)!;
+    opener.addEventListener("click", (event) => {
+      // Opened here instead of by the button's command, so opening adds the history entry.
+      event.preventDefault();
+      if (goingBack) openWhenBack = viewer;
+      else open(viewer);
     });
     viewer.addEventListener("close", () => {
       // Closed with the Close button or Escape, still on its entry: go back off it, so back then leaves the page.
-      if (viewerIn(history.state) === viewer.id) history.back();
+      if (viewerIn(history.state) === viewer.id) {
+        goingBack = true;
+        history.back();
+      }
       opener.focus();
     });
   }
 
-  addEventListener("popstate", showViewerFromHistory);
+  addEventListener("popstate", () => {
+    goingBack = false;
+    showViewerFromHistory();
+    if (openWhenBack) open(openWhenBack);
+    openWhenBack = undefined;
+  });
   showViewerFromHistory();
 </script>
 
@@ -121,21 +140,6 @@ const allPhotos = [coverPhoto, ...photos];
 
   form {
     flex-shrink: 0;
-  }
-
-  button {
-    min-height: 2.75rem;
-    padding: var(--space-xs) var(--space-md);
-    border: 1px solid var(--color-action);
-    border-radius: 100vmax;
-    background: var(--color-action);
-    color: var(--color-on-action);
-    font: inherit;
-    cursor: pointer;
-  }
-
-  button:hover {
-    background: var(--color-action-hover);
   }
 
   .photos {

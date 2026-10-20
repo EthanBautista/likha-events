@@ -127,7 +127,7 @@ A four-page website for Likha Events (Home, Gallery, Packages & Rentals, Contact
   - Everything renders statically, with each Setup's photos in the page.
   - Filtering by Event type happens in the browser.
   - The filter state is reflected in the URL, so a filtered view can be shared or linked (for example, the homepage could link to baby showers only).
-  - Tapping a Setup opens an accessible lightbox showing its photos. It closes with a button, the Escape key or the back gesture.
+  - Tapping a Setup opens an accessible photo viewer showing its photos. It closes with a button, the Escape key or the back gesture.
 - **Images**:
   - Photos are served from Cloudinary in responsive sizes and modern formats, using Cloudinary URL transformations, so they load fast on phones.
   - One shared image component turns a stored photo URL into a responsive image. Sample content uses placeholder images bundled with the site, and the same component handles both.
@@ -173,7 +173,7 @@ A four-page website for Likha Events (Home, Gallery, Packages & Rentals, Contact
   - the homepage sections and featured Setups, including the fallback when fewer than three are featured,
   - the "from $X" price coming from the lowest Package,
   - the gallery filter, including the URL state and "All",
-  - the lightbox opening, showing all photos and closing, including with Escape,
+  - the photo viewer opening, showing all photos and closing, including with Escape,
   - Packages and Rentals rendering with their fields,
   - the "How booking works" steps and the travel-fee note,
   - required-field validation and the 3-photo limit on the contact form,
