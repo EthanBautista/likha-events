@@ -1,0 +1,24 @@
+---
+import type { HTMLAttributes } from "astro/types";
+import { cloudinaryUrlAtWidth, isCloudinaryUrl } from "../photos";
+
+interface Props extends Omit<HTMLAttributes<"img">, "src" | "srcset"> {
+  /** A stored photo URL: a Cloudinary URL, or a path to a placeholder bundled with the site. */
+  src: string;
+  alt: string;
+  /** How wide the photo is shown, as an `<img sizes>` value, so the browser picks the right width. */
+  sizes: string;
+}
+
+const widths = [320, 480, 640, 960, 1280, 1600];
+// For browsers that ignore srcset.
+const fallbackWidth = 960;
+
+const { src, sizes, loading = "lazy", decoding = "async", ...attrs } = Astro.props;
+// Cloudinary photos are resized and converted per screen; bundled placeholders are plain images.
+const cloudinary = isCloudinaryUrl(src);
+const imgSrc = cloudinary ? cloudinaryUrlAtWidth(src, fallbackWidth) : src;
+const srcset = cloudinary ? widths.map((width) => `${cloudinaryUrlAtWidth(src, width)} ${width}w`).join(", ") : undefined;
+---
+
+<img {...attrs} src={imgSrc} srcset={srcset} sizes={cloudinary ? sizes : undefined} loading={loading} decoding={decoding} />

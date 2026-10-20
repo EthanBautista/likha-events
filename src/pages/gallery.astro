@@ -1,19 +1,67 @@
 ---
+import SetupCard from "../components/SetupCard.astro";
 import BaseLayout from "../layouts/BaseLayout.astro";
+import { getSetupsNewestFirst } from "../setups";
+
+const setups = await getSetupsNewestFirst();
 ---
 
 <BaseLayout
   title="Gallery"
   description="Browse past Likha Events Setups for baby showers, birthdays and other events across the GTA."
 >
-  <section class="container placeholder">
-    <h1>Gallery</h1>
-    <p>Photos of past Setups are coming soon.</p>
+  <section class="container gallery">
+    <header class="intro">
+      <h1>Gallery</h1>
+      <p>Backdrops, balloon arches and dessert tables from past baby showers, birthdays and more.</p>
+      <a class="quote" href="/contact/">Get a quote</a>
+    </header>
+
+    <ul class="grid" aria-label="Setups">
+      {
+        setups.map((setup) => (
+          <li>
+            <SetupCard setup={setup} sizes="(min-width: 72rem) 22rem, (min-width: 40rem) 45vw, 90vw" />
+          </li>
+        ))
+      }
+    </ul>
   </section>
 </BaseLayout>
 
 <style>
-  .placeholder {
+  .gallery {
     padding-block: var(--space-xl) var(--space-2xl);
+  }
+
+  .intro {
+    margin-bottom: var(--space-xl);
+  }
+
+  .intro p {
+    margin: 0 0 var(--space-md);
+  }
+
+  .quote {
+    display: inline-block;
+    padding: var(--space-xs) var(--space-md);
+    border-radius: var(--radius);
+    background: var(--color-action);
+    color: var(--color-on-action);
+    text-decoration: none;
+  }
+
+  .quote:hover {
+    background: var(--color-action-hover);
+    color: var(--color-on-action);
+  }
+
+  .grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+    gap: var(--space-xl) var(--space-lg);
   }
 </style>

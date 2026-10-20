@@ -1,0 +1,66 @@
+---
+import type { Setup } from "../setups";
+import Photo from "./Photo.astro";
+
+interface Props {
+  setup: Setup;
+  /** How wide the card is shown, passed on to the cover photo. */
+  sizes: string;
+}
+
+const { setup, sizes } = Astro.props;
+const { caption, coverPhoto, sample } = setup.data;
+---
+
+<figure class="setup-card">
+  <div class="arch">
+    <Photo src={coverPhoto} alt={`${caption}, cover photo`} sizes={sizes} />
+    {sample && <span class="sample">Sample</span>}
+  </div>
+  <figcaption>{caption}</figcaption>
+</figure>
+
+<style>
+  .setup-card {
+    margin: 0;
+  }
+
+  /* The brand's arch: a portrait frame with a semicircular top. Photos are cropped by CSS only. */
+  .arch {
+    position: relative;
+    aspect-ratio: 4 / 5;
+    overflow: hidden;
+    border-radius: 100vmax 100vmax var(--radius) var(--radius);
+    background: var(--color-sage-band);
+  }
+
+  .arch img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .sample {
+    position: absolute;
+    left: 50%;
+    bottom: var(--space-sm);
+    translate: -50% 0;
+    padding: 0.125rem var(--space-xs);
+    border-radius: var(--radius);
+    background: var(--color-action);
+    color: var(--color-on-action);
+    font-size: var(--text-sm);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  figcaption {
+    margin-top: var(--space-sm);
+    font-family: var(--font-heading);
+    font-size: var(--text-lg);
+    line-height: 1.3;
+    text-align: center;
+    text-wrap: balance;
+  }
+</style>

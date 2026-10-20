@@ -14,3 +14,6 @@ playwright-report/
 
 # brand guide contains the owner's phone number (business card); keep it out of the repo
 *Brand Guidelines*.pdf
+
+# throwaway sites built by the content-gate tests
+tests/build/.tmp/

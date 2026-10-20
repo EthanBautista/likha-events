@@ -2,9 +2,9 @@ import { defineConfig, devices } from "@playwright/test";
 
 const port = 4322;
 
-// Tests run against the production build, served locally by `astro preview`.
+// Browser tests run against the production build, served locally by `astro preview`.
+// The content-gate tests run their own builds and need no browser.
 export default defineConfig({
-  testDir: "tests/e2e",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
@@ -17,8 +17,9 @@ export default defineConfig({
     actionTimeout: 5_000,
   },
   projects: [
-    { name: "desktop", use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 800 } } },
-    { name: "phone", use: { ...devices["Pixel 5"], viewport: { width: 375, height: 812 } } },
+    { name: "desktop", testDir: "tests/e2e", use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 800 } } },
+    { name: "phone", testDir: "tests/e2e", use: { ...devices["Pixel 5"], viewport: { width: 375, height: 812 } } },
+    { name: "content-gate", testDir: "tests/build" },
   ],
   webServer: {
     command: `npm run build && npm run preview -- --port ${port}`,
