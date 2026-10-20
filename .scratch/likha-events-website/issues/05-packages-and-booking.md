@@ -8,7 +8,7 @@ This ticket introduces the Package collection, with sample content. Rentals come
 
 **Blocked by:** 02 (Gallery: Setups), which provides the known-bad fixture test
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] Package collection schema:
   - required: name, price in CAD (whole dollars), what's included (list), display order,
