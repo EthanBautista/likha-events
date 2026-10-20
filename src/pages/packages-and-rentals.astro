@@ -4,30 +4,40 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import { formatPrice, getLowestPackagePrice, getPackagesInOrder } from "../packages";
 
 const packages = await getPackagesInOrder();
-const fromPrice = formatPrice(await getLowestPackagePrice());
+const lowestPrice = await getLowestPackagePrice();
 ---
 
 <BaseLayout
   title="Packages & Rentals"
-  description="See Likha Events décor Packages and the items you can rent for your event, plus how booking works."
+  description="See Likha Events décor Packages and Rentals for your event, plus how booking works."
 >
   <section class="container packages" aria-labelledby="packages-heading">
     <h1>Packages & Rentals</h1>
-    <h2 id="packages-heading">Packages from {fromPrice}</h2>
-    <p class="lead">
-      Compare what each Package includes. Planning something bigger or different?
-      <a href="/contact/">Message us for a custom quote</a>.
-    </p>
+    <h2 id="packages-heading">{lowestPrice === undefined ? "Packages" : `Packages from ${formatPrice(lowestPrice)}`}</h2>
+    {
+      packages.length > 0 ? (
+        <p class="lead">
+          Compare what each Package includes. Planning something bigger or different?
+          <a href="/contact/">Message us for a custom quote</a>.
+        </p>
+      ) : (
+        <p class="lead">
+          Tell us about your event and <a href="/contact/">message us for a custom quote</a>.
+        </p>
+      )
+    }
 
-    <ul class="grid" aria-label="Packages">
-      {
-        packages.map((pkg) => (
-          <li>
-            <PackageCard pkg={pkg} />
-          </li>
-        ))
-      }
-    </ul>
+    {
+      packages.length > 0 && (
+        <ul class="grid" aria-label="Packages">
+          {packages.map((pkg) => (
+            <li>
+              <PackageCard pkg={pkg} />
+            </li>
+          ))}
+        </ul>
+      )
+    }
   </section>
 
   <section class="booking" aria-labelledby="booking-heading">

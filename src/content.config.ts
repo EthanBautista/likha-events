@@ -33,8 +33,8 @@ const packages = defineCollection({
     price: z.number().int().positive(),
     /** What's included, one short line each. */
     included: z.array(z.string().trim().min(1)).min(1),
-    /** Where the Package appears on the page, lowest first. */
-    order: z.number(),
+    /** Where the Package appears on the page: 1 first, then 2, and so on. */
+    order: z.number().int().min(1),
     /** Placeholder content shipped before launch, marked "Sample" on the site. */
     sample: z.boolean().default(false),
   }),

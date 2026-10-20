@@ -8,10 +8,13 @@ export async function getPackagesInOrder(): Promise<Package[]> {
   return packages.toSorted((a, b) => a.data.order - b.data.order);
 }
 
-/** The cheapest Package's price, for "Packages from $X" here and on the homepage. */
-export async function getLowestPackagePrice(): Promise<number> {
+/**
+ * The cheapest Package's price, for "Packages from $X" here and on the homepage.
+ * Undefined when the owner has removed every Package, so pages can drop the "from" price.
+ */
+export async function getLowestPackagePrice(): Promise<number | undefined> {
   const packages = await getCollection("packages");
-  if (packages.length === 0) throw new Error("There are no Packages, so there is no 'from' price to show.");
+  if (packages.length === 0) return undefined;
   return Math.min(...packages.map((pkg) => pkg.data.price));
 }
 
