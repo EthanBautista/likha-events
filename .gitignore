@@ -3,6 +3,10 @@ node_modules/
 dist/
 .astro/
 
+# Playwright output
+test-results/
+playwright-report/
+
 # local machine settings and secrets
 *.local.json
 .env

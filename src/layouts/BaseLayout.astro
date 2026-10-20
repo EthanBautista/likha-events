@@ -1,0 +1,52 @@
+---
+import "@fontsource-variable/cormorant-garamond";
+import "@fontsource-variable/jost";
+import "../styles/tokens.css";
+import "../styles/global.css";
+import SiteFooter from "../components/SiteFooter.astro";
+import SiteHeader from "../components/SiteHeader.astro";
+import { siteName } from "../site-settings";
+
+interface Props {
+  /** The page's name, shown first in the browser tab: "<title> · Likha Events". */
+  title: string;
+  /** A sentence unique to this page, used for search results and link previews. */
+  description: string;
+}
+
+const { title, description } = Astro.props;
+const fullTitle = `${title} · ${siteName}`;
+const pageUrl = new URL(Astro.url.pathname, Astro.site);
+const imageUrl = new URL("/og-image.png", Astro.site);
+---
+
+<!doctype html>
+<html lang="en-CA">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={pageUrl} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={siteName} />
+    <meta property="og:locale" content="en_CA" />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={pageUrl} />
+    <meta property="og:image" content={imageUrl} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="The Likha logo and the line 'We create. You celebrate.' beside an arch with balloons." />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <SiteHeader />
+    <main id="main">
+      <slot />
+    </main>
+    <SiteFooter />
+  </body>
+</html>

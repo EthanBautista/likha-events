@@ -1,0 +1,201 @@
+---
+import Wordmark from "../assets/brand/logo-wordmark.svg";
+import { mainMenu, siteName } from "../site-settings";
+
+const normalise = (path: string) => (path.endsWith("/") ? path : `${path}/`);
+const currentPath = normalise(Astro.url.pathname);
+---
+
+<header class="site-header">
+  <div class="container bar">
+    <a class="logo" href="/" aria-label={`${siteName}, home`}>
+      <Wordmark aria-hidden="true" focusable="false" />
+    </a>
+    <!-- Hidden until the script runs, so without JavaScript the menu simply stays open. -->
+    <button class="menu-button" type="button" aria-expanded="false" aria-controls="main-menu" hidden>
+      <span class="menu-icon" aria-hidden="true"></span>
+      Menu
+    </button>
+    <nav aria-label="Main">
+      <ul class="menu" id="main-menu">
+        {
+          mainMenu.map(({ label, href }) => (
+            <li>
+              <a href={href} aria-current={currentPath === href ? "page" : undefined}>
+                {label}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<script>
+  const header = document.querySelector<HTMLElement>(".site-header")!;
+  const button = header.querySelector<HTMLButtonElement>(".menu-button")!;
+
+  const setOpen = (open: boolean) => {
+    header.dataset.menu = open ? "open" : "closed";
+    button.setAttribute("aria-expanded", String(open));
+  };
+
+  setOpen(false);
+  button.hidden = false;
+
+  button.addEventListener("click", () => setOpen(header.dataset.menu !== "open"));
+  header.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && header.dataset.menu === "open") {
+      setOpen(false);
+      button.focus();
+    }
+  });
+</script>
+
+<style>
+  .site-header {
+    border-bottom: 1px solid var(--color-line);
+  }
+
+  .bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    column-gap: var(--space-md);
+    min-height: 5rem;
+  }
+
+  .logo {
+    display: block;
+    padding-block: var(--space-sm);
+    color: var(--color-action);
+    line-height: 0;
+  }
+
+  .logo :global(svg) {
+    width: 6.5rem;
+    height: auto;
+  }
+
+  .menu {
+    display: flex;
+    gap: var(--space-lg);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .menu a {
+    display: inline-block;
+    padding-block: var(--space-xs);
+    color: var(--color-text);
+    font-size: var(--text-sm);
+    letter-spacing: 0.04em;
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+  }
+
+  .menu a:hover {
+    color: var(--color-action);
+    border-bottom-color: var(--color-sage);
+  }
+
+  .menu a[aria-current="page"] {
+    color: var(--color-action);
+    border-bottom-color: currentColor;
+  }
+
+  .menu-button {
+    display: none;
+  }
+
+  /* Below tablet width the menu collapses behind the menu button. */
+  @media (max-width: 47.99rem) {
+    .menu-button:not([hidden]) {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-xs);
+      min-height: 2.75rem;
+      padding: var(--space-xs) var(--space-sm);
+      border: 1px solid var(--color-line);
+      border-radius: var(--radius);
+      background: transparent;
+      color: var(--color-text);
+      font: inherit;
+      font-size: var(--text-sm);
+      letter-spacing: 0.04em;
+      cursor: pointer;
+    }
+
+    .menu-icon,
+    .menu-icon::before,
+    .menu-icon::after {
+      display: block;
+      width: 1.125rem;
+      height: 1px;
+      background: currentColor;
+    }
+
+    .menu-icon {
+      position: relative;
+    }
+
+    .menu-icon::before,
+    .menu-icon::after {
+      content: "";
+      position: absolute;
+      left: 0;
+    }
+
+    .menu-icon::before {
+      top: -0.3125rem;
+    }
+
+    .menu-icon::after {
+      top: 0.3125rem;
+    }
+
+    [data-menu="open"] .menu-icon {
+      background: transparent;
+    }
+
+    [data-menu="open"] .menu-icon::before {
+      top: 0;
+      transform: rotate(45deg);
+    }
+
+    [data-menu="open"] .menu-icon::after {
+      top: 0;
+      transform: rotate(-45deg);
+    }
+
+    nav {
+      flex-basis: 100%;
+    }
+
+    .menu {
+      flex-direction: column;
+      gap: 0;
+      padding-bottom: var(--space-sm);
+    }
+
+    .menu a {
+      display: block;
+      padding-block: var(--space-sm);
+      font-size: var(--text-base);
+    }
+
+    .menu a[aria-current="page"] {
+      border-bottom-color: transparent;
+      text-decoration: underline;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 0.4em;
+    }
+
+    [data-menu="closed"] .menu {
+      display: none;
+    }
+  }
+</style>

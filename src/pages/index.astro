@@ -1,0 +1,32 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Lockup from "../assets/brand/logo-lockup.svg";
+---
+
+<BaseLayout
+  title="Home"
+  description="Likha Events designs and sets up decorations and backdrops for baby showers, birthdays and more across the GTA."
+>
+  <section class="container placeholder">
+    <h1 class="visually-hidden">Likha Events</h1>
+    <Lockup class="lockup" aria-hidden="true" focusable="false" />
+    <p>Decorations and backdrops for baby showers, birthdays and more across the GTA. The full homepage is coming soon.</p>
+  </section>
+</BaseLayout>
+
+<style>
+  .placeholder {
+    padding-block: var(--space-2xl);
+    text-align: center;
+  }
+
+  .lockup {
+    width: min(20rem, 70vw);
+    height: auto;
+    color: var(--color-action);
+  }
+
+  p {
+    margin: var(--space-lg) auto 0;
+  }
+</style>

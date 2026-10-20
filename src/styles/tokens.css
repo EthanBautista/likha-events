@@ -1,0 +1,37 @@
+/*
+ * Likha brand design tokens. Colours come from the brand guide; every text pairing below
+ * meets WCAG AA (4.5:1) against the background it is used on.
+ */
+:root {
+  /* Colour */
+  --color-bg: #f8f6f1; /* off-white page background */
+  --color-text: #303838; /* charcoal body text, 11.1:1 on bg */
+  --color-text-muted: #56605c; /* secondary text, 6.0:1 on bg */
+  --color-action: #183828; /* forest green: buttons and links, 11.9:1 on bg, 10.3:1 on sage band */
+  --color-action-hover: #0f2619;
+  --color-on-action: #f8f6f1; /* text on forest green */
+  --color-sage: #788880; /* decorative sage: rules, motifs. 3.5:1 on bg, so never for text */
+  /* The spec names #788880 for bands, but charcoal text on it is only 3.3:1, so bands use this tint of it. */
+  --color-sage-band: #e2e7e2; /* soft sage band background, charcoal text 9.6:1, muted text 5.2:1 */
+  --color-line: #d6d9d3;
+
+  /* Type */
+  --font-heading: "Cormorant Garamond Variable", "Cormorant Garamond", Georgia, serif;
+  --font-body: "Jost Variable", "Jost", system-ui, sans-serif;
+  --text-sm: 0.9375rem;
+  --text-base: 1.0625rem;
+  --text-lg: 1.25rem;
+  --text-xl: clamp(1.75rem, 1.4rem + 1.5vw, 2.25rem);
+  --text-2xl: clamp(2.5rem, 1.9rem + 2.8vw, 3.75rem);
+
+  /* Space and layout */
+  --space-xs: 0.5rem;
+  --space-sm: 0.75rem;
+  --space-md: 1.25rem;
+  --space-lg: 2rem;
+  --space-xl: 3.5rem;
+  --space-2xl: 6rem;
+  --gutter: clamp(1rem, 0.5rem + 2.5vw, 2.5rem);
+  --content-width: 72rem;
+  --radius: 0.25rem;
+}
