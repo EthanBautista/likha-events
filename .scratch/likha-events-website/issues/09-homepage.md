@@ -11,15 +11,15 @@ See the spec: `.scratch/likha-events-website/spec.md`.
 
 **Blocked by:** 02 (Gallery: Setups), 05 (Packages & Rentals page: Packages and booking)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] A hero with the logo, the tagline, an arch-framed photo, and a "Get a quote" button linking to Contact
-- [ ] Up to three featured Setups, newest first. When fewer than three are featured, the newest unfeatured Setups fill the gap
-- [ ] A "See the gallery" link
-- [ ] The "Packages from $X" teaser uses the same lowest-price value as the Packages page, plus a line about Rentals linking there
-- [ ] The Service area line
-- [ ] A closing inquiry call to action, with the Instagram link
-- [ ] Playwright tests:
+- [x] A hero with the logo, the tagline, an arch-framed photo, and a "Get a quote" button linking to Contact
+- [x] Up to three featured Setups, newest first. When fewer than three are featured, the newest unfeatured Setups fill the gap
+- [x] A "See the gallery" link
+- [x] The "Packages from $X" teaser uses the same lowest-price value as the Packages page, plus a line about Rentals linking there
+- [x] The Service area line
+- [x] A closing inquiry call to action, with the Instagram link
+- [x] Playwright tests:
   - the sections render in order,
   - the featured fallback works, using a fixture with only one featured Setup,
   - "from $X" matches the cheapest Package,
