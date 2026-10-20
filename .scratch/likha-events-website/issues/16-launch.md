@@ -11,6 +11,7 @@
 - [ ] A Cloudinary account is created with likhaproductions25@gmail.com, two-factor login is turned on, the developer is added as a user, and the upload preset from ticket 11 is created
 - [ ] The repo is connected to the developer's Netlify account, and the custom domain and HTTPS work
 - [ ] Netlify OAuth is set up so the owner can log in to `/admin`
+- [ ] Form detection is turned on in the Netlify dashboard (it's off by default on new sites), and the `inquiry` form appears after the next deploy
 - [ ] Netlify Forms notifications send each Inquiry to likhaproductions25@gmail.com
 - [ ] A real test Inquiry with an inspiration photo arrives in the inbox
 - [ ] The owner publishes a test Setup from their phone and sees it live within a few minutes

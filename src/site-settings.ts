@@ -8,6 +8,9 @@ export const social = {
   facebook: "https://www.facebook.com/p/LIKHA-Events-61581441256098/",
 } as const;
 
+/** How soon the owner replies to an Inquiry, promised on the thank-you page. */
+export const inquiryReplyTime = "within 2 days";
+
 export const mainMenu = [
   { label: "Home", href: "/" },
   { label: "Gallery", href: "/gallery/" },

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { sitePages } from "./site-pages";
+import { menuPages } from "./site-pages";
 
 // On phones the menu sits behind a menu button; on wider screens it is always shown.
 async function openMenuIfCollapsed(page: Page) {
@@ -12,7 +12,7 @@ async function openMenuIfCollapsed(page: Page) {
 test("the menu reaches all four pages and marks the current one", async ({ page }) => {
   await page.goto("/");
 
-  for (const { name, path } of sitePages) {
+  for (const { name, path } of menuPages) {
     await openMenuIfCollapsed(page);
     await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name, exact: true }).click();
 

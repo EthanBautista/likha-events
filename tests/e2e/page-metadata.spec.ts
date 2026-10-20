@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
-import { sitePages } from "./site-pages";
+import { allPages } from "./site-pages";
 
-for (const { name, path } of sitePages) {
+for (const { name, path } of allPages) {
   test(`${name} has its own title, description and link-preview tags`, async ({ page }) => {
     await page.goto(path);
     const metaContent = (selector: string) => page.locator(selector).getAttribute("content");
@@ -22,9 +22,9 @@ for (const { name, path } of sitePages) {
 
 test("every page has a different description", async ({ page }) => {
   const descriptions = new Set<string | null>();
-  for (const { path } of sitePages) {
+  for (const { path } of allPages) {
     await page.goto(path);
     descriptions.add(await page.locator('meta[name="description"]').getAttribute("content"));
   }
-  expect(descriptions.size).toBe(sitePages.length);
+  expect(descriptions.size).toBe(allPages.length);
 });

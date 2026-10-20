@@ -4,14 +4,14 @@
 
 **Blocked by:** 02 (Gallery: Setups), which provides the shared Event type list
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] The form is marked for Netlify Forms detection and has a honeypot spam field
-- [ ] Required fields are enforced with clear, labelled messages. The Event type options come from the shared Event type list
-- [ ] Submitting goes to a thank-you page that says roughly when to expect a reply
-- [ ] Instagram and Facebook buttons are on the page, from site settings. There's no phone number
-- [ ] All fields have labels screen readers can use
-- [ ] Playwright tests:
+- [x] The form is marked for Netlify Forms detection and has a honeypot spam field
+- [x] Required fields are enforced with clear, labelled messages. The Event type options come from the shared Event type list
+- [x] Submitting goes to a thank-you page that says roughly when to expect a reply
+- [x] Instagram and Facebook buttons are on the page, from site settings. There's no phone number
+- [x] All fields have labels screen readers can use
+- [x] Playwright tests:
   - missing required fields block sending,
   - the Event type options match the list,
   - the Netlify attributes and the honeypot are present,
