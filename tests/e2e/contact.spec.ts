@@ -34,6 +34,28 @@ function watchPosts(page: Page) {
   return posts;
 }
 
+/**
+ * Netlify answers a form post by serving the page in the form's action. The preview server can't
+ * take posts, so stand in for Netlify: keep what was sent and serve that page.
+ */
+async function standInForNetlify(page: Page) {
+  const sent: { form?: FormData } = {};
+  await page.route("**/*", async (route) => {
+    const request = route.request();
+    if (request.method() !== "POST") return route.fallback();
+    const posted = new Request(request.url(), {
+      method: "POST",
+      headers: { "content-type": (await request.headerValue("content-type")) ?? "" },
+      body: new Uint8Array(request.postDataBuffer() ?? []),
+    });
+    sent.form = await posted.formData();
+    return route.fulfill({ response: await route.fetch({ method: "GET", postData: undefined }) });
+  });
+  return sent;
+}
+
+const photo = (name: string) => ({ name, mimeType: "image/jpeg", buffer: Buffer.from(`photo ${name}`) });
+
 test.beforeEach(async ({ page }) => {
   await page.goto("/contact/");
 });
@@ -87,15 +109,7 @@ test("an empty Inquiry is not sent", async ({ page }) => {
 });
 
 test("a complete Inquiry is sent to Netlify and lands on a thank-you page", async ({ page }) => {
-  // Netlify answers a form post by serving the page in the form's action. The preview server can't
-  // take posts, so stand in for Netlify: record what was sent and serve that page.
-  let sent: URLSearchParams | undefined;
-  await page.route("**/*", async (route) => {
-    const request = route.request();
-    if (request.method() !== "POST") return route.fallback();
-    sent = new URLSearchParams(request.postData() ?? "");
-    return route.fulfill({ response: await route.fetch({ method: "GET", postData: undefined }) });
-  });
+  const sent = await standInForNetlify(page);
   await fillIn(page, requiredFields);
 
   await page.getByRole("button", { name: "Send inquiry" }).click();
@@ -104,9 +118,89 @@ test("a complete Inquiry is sent to Netlify and lands on a thank-you page", asyn
   await expect(page).toHaveTitle("Thank you · Likha Events");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Thank you");
   await expect(page.getByRole("main")).toContainText(/reply within \d+ days?/);
-  expect(sent?.get("form-name")).toBe("inquiry");
-  expect(sent?.get("name")).toBe("Maria Santos");
-  expect(sent?.get("event-type")).toBe("Baby shower");
+  expect(sent.form?.get("form-name")).toBe("inquiry");
+  expect(sent.form?.get("name")).toBe("Maria Santos");
+  expect(sent.form?.get("event-type")).toBe("Baby shower");
+});
+
+test("the optional details are labelled, and an Inquiry without them is still sent", async ({ page }) => {
+  const sent = await standInForNetlify(page);
+  for (const label of ["Number of guests", "Theme or colours", "Décor wanted", "Inspiration photos"]) {
+    await expect(page.getByLabel(label)).toBeEmpty();
+  }
+  await fillIn(page, requiredFields);
+
+  await page.getByRole("button", { name: "Send inquiry" }).click();
+
+  await expect(page).toHaveURL("/contact/thanks/");
+  expect(sent.form?.get("guests")).toBe("");
+  expect(sent.form?.get("theme")).toBe("");
+  expect(sent.form?.get("decor")).toBe("");
+  expect(sent.form?.has("inspiration-photo-1")).toBe(false);
+});
+
+test("the optional details and each inspiration photo are sent with the Inquiry", async ({ page }) => {
+  const sent = await standInForNetlify(page);
+  await fillIn(page, requiredFields);
+  await page.getByLabel("Number of guests").fill("40");
+  await page.getByLabel("Theme or colours").fill("Sage and cream");
+  await page.getByLabel("Décor wanted").fill("Balloon arch and a backdrop");
+  await page.getByLabel("Inspiration photos").setInputFiles([photo("arch.jpg"), photo("table.jpg"), photo("cake.jpg")]);
+
+  await page.getByRole("button", { name: "Send inquiry" }).click();
+
+  await expect(page).toHaveURL("/contact/thanks/");
+  expect(sent.form?.get("guests")).toBe("40");
+  expect(sent.form?.get("theme")).toBe("Sage and cream");
+  expect(sent.form?.get("decor")).toBe("Balloon arch and a backdrop");
+  // Netlify Forms takes one file per field, so each photo goes in a field of its own.
+  const photos = ["inspiration-photo-1", "inspiration-photo-2", "inspiration-photo-3"].map(
+    (field) => sent.form?.getAll(field) as File[],
+  );
+  expect(photos.map((files) => files.map((file) => file.name))).toEqual([["arch.jpg"], ["table.jpg"], ["cake.jpg"]]);
+  expect(await photos[0][0].text()).toBe("photo arch.jpg");
+});
+
+test("the photo picker offers images only", async ({ page }) => {
+  await expect(page.getByLabel("Inspiration photos")).toHaveAttribute("accept", "image/*");
+});
+
+test("an Inquiry with a 4th photo is not sent, and says only 3 are allowed", async ({ page }) => {
+  const posts = watchPosts(page);
+  await fillIn(page, requiredFields);
+  const photos = page.getByLabel("Inspiration photos");
+
+  await photos.setInputFiles([photo("1.jpg"), photo("2.jpg"), photo("3.jpg"), photo("4.jpg")]);
+
+  const message = "Please choose up to 3 photos. You chose 4.";
+  await expect(page.getByRole("main")).toContainText(message);
+  await page.getByRole("button", { name: "Send inquiry" }).click();
+  await expect(photos).toBeFocused();
+  expect(await photos.evaluate((element: HTMLInputElement) => element.validationMessage)).toBe(message);
+  expect(posts).toEqual([]);
+
+  // Choosing 3 instead clears the message.
+  await photos.setInputFiles([photo("1.jpg"), photo("2.jpg"), photo("3.jpg")]);
+  await expect(page.getByRole("main")).not.toContainText(message);
+  expect(await photos.evaluate((element: HTMLInputElement) => element.validity.valid)).toBe(true);
+});
+
+test("an Inquiry with a file that isn't an image is not sent, and says why", async ({ page }) => {
+  const posts = watchPosts(page);
+  await fillIn(page, requiredFields);
+  const photos = page.getByLabel("Inspiration photos");
+
+  await photos.setInputFiles([
+    photo("arch.jpg"),
+    { name: "quote.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4") },
+  ]);
+
+  const message = `"quote.pdf" isn't an image. Please choose photos only.`;
+  await expect(page.getByRole("main")).toContainText(message);
+  await page.getByRole("button", { name: "Send inquiry" }).click();
+  await expect(photos).toBeFocused();
+  expect(await photos.evaluate((element: HTMLInputElement) => element.validationMessage)).toBe(message);
+  expect(posts).toEqual([]);
 });
 
 test("visitors who prefer chatting can message Likha Events on Instagram or Facebook instead", async ({ page }) => {

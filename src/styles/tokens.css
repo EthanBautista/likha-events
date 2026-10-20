@@ -14,6 +14,7 @@
   /* The spec names #788880 for bands, but charcoal text on it is only 3.3:1, so bands use this tint of it. */
   --color-sage-band: #e2e7e2; /* soft sage band background, charcoal text 9.6:1, muted text 5.2:1 */
   --color-line: #d6d9d3;
+  --color-error: #9c2b1e; /* form error messages, 7.0:1 on bg */
 
   /* Type */
   --font-heading: "Cormorant Garamond Variable", "Cormorant Garamond", Georgia, serif;
