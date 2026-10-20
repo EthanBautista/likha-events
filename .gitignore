@@ -1,0 +1,12 @@
+# dependencies and build output
+node_modules/
+dist/
+.astro/
+
+# local machine settings and secrets
+*.local.json
+.env
+.env.*
+
+# brand guide contains the owner's phone number (business card); keep it out of the repo
+*Brand Guidelines*.pdf
