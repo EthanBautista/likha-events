@@ -1,32 +1,210 @@
 ---
+import Wordmark from "../assets/brand/logo-wordmark.svg";
+import Photo from "../components/Photo.astro";
+import SetupCard from "../components/SetupCard.astro";
 import BaseLayout from "../layouts/BaseLayout.astro";
-import Lockup from "../assets/brand/logo-lockup.svg";
+import { formatPrice, getLowestPackagePrice } from "../packages";
+import { getHomepageSetups } from "../setups";
+import { social } from "../site-settings";
+
+const setups = await getHomepageSetups();
+const lowestPrice = await getLowestPackagePrice();
+// The hero shows the first homepage Setup's cover, so the owner controls it by choosing what to feature.
+const heroSetup = setups[0];
 ---
 
 <BaseLayout
   title="Home"
   description="Likha Events designs and sets up decorations and backdrops for baby showers, birthdays and more across the GTA."
 >
-  <section class="container placeholder">
-    <h1 class="visually-hidden">Likha Events</h1>
-    <Lockup class="lockup" aria-hidden="true" focusable="false" />
-    <p>Decorations and backdrops for baby showers, birthdays and more across the GTA. The full homepage is coming soon.</p>
+  <section class="container hero">
+    <div class="hero-text">
+      <h1 class="visually-hidden">Likha Events</h1>
+      <Wordmark class="wordmark" aria-hidden="true" focusable="false" />
+      <p class="tagline">We create. You celebrate.</p>
+      <a class="pill pill-solid" href="/contact/">Get a quote</a>
+    </div>
+    {
+      heroSetup && (
+        <div class="hero-arch">
+          <Photo
+            src={heroSetup.data.coverPhoto}
+            alt={heroSetup.data.caption}
+            sizes="(min-width: 56rem) 28rem, 85vw"
+            loading="eager"
+            fetchpriority="high"
+          />
+        </div>
+      )
+    }
+  </section>
+
+  <section class="container featured" aria-labelledby="featured-heading">
+    <h2 id="featured-heading">Featured Setups</h2>
+    {
+      setups.length > 0 && (
+        <ul class="grid" aria-label="Featured Setups">
+          {setups.map((setup) => (
+            <li>
+              <SetupCard setup={setup} sizes="(min-width: 72rem) 22rem, (min-width: 40rem) 30vw, 90vw" />
+            </li>
+          ))}
+        </ul>
+      )
+    }
+    <a class="pill" href="/gallery/">See the gallery</a>
+  </section>
+
+  <section class="packages" aria-labelledby="packages-heading">
+    <div class="container">
+      <h2 id="packages-heading">{lowestPrice === undefined ? "Packages" : `Packages from ${formatPrice(lowestPrice)}`}</h2>
+      <p>
+        Backdrops, balloon garlands and dessert tables, designed and set up by us. Just need a few pieces? Rentals
+        are available too.
+      </p>
+      <a href="/packages-and-rentals/">See Packages & Rentals</a>
+    </div>
+  </section>
+
+  <section class="container area" aria-label="Service area">
+    <p>Based in North York, serving the whole GTA.</p>
+  </section>
+
+  <section class="closing" aria-labelledby="closing-heading">
+    <div class="container">
+      <h2 id="closing-heading">Planning an event?</h2>
+      <p>Tell us your date and the look you're after, and we'll send you a quote.</p>
+      <div class="actions">
+        <a class="pill pill-solid" href="/contact/">Send an inquiry</a>
+        <a href={social.instagram}>Follow us on Instagram</a>
+      </div>
+    </div>
   </section>
 </BaseLayout>
 
 <style>
-  .placeholder {
-    padding-block: var(--space-2xl);
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+  }
+
+  .pill-solid:hover {
+    color: var(--color-on-action);
+  }
+
+  .hero {
+    display: grid;
+    gap: var(--space-xl);
+    align-items: center;
+    padding-block: var(--space-xl);
+  }
+
+  .hero-text {
+    display: grid;
+    justify-items: center;
     text-align: center;
   }
 
-  .lockup {
-    width: min(20rem, 70vw);
+  .wordmark {
+    width: min(18rem, 60vw);
     height: auto;
     color: var(--color-action);
   }
 
-  p {
-    margin: var(--space-lg) auto 0;
+  .tagline {
+    margin: var(--space-sm) 0 var(--space-lg);
+    font-family: var(--font-heading);
+    font-size: var(--text-xl);
+  }
+
+  /* The brand's arch: a portrait frame with a semicircular top. The photo is cropped by CSS only. */
+  .hero-arch {
+    justify-self: center;
+    width: min(28rem, 85vw);
+    aspect-ratio: 4 / 5;
+    overflow: hidden;
+    border-radius: 100vmax 100vmax var(--radius) var(--radius);
+    background: var(--color-sage-band);
+  }
+
+  .hero-arch img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .featured {
+    display: grid;
+    justify-items: center;
+    padding-block: var(--space-xl);
+  }
+
+  .featured h2 {
+    margin: 0 0 var(--space-lg);
+  }
+
+  .grid {
+    width: 100%;
+    list-style: none;
+    margin: 0 0 var(--space-lg);
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+    gap: var(--space-xl) var(--space-lg);
+  }
+
+  .packages {
+    padding-block: var(--space-xl);
+    background: var(--color-sage-band);
+    text-align: center;
+  }
+
+  .packages h2 {
+    margin: 0 0 var(--space-sm);
+  }
+
+  .packages p {
+    margin: 0 auto var(--space-md);
+  }
+
+  .area {
+    padding-block: var(--space-xl);
+    text-align: center;
+  }
+
+  .area p {
+    margin: 0 auto;
+    font-family: var(--font-heading);
+    font-size: var(--text-lg);
+  }
+
+  .closing {
+    padding-block: var(--space-xl);
+    border-top: 1px solid var(--color-line);
+    text-align: center;
+  }
+
+  .closing h2 {
+    margin: 0 0 var(--space-sm);
+  }
+
+  .closing p {
+    margin: 0 auto var(--space-lg);
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: var(--space-md) var(--space-lg);
+  }
+
+  @media (min-width: 56rem) {
+    .hero {
+      grid-template-columns: 1fr 1fr;
+    }
   }
 </style>

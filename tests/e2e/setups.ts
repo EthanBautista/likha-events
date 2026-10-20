@@ -10,19 +10,37 @@ export interface SetupFile {
   eventType: string;
   /** The photos after the cover. */
   photos?: string[];
+  featured?: boolean;
   date?: string;
   sample?: boolean;
 }
 
-export function readSetups(): SetupFile[] {
-  return readdirSync(setupsDir)
+/** The site's Setups, or those in another folder of Setup files, such as a test fixture. */
+export function readSetups(dir = setupsDir): SetupFile[] {
+  return readdirSync(dir)
     .filter((name) => name.endsWith(".json"))
-    .map((name) => JSON.parse(readFileSync(join(setupsDir, name), "utf8")) as SetupFile);
+    .map((name) => JSON.parse(readFileSync(join(dir, name), "utf8")) as SetupFile);
 }
 
-/** Captions in the order the spec says the gallery shows them: dated Setups newest first, undated ones last. */
-export function captionsNewestFirst(setups: SetupFile[]): string[] {
+/** Dated Setups newest first, undated ones last. */
+function newestFirst(setups: SetupFile[]): SetupFile[] {
   const dated = setups.filter((setup) => setup.date).sort((a, b) => b.date!.localeCompare(a.date!));
   const undated = setups.filter((setup) => !setup.date);
-  return [...dated, ...undated].map((setup) => setup.caption);
+  return [...dated, ...undated];
+}
+
+/** Captions in the order the spec says the gallery shows them. */
+export function captionsNewestFirst(setups: SetupFile[]): string[] {
+  return newestFirst(setups).map((setup) => setup.caption);
+}
+
+/**
+ * Captions of the Setups the spec says the homepage shows: up to three featured ones, newest first,
+ * topped up with the newest unfeatured ones when fewer than three are featured.
+ */
+export function homepageCaptions(setups: SetupFile[]): string[] {
+  const sorted = newestFirst(setups);
+  const featured = sorted.filter((setup) => setup.featured);
+  const unfeatured = sorted.filter((setup) => !setup.featured);
+  return [...featured, ...unfeatured].slice(0, 3).map((setup) => setup.caption);
 }

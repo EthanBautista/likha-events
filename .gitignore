@@ -17,3 +17,6 @@ playwright-report/
 
 # throwaway sites built by the content-gate tests
 tests/build/.tmp/
+
+# copies of the site built with fixture content by the fixture-site tests
+tests/fixture-sites/.tmp/
