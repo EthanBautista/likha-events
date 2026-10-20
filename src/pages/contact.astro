@@ -3,6 +3,10 @@ import SocialIcon from "../components/SocialIcon.astro";
 import { eventTypes } from "../event-types";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { social } from "../site-settings";
+
+const maxPhotos = 3;
+// Netlify Forms takes one file per field, so each photo is sent in its own field.
+const photoFields = Array.from({ length: maxPhotos }, (_, index) => `inspiration-photo-${index + 1}`);
 ---
 
 <BaseLayout
@@ -12,7 +16,10 @@ import { social } from "../site-settings";
   <section class="container contact">
     <header class="intro">
       <h1>Contact</h1>
-      <p>Tell us about your event and we'll send you a quote. We need every field below to price it.</p>
+      <p>
+        Tell us about your event and we'll send you a quote. Fields marked optional can wait if you haven't
+        decided yet.
+      </p>
     </header>
 
     <!--
@@ -24,6 +31,7 @@ import { social } from "../site-settings";
       name="inquiry"
       aria-label="Inquiry"
       method="post"
+      enctype="multipart/form-data"
       action="/contact/thanks/"
       data-netlify="true"
       netlify-honeypot="bot-field"
@@ -73,6 +81,41 @@ import { social } from "../site-settings";
         </select>
       </div>
 
+      <div class="field">
+        <label for="guests">Number of guests <span class="optional">(optional)</span></label>
+        <input id="guests" name="guests" type="number" min="1" inputmode="numeric" />
+      </div>
+
+      <div class="field">
+        <label for="theme">Theme or colours <span class="optional">(optional)</span></label>
+        <input id="theme" name="theme" />
+      </div>
+
+      <div class="field">
+        <label for="decor">Décor wanted <span class="optional">(optional)</span></label>
+        <textarea id="decor" name="decor" rows="4"></textarea>
+      </div>
+
+      <!--
+        Visitors pick all their photos in the first field. The script below sends each one in its own
+        field; the hidden fields are here so Netlify knows about them when it reads the form at build time.
+      -->
+      <div class="field">
+        <label for="photos">Inspiration photos <span class="optional">(optional)</span></label>
+        <p class="hint" id="photos-hint">Up to {maxPhotos} images of the look you're after.</p>
+        <input
+          id="photos"
+          name={photoFields[0]}
+          type="file"
+          accept="image/*"
+          multiple
+          data-max={maxPhotos}
+          aria-describedby="photos-hint photos-error"
+        />
+        <p class="error" id="photos-error" aria-live="polite"></p>
+        {photoFields.slice(1).map((name) => <input type="file" name={name} accept="image/*" hidden />)}
+      </div>
+
       <button class="send" type="submit">Send inquiry</button>
     </form>
 
@@ -109,6 +152,36 @@ import { social } from "../site-settings";
       field.addEventListener(type, () => field.setCustomValidity(""));
     }
   }
+
+  const form = document.querySelector<HTMLFormElement>(".inquiry")!;
+  const photos = document.querySelector<HTMLInputElement>("#photos")!;
+  const photosError = document.querySelector<HTMLElement>("#photos-error")!;
+  const maxPhotos = Number(photos.dataset.max);
+  const photoFields = [...form.querySelectorAll<HTMLInputElement>('input[type="file"]')].map((input) => input.name);
+
+  // Some phones leave out the type of photos such as HEIC, so fall back to the file name.
+  const isImage = (file: File) =>
+    file.type ? file.type.startsWith("image/") : /\.(jpe?g|png|gif|webp|heic|heif|avif)$/i.test(file.name);
+
+  // The picker only offers images, but a visitor can still drop in any file, so check what they chose.
+  photos.addEventListener("change", () => {
+    const chosen = [...(photos.files ?? [])];
+    const notImage = chosen.find((file) => !isImage(file));
+    let message = "";
+    if (chosen.length > maxPhotos) {
+      message = `Please choose up to ${maxPhotos} photos. You chose ${chosen.length}.`;
+    } else if (notImage) {
+      message = `"${notImage.name}" isn't an image. Please choose photos only.`;
+    }
+    photos.setCustomValidity(message);
+    photosError.textContent = message;
+  });
+
+  // Send each chosen photo in a field of its own, as Netlify Forms takes one file per field.
+  form.addEventListener("formdata", (event) => {
+    for (const name of photoFields) event.formData.delete(name);
+    [...(photos.files ?? [])].forEach((file, index) => event.formData.append(photoFields[index], file));
+  });
 </script>
 
 <style>
@@ -137,8 +210,32 @@ import { social } from "../site-settings";
     font-weight: 500;
   }
 
+  .optional {
+    color: var(--color-text-muted);
+    font-weight: 400;
+  }
+
+  .hint,
+  .error {
+    margin: 0;
+    font-size: var(--text-sm);
+  }
+
+  .hint {
+    color: var(--color-text-muted);
+  }
+
+  .error {
+    color: var(--color-error);
+  }
+
+  .error:empty {
+    display: none;
+  }
+
   input,
-  select {
+  select,
+  textarea {
     width: 100%;
     min-height: 2.75rem;
     padding: var(--space-xs) var(--space-sm);
@@ -147,6 +244,10 @@ import { social } from "../site-settings";
     background: #fff;
     color: var(--color-text);
     font: inherit;
+  }
+
+  textarea {
+    resize: vertical;
   }
 
   .send {
