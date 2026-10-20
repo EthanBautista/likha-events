@@ -15,3 +15,7 @@ The editor won't save an entry with a required field missing. Each save becomes 
 - [ ] It has collections for Setups, Packages and Rentals only. Their fields, required flags and limits (8 additional photos) mirror the content schemas, and the Event type options come from the shared list
 - [ ] Package and Rental display order can be edited
 - [ ] A test loads the editor configuration and checks, for each collection, that its fields, required flags, limits and Event type options match the content schemas
+
+## Comments
+
+- From ticket 06: display order is required for Packages and Rentals. Prefill it on new entries (for example, the next number) so the owner never has to type one.
