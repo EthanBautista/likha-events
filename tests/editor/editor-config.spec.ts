@@ -19,12 +19,30 @@ interface EditorField {
   max?: number;
   value_type?: string;
   default?: unknown;
+  media_libraries?: unknown;
+  media_library?: unknown;
+  /** A regular expression the value must match, and the message shown when it doesn't. */
+  pattern?: [string, string];
+  /** A list's item field. */
+  field?: EditorField;
+}
+
+/** The parts of the editor configuration these tests read. */
+interface EditorConfig {
+  media_folder?: string;
+  media_libraries?: {
+    default?: unknown;
+    cloudinary?: { config?: Record<string, unknown>; output_filename_only?: boolean };
+  };
+  collections: { name: string; fields: EditorField[] }[];
 }
 
 /** A schema property in JSON Schema form, which is how zod describes it. */
 interface SchemaProperty {
   type?: string;
   enum?: string[];
+  minLength?: number;
+  items?: SchemaProperty;
   minItems?: number;
   maxItems?: number;
   minimum?: number;
@@ -33,6 +51,20 @@ interface SchemaProperty {
 }
 
 const schemas = { setups: setupSchema, packages: packageSchema, rentals: rentalSchema };
+
+const cloudinaryPhoto = "https://res.cloudinary.com/likha-events/image/upload/v1760000000/cake-table.jpg";
+const samplePhoto = "/samples/placeholder-1.svg";
+/** Addresses the content schemas reject: a photo uploaded into the repo, and links to elsewhere. */
+const notPhotos = [
+  "/uploads/cake-table.jpg",
+  "https://example.com/cake-table.jpg",
+  "https://res.cloudinary.com/likha-events/video/upload/v1760000000/walkthrough.mp4",
+];
+
+/** Whether the editor accepts these values in the field, as Sveltia CMS checks a pattern: against all the values joined with commas. */
+function editorAccepts(field: EditorField, values: string[]): boolean {
+  return new RegExp(field.pattern![0]).test(values.join(","));
+}
 
 /** Which editor widgets can hold each kind of schema value. A date has no JSON Schema type. */
 const widgetsFor: Record<string, string[]> = {
@@ -43,12 +75,14 @@ const widgetsFor: Record<string, string[]> = {
   undefined: ["datetime"],
 };
 
-let collections: { name: string; fields: EditorField[] }[];
+let config: EditorConfig;
+let collections: EditorConfig["collections"];
 
 test.beforeAll(async ({ request }) => {
   const response = await request.get("/admin/config.json");
   expect(response.ok()).toBe(true);
-  collections = (await response.json()).collections;
+  config = await response.json();
+  collections = config.collections;
 });
 
 test("the editor has collections for Setups, Packages and Rentals only", () => {
@@ -61,6 +95,21 @@ test("a new Package or Rental starts after the last one in display order, so the
 
   expect(orderField("packages")?.default).toBe(readPackagesInOrder().at(-1)!.order + 1);
   expect(orderField("rentals")?.default).toBe(readRentalsInOrder().at(-1)!.order + 1);
+});
+
+test("every photo field uploads straight to Cloudinary and stores the photo's URL, never a file in the repo", () => {
+  const cloudinary = config.media_libraries?.cloudinary;
+  expect(cloudinary?.config?.cloud_name, "cloud name").toEqual(expect.any(String));
+  expect(cloudinary?.config?.api_key, "API key").toEqual(expect.any(String));
+  expect(cloudinary?.output_filename_only ?? false, "stores the full URL").toBe(false);
+  expect(config.media_libraries?.default, "upload into the repo").toBe(false);
+  expect(config.media_folder, "repo media folder").toBeUndefined();
+
+  const photoFields = collections.flatMap((collection) => collection.fields).filter((field) => field.widget === "image");
+  expect(photoFields.map((field) => field.name).toSorted()).toEqual(["coverPhoto", "photo", "photos"]);
+  for (const field of photoFields) {
+    expect(field.media_libraries ?? field.media_library, `${field.name} uses its own media library`).toBeUndefined();
+  }
 });
 
 for (const [collectionName, schema] of Object.entries(schemas)) {
@@ -99,6 +148,26 @@ for (const [collectionName, schema] of Object.entries(schemas)) {
         }
         if (property.type === "boolean") {
           expect(field.default, "default").toBe(property.default);
+        }
+        // The schema trims text before checking it isn't empty, so text that's only spaces fails the build.
+        for (const [textField, textProperty] of [[field, property], [field.field, property.items]] as const) {
+          if (!textProperty?.minLength) continue;
+          expect(textField?.pattern, "pattern").toBeDefined();
+          expect(editorAccepts(textField!, ["Gold balloon arch"]), "text").toBe(true);
+          expect(editorAccepts(textField!, ["   "]), "only spaces").toBe(false);
+        }
+        if (field.widget === "image") {
+          expect(field.pattern, "pattern").toBeDefined();
+          expect(editorAccepts(field, [cloudinaryPhoto]), cloudinaryPhoto).toBe(true);
+          expect(editorAccepts(field, [samplePhoto]), samplePhoto).toBe(true);
+          for (const notPhoto of notPhotos) expect(editorAccepts(field, [notPhoto]), notPhoto).toBe(false);
+          if (field.multiple) {
+            expect(editorAccepts(field, [cloudinaryPhoto, samplePhoto, cloudinaryPhoto]), "several photos").toBe(true);
+            for (const notPhoto of notPhotos) {
+              expect(editorAccepts(field, [cloudinaryPhoto, notPhoto]), `${notPhoto} after a photo`).toBe(false);
+              expect(editorAccepts(field, [notPhoto, samplePhoto]), `${notPhoto} before a photo`).toBe(false);
+            }
+          }
         }
       });
     }

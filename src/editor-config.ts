@@ -1,10 +1,17 @@
 import type { CmsConfig, Field } from "@sveltia/cms";
 import { eventTypes } from "./event-types";
+import { editorPhotosPattern } from "./photos";
 
 // The editor page's configuration (Sveltia CMS, ADR 0001). The owner edits Setups, Packages and
 // Rentals only, never page layout or headings. Each field mirrors the content schemas in
 // content-schemas.ts, and a test checks they match, so the editor won't save an entry the build
 // would reject. Fields are required unless `required: false`.
+
+/**
+ * The business's Cloudinary account (ADR 0003). The API key is public, used by Cloudinary's Media
+ * Library to log the owner in; the API secret never goes in the site. Set both at launch.
+ */
+const cloudinaryAccount = { cloudName: "set-at-launch", apiKey: "set-at-launch" };
 
 /** The display order a new Package or Rental starts with, so the owner never has to type one. */
 export interface NextDisplayOrders {
@@ -20,6 +27,12 @@ const sample: Field = {
   required: false,
   hint: "Marks placeholder content as \"Sample\" on the site. Turn it off once the details are real.",
 };
+
+/** Photos must come from Cloudinary, so a pasted link to anywhere else isn't saved for the build to reject. */
+const photoPattern: [string, string] = [editorPhotosPattern, "Choose photos from Cloudinary."];
+
+/** Text the build trims before checking it isn't empty, so only spaces won't do. */
+const notBlank: [string, string] = [String.raw`\S`, "Write something here, not just spaces."];
 
 const price = (hint: string): Field => ({ name: "price", label: "Price", widget: "number", value_type: "int", min: 1, hint });
 
@@ -44,9 +57,13 @@ export function editorConfig(nextOrders: NextDisplayOrders): CmsConfig {
       // Login goes through Netlify's OAuth provider, the default for the GitHub backend.
       base_url: "https://api.netlify.com",
     },
-    // Photos go to Cloudinary from ticket 11 (ADR 0002). Until then a photo is added by its URL.
-    media_folder: "public/uploads",
-    public_folder: "/uploads",
+    // Photos upload straight to Cloudinary, and a photo field stores the photo's full URL (ADR 0002).
+    // Uploading into the repo is turned off. The upload preset that shrinks each photo is set in
+    // Cloudinary itself: see docs/cloudinary-upload-preset.md.
+    media_libraries: {
+      default: false,
+      cloudinary: { config: { cloud_name: cloudinaryAccount.cloudName, api_key: cloudinaryAccount.apiKey } },
+    },
     // An empty optional field, such as a Setup's date, is left out rather than saved blank.
     output: { omit_empty_optional_fields: true },
     collections: [
@@ -62,9 +79,9 @@ export function editorConfig(nextOrders: NextDisplayOrders): CmsConfig {
         summary: "{{caption}}",
         sortable_fields: { fields: ["date", "caption"], default: { field: "date", direction: "descending" } },
         fields: [
-          { name: "caption", label: "Caption", widget: "string", hint: "One short line about the Setup." },
+          { name: "caption", label: "Caption", widget: "string", pattern: notBlank, hint: "One short line about the Setup." },
           { name: "eventType", label: "Event type", widget: "select", options: [...eventTypes] },
-          { name: "coverPhoto", label: "Cover photo", widget: "image" },
+          { name: "coverPhoto", label: "Cover photo", widget: "image", pattern: photoPattern },
           {
             name: "photos",
             label: "More photos",
@@ -72,6 +89,7 @@ export function editorConfig(nextOrders: NextDisplayOrders): CmsConfig {
             multiple: true,
             max: 8,
             required: false,
+            pattern: photoPattern,
             hint: "Up to 8, shown after the cover photo.",
           },
           {
@@ -105,14 +123,14 @@ export function editorConfig(nextOrders: NextDisplayOrders): CmsConfig {
         summary: "{{order}}. {{name}}",
         sortable_fields: { fields: ["order", "name", "price"], default: { field: "order", direction: "ascending" } },
         fields: [
-          { name: "name", label: "Name", widget: "string" },
+          { name: "name", label: "Name", widget: "string", pattern: notBlank },
           price("In Canadian dollars, whole dollars only."),
           {
             name: "included",
             label: "What's included",
             label_singular: "line",
             widget: "list",
-            field: { name: "line", label: "Line", widget: "string" },
+            field: { name: "line", label: "Line", widget: "string", pattern: notBlank },
             min: 1,
             hint: "One short line each.",
           },
@@ -132,10 +150,10 @@ export function editorConfig(nextOrders: NextDisplayOrders): CmsConfig {
         summary: "{{order}}. {{name}}",
         sortable_fields: { fields: ["order", "name", "price"], default: { field: "order", direction: "ascending" } },
         fields: [
-          { name: "name", label: "Name", widget: "string" },
-          { name: "photo", label: "Photo", widget: "image" },
+          { name: "name", label: "Name", widget: "string", pattern: notBlank },
+          { name: "photo", label: "Photo", widget: "image", pattern: photoPattern },
           price("Per event, in Canadian dollars, whole dollars only."),
-          { name: "description", label: "Description", widget: "string", hint: "One line saying what it is." },
+          { name: "description", label: "Description", widget: "string", pattern: notBlank, hint: "One line saying what it is." },
           displayOrder(nextOrders.rentals, "Rentals"),
           sample,
         ],
