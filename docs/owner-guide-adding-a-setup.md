@@ -11,7 +11,7 @@ This is how to put a new Setup on the website using just your phone. It takes ab
 
 1. Tap **Setups**, then tap **New Setup**.
 2. **Caption**: write one short line about the Setup, such as "Sage and ivory baby shower".
-3. **Event type**: pick Baby shower, Birthday or another type from the list.
+3. **Event type**: pick Baby shower, Birthday or another type from the list. If the kind of event isn't there, pick Other, or add it first (see [Adding, renaming and removing Event types](#adding-renaming-and-removing-event-types)).
 
 ## 3. Add the photos
 
@@ -32,9 +32,27 @@ Don't worry about photo size. Big photos are made smaller automatically when the
 
 The Setup appears on the website after a couple of minutes.
 
+## Adding, renaming and removing Event types
+
+The Event types are the kinds of event you can pick for a Setup, such as Baby shower or Wedding. Visitors filter the gallery by them, and the contact form lists all of them.
+
+1. In the editor, tap **Event types**, then tap **Event types** again to open the list.
+2. **To add one**: tap **Add Event type** and write its name, such as "Bridal shower".
+3. **To rename one**: change its name in the list.
+4. **To remove one**: tap the menu next to it and remove it.
+5. Tap **Save**. After a couple of minutes, reload the editor, and the new list shows in each Setup's **Event type**.
+
+Good to know:
+
+- **Other is always there.** It isn't on the list, and you can't remove or rename it. Pick it for any event that doesn't have its own type.
+- **Removing an Event type never hides a Setup.** Its Setups show under Other until you pick a new type for them.
+- **Renaming changes its gallery link.** A link to the gallery filtered by the old name, such as one you shared on Instagram, shows every Setup instead. After a rename, open each of its Setups and pick the new name.
+- **When to add a type**: once you have about 2 or 3 Setups of one kind of event under Other, such as graduations, give it its own type. That way Other doesn't fill up with events visitors would look for by name.
+- The gallery only shows an Event type once it has a Setup, so it's fine to add one before you have photos for it.
+
 ## If something goes wrong
 
-- **It won't save**: look for a message in red next to a field. A Setup needs a caption, an Event type and a cover photo. The rest is up to you.
+- **It won't save**: look for a message in red next to a field. A Setup needs a caption, an Event type and a cover photo. The rest is up to you. An Event type on the list needs a name, and it can't be "Other".
 - **"Choose photos from Cloudinary"**: add the photo with the button in step 3, rather than pasting a link to a photo somewhere else.
 - **To change or remove a Setup**: tap **Setups**, tap the Setup, then change it and tap **Save**, or delete it from the menu.
 - **Still stuck**: send Ethan a screenshot of the screen.

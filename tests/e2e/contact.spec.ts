@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { eventTypes } from "../../src/event-types";
+import { eventTypesForForms } from "./event-types";
 
 // Each required field, a valid answer, and the message a visitor sees when it is left empty.
 const requiredFields = [
@@ -72,12 +72,12 @@ test("the Inquiry form is marked for Netlify Forms, with a honeypot field", asyn
   await expect(form.locator('input[name="bot-field"]')).toBeHidden();
 });
 
-test("the Event type options are the shared Event type list", async ({ page }) => {
+test("the Event type options are every Event type, alphabetically, with Other last", async ({ page }) => {
   const eventType = page.getByLabel("Event type");
   // The first option is the prompt to choose one, so leaving it there counts as missing.
   const options = eventType.locator("option:not([value=''])");
 
-  await expect(options).toHaveText([...eventTypes]);
+  await expect(options).toHaveText(eventTypesForForms());
   await expect(eventType).toHaveValue("");
 });
 

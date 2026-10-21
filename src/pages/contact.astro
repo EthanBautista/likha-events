@@ -1,9 +1,10 @@
 ---
 import SocialIcon from "../components/SocialIcon.astro";
-import { eventTypes } from "../event-types";
+import { getEventTypes } from "../event-types-list";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { social } from "../site-settings";
 
+const eventTypes = await getEventTypes();
 const maxPhotos = 3;
 // Netlify Forms takes one file per field, so each photo is sent in its own field.
 const photoFields = Array.from({ length: maxPhotos }, (_, index) => `inspiration-photo-${index + 1}`);
@@ -105,7 +106,7 @@ const photoFields = Array.from({ length: maxPhotos }, (_, index) => `inspiration
           aria-describedby="event-type-error"
         >
           <option value="">Choose one</option>
-          {eventTypes.map((eventType) => <option>{eventType}</option>)}
+          {eventTypes.all.map((eventType) => <option>{eventType}</option>)}
         </select>
         <p class="error" id="event-type-error"></p>
       </div>

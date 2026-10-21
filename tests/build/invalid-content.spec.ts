@@ -32,6 +32,12 @@ test("a valid Setup builds", () => {
   expect(exitCode, output).toBe(0);
 });
 
+test("a Setup whose Event type isn't on the Event types list builds, since the site shows it under Other", () => {
+  const { exitCode, output } = buildWithOnly("setups", join(import.meta.dirname, "unlisted-event-type.json"));
+
+  expect(exitCode, output).toBe(0);
+});
+
 test("a valid Package builds", () => {
   const { exitCode, output } = buildWithOnly("packages", join(repoRoot, "src/content/packages/sample-classic.json"));
 

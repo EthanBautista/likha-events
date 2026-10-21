@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { z } from "astro/zod";
-import { packageSchema, rentalSchema, setupSchema } from "../../src/content-schemas";
+import { eventTypesSchema, packageSchema, rentalSchema, setupSchema } from "../../src/content-schemas";
+import { eventTypesForForms } from "../e2e/event-types";
 import { readPackagesInOrder } from "../e2e/packages";
 import { readRentalsInOrder } from "../e2e/rentals";
 
@@ -34,7 +35,7 @@ interface EditorConfig {
     default?: unknown;
     cloudinary?: { config?: Record<string, unknown>; output_filename_only?: boolean; use_transformations?: boolean };
   };
-  collections: { name: string; fields: EditorField[] }[];
+  collections: { name: string; fields?: EditorField[]; files?: { name: string; file: string; fields: EditorField[] }[] }[];
 }
 
 /** A schema property in JSON Schema form, which is how zod describes it. */
@@ -85,13 +86,52 @@ test.beforeAll(async ({ request }) => {
   collections = config.collections;
 });
 
-test("the editor has collections for Setups, Packages and Rentals only", () => {
-  expect(collections.map((collection) => collection.name).toSorted()).toEqual(["packages", "rentals", "setups"]);
+test("the editor has collections for Setups, Packages, Rentals and the Event types list only", () => {
+  expect(collections.map((collection) => collection.name).toSorted()).toEqual(["eventTypes", "packages", "rentals", "setups"]);
+});
+
+test.describe("the Event types list", () => {
+  const listField = () => {
+    const files = collections.find((collection) => collection.name === "eventTypes")?.files ?? [];
+    expect(files.map((file) => file.file)).toEqual(["src/content/event-types.json"]);
+    return files[0].fields.find((field) => field.name === "names");
+  };
+  const buildAccepts = (name: string) => eventTypesSchema.safeParse({ names: [name] }).success;
+
+  test("is the one field the build reads, a list of names", () => {
+    const files = collections.find((collection) => collection.name === "eventTypes")?.files ?? [];
+    expect(files[0]?.fields.map((field) => field.name)).toEqual(Object.keys(eventTypesSchema.shape));
+    expect(listField()?.widget).toBe("list");
+    expect(listField()?.required, "an empty list leaves only Other").toBe(false);
+    expect(listField()?.field?.widget).toBe("string");
+  });
+
+  test("takes the names the build accepts, and refuses blanks and Other", () => {
+    const nameField = listField()!.field!;
+    expect(nameField.pattern, "pattern").toBeDefined();
+    for (const name of ["Bridal shower", "Wedding", "  Graduation ", "Others", "Brother's 40th"]) {
+      expect(editorAccepts(nameField, [name]), name).toBe(true);
+      expect(buildAccepts(name), name).toBe(true);
+    }
+    for (const name of ["", "   ", "Other", "other", " OTHER ", "oThEr"]) {
+      expect(editorAccepts(nameField, [name]), JSON.stringify(name)).toBe(false);
+      expect(buildAccepts(name), JSON.stringify(name)).toBe(false);
+    }
+    expect(nameField.pattern![1]).toContain("Other is always there");
+  });
+});
+
+test("a Setup's Event type is picked from the Event types list plus Other, with none chosen to start", () => {
+  const field = collections.find((collection) => collection.name === "setups")?.fields?.find((candidate) => candidate.name === "eventType");
+  expect(field?.widget).toBe("select");
+  expect(field?.options).toEqual(eventTypesForForms());
+  expect(field?.required ?? true, "required").toBe(true);
+  expect(field?.default, "default").toBeUndefined();
 });
 
 test("a new Package or Rental starts after the last one in display order, so the owner never types one", () => {
   const orderField = (collectionName: string) =>
-    collections.find((collection) => collection.name === collectionName)?.fields.find((field) => field.name === "order");
+    collections.find((collection) => collection.name === collectionName)?.fields?.find((field) => field.name === "order");
 
   expect(orderField("packages")?.default).toBe(readPackagesInOrder().at(-1)!.order + 1);
   expect(orderField("rentals")?.default).toBe(readRentalsInOrder().at(-1)!.order + 1);
@@ -106,7 +146,7 @@ test("every photo field uploads straight to Cloudinary and stores the photo's UR
   expect(config.media_libraries?.default, "upload into the repo").toBe(false);
   expect(config.media_folder, "repo media folder").toBeUndefined();
 
-  const photoFields = collections.flatMap((collection) => collection.fields).filter((field) => field.widget === "image");
+  const photoFields = collections.flatMap((collection) => collection.fields ?? []).filter((field) => field.widget === "image");
   expect(photoFields.map((field) => field.name).toSorted()).toEqual(["coverPhoto", "photo", "photos"]);
   for (const field of photoFields) {
     expect(field.media_libraries ?? field.media_library, `${field.name} uses its own media library`).toBeUndefined();
@@ -137,6 +177,11 @@ for (const [collectionName, schema] of Object.entries(schemas)) {
           expect(field.widget).toBe("select");
           expect(field.options).toEqual(property.enum);
         }
+        // A select has nothing to type into, so it's enough that the build accepts each of its options.
+        if (field.widget === "select") {
+          const shape = schema.shape as Record<string, z.ZodType>;
+          for (const option of field.options ?? []) expect(shape[name].safeParse(option).success, option).toBe(true);
+        }
         if (property.type === "array") {
           if (field.widget === "image") expect(field.multiple, "multiple").toBe(true);
           expect(field.min ?? 0, "min items").toBe(property.minItems ?? 0);
@@ -152,7 +197,7 @@ for (const [collectionName, schema] of Object.entries(schemas)) {
         }
         // The schema trims text before checking it isn't empty, so text that's only spaces fails the build.
         for (const [textField, textProperty] of [[field, property], [field.field, property.items]] as const) {
-          if (!textProperty?.minLength) continue;
+          if (!textProperty?.minLength || textField?.widget === "select") continue;
           expect(textField?.pattern, "pattern").toBeDefined();
           expect(editorAccepts(textField!, ["Gold balloon arch"]), "text").toBe(true);
           expect(editorAccepts(textField!, ["   "]), "only spaces").toBe(false);

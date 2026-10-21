@@ -1,6 +1,6 @@
 import { defineCollection } from "astro:content";
-import { glob } from "astro/loaders";
-import { packageSchema, rentalSchema, setupSchema } from "./content-schemas";
+import { file, glob } from "astro/loaders";
+import { eventTypesSchema, packageSchema, rentalSchema, setupSchema } from "./content-schemas";
 
 // Every content file is checked against these schemas at build time, so invalid content fails
 // the build instead of going live.
@@ -20,4 +20,10 @@ const rentals = defineCollection({
   schema: rentalSchema,
 });
 
-export const collections = { setups, packages, rentals };
+// The Event types list is one file, so it's one entry.
+const eventTypes = defineCollection({
+  loader: file("src/content/event-types.json", { parser: (text) => ({ "event-types": JSON.parse(text) }) }),
+  schema: eventTypesSchema,
+});
+
+export const collections = { setups, packages, rentals, eventTypes };

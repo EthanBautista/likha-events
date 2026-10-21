@@ -9,7 +9,7 @@ One decoration job Likha Events did for a customer's event, shown in the gallery
 _Avoid_: Project, event, work, décor
 
 **Event type**:
-The kind of occasion a Setup was made for, such as Baby shower, Birthday or Other.
+The kind of occasion a Setup was made for, such as Baby shower, Birthday or Other. The owner adds, renames and removes Event types in the editor; Other is always there.
 _Avoid_: Category, occasion
 
 **Photo viewer**:

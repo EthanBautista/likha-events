@@ -1,5 +1,5 @@
 import { z } from "astro/zod";
-import { eventTypes } from "./event-types";
+import { other } from "./event-types";
 import { isPhotoUrl } from "./photos";
 
 // What each content entry must hold. The build checks every content file against these (see
@@ -9,7 +9,8 @@ const photo = z.string().refine(isPhotoUrl, "must be a Cloudinary image URL or a
 
 export const setupSchema = z.object({
   caption: z.string().trim().min(1),
-  eventType: z.enum(eventTypes),
+  /** Any name: one that isn't on the Event types list is shown as Other, so tidying the list never breaks the site. */
+  eventType: z.string().trim().min(1),
   coverPhoto: photo,
   /** Photos shown after the cover, so a Setup has at most 9 in all. */
   photos: z.array(photo).max(8).default([]),
@@ -18,6 +19,19 @@ export const setupSchema = z.object({
   date: z.coerce.date().optional(),
   /** Placeholder content shipped before launch, marked "Sample" on the site. */
   sample: z.boolean().default(false),
+});
+
+/** The owner's list of Event types. Other isn't on it, because the site always adds it. */
+export const eventTypesSchema = z.object({
+  names: z
+    .array(
+      z
+        .string()
+        .trim()
+        .min(1)
+        .refine((name) => name.toLowerCase() !== other.toLowerCase(), "Other is always there, so it isn't on the list"),
+    )
+    .default([]),
 });
 
 export const packageSchema = z.object({
