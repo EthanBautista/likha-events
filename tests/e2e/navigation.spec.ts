@@ -54,6 +54,29 @@ test.describe("on a phone", () => {
     await expect(page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Gallery" })).toBeHidden();
     await expect(menuButton).toBeFocused();
   });
+
+  // The open menu lies over the page, so it gets out of the way once the visitor moves on.
+  test("a tap outside the open menu closes it", async ({ page }) => {
+    await page.goto("/");
+    const galleryLink = page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Gallery" });
+    await page.getByRole("button", { name: "Menu" }).click();
+    await expect(galleryLink).toBeVisible();
+
+    await page.getByRole("contentinfo").click();
+
+    await expect(galleryLink).toBeHidden();
+  });
+
+  test("tabbing on past the last link closes the menu", async ({ page }) => {
+    await page.goto("/");
+    const menuButton = page.getByRole("button", { name: "Menu" });
+    await menuButton.click();
+    await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Contact" }).focus();
+
+    await page.keyboard.press("Tab");
+
+    await expect(menuButton).toHaveAttribute("aria-expanded", "false");
+  });
 });
 
 test.describe("on a desktop", () => {

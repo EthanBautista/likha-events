@@ -129,3 +129,57 @@ svg {
   transform: none;
   color: var(--color-on-action);
 }
+
+/* Links and pills ease between colours on hover, and a pill settles back slightly as it is pressed. */
+@media (prefers-reduced-motion: no-preference) {
+  a {
+    transition: color var(--duration-exit) ease-out;
+  }
+
+  .pill {
+    transition:
+      color var(--duration-exit) ease-out,
+      background-color var(--duration-exit) ease-out,
+      scale var(--duration-press) ease-out;
+  }
+
+  .pill:active {
+    scale: 0.98;
+  }
+}
+
+/* A link with no underline until hovered or focused, when a thin line draws out from the centre beneath it.
+   The current page's link keeps its line. Used by the menu and the footer. */
+.link-line {
+  position: relative;
+  text-decoration: none;
+}
+
+.link-line::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0.375rem;
+  height: 1px;
+  background: currentColor;
+  scale: 0 1;
+}
+
+.link-line:focus-visible::after,
+.link-line[aria-current="page"]::after {
+  scale: 1;
+}
+
+/* Only where there is a real hover, so the line doesn't stay drawn after a tap. */
+@media (hover: hover) {
+  .link-line:hover::after {
+    scale: 1;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .link-line::after {
+    transition: scale var(--duration-open) var(--ease-settle);
+  }
+}

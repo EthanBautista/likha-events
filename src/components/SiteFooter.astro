@@ -14,13 +14,13 @@ const year = new Date().getFullYear();
     </div>
     <ul class="social" aria-label="Follow Likha Events">
       <li>
-        <a href={social.instagram}>
+        <a class="link-line" href={social.instagram}>
           <SocialIcon network="instagram" />
           Instagram
         </a>
       </li>
       <li>
-        <a href={social.facebook}>
+        <a class="link-line" href={social.facebook}>
           <SocialIcon network="facebook" />
           Facebook
         </a>
@@ -68,11 +68,6 @@ const year = new Date().getFullYear();
     align-items: center;
     gap: var(--space-xs);
     min-height: 2.75rem;
-    text-decoration: none;
-  }
-
-  .social a:hover {
-    text-decoration: underline;
   }
 
   .copyright {
@@ -87,7 +82,8 @@ const year = new Date().getFullYear();
   @media (min-width: 48rem) {
     .inner {
       grid-template-columns: 1fr auto;
-      align-items: end;
+      /* The links sit on the tagline's baseline. */
+      align-items: last baseline;
     }
 
     .copyright {

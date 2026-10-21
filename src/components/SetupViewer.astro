@@ -140,15 +140,15 @@ const allPhotos = [coverPhoto, ...photos];
     .setup-viewer,
     .setup-viewer::backdrop {
       transition:
-        opacity 200ms ease-in,
-        translate 200ms ease-in,
-        display 200ms allow-discrete,
-        overlay 200ms allow-discrete;
+        opacity var(--duration-exit) ease-in,
+        translate var(--duration-exit) ease-in,
+        display var(--duration-exit) allow-discrete,
+        overlay var(--duration-exit) allow-discrete;
     }
 
     .setup-viewer[open],
     .setup-viewer[open]::backdrop {
-      transition-duration: 380ms;
+      transition-duration: var(--duration-open);
       transition-timing-function: var(--ease-settle);
     }
 

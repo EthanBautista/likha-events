@@ -82,6 +82,17 @@ const heroSetup = setups[0];
   </section>
 </BaseLayout>
 
+<script>
+  import { revealOnScroll, rise, riseWithPhoto } from "../motion";
+
+  // Below the hero, each section rises softly into view the first time it is scrolled to, and the featured
+  // Setups arrive like the Gallery's cards, their photos settling into the arch.
+  const main = document.querySelector("main")!;
+  const elements = (selector: string) => [...main.querySelectorAll<HTMLElement>(selector)];
+  revealOnScroll(elements(".featured li"), riseWithPhoto);
+  revealOnScroll(elements(".featured > .pill, .packages > .container, .area p, .closing > .container"), rise);
+</script>
+
 <style>
   .hero {
     display: grid;
@@ -168,10 +179,12 @@ const heroSetup = setups[0];
     margin: 0 auto;
     font-family: var(--font-heading);
     font-size: var(--text-lg);
+    text-wrap: balance;
   }
 
+  /* The footer's own margin is the gap below, so the page ends on the usual 2xl. */
   .closing {
-    padding-block: var(--space-xl);
+    padding-block: var(--space-xl) 0;
     border-top: 1px solid var(--color-line);
     text-align: center;
   }
@@ -195,6 +208,41 @@ const heroSetup = setups[0];
   @media (min-width: 56rem) {
     .hero {
       grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  /* The hero arrives on load: the wordmark, tagline and "Get a quote" rise in one after another, while the
+     arch rises beside them and its photo settles into the frame. It is CSS only, so it never waits on a script. */
+  @media (prefers-reduced-motion: no-preference) {
+    .hero-text > :not(h1),
+    .hero-arch {
+      animation: hero-rise var(--duration-rise) var(--ease-settle) backwards;
+    }
+
+    .hero-text > .tagline,
+    .hero-arch {
+      animation-delay: var(--stagger);
+    }
+
+    .hero-text > .pill {
+      animation-delay: calc(2 * var(--stagger));
+    }
+
+    .hero-arch img {
+      animation: hero-settle var(--duration-settle) var(--ease-settle) var(--stagger) backwards;
+    }
+  }
+
+  @keyframes hero-rise {
+    from {
+      opacity: 0;
+      transform: translateY(1.5rem);
+    }
+  }
+
+  @keyframes hero-settle {
+    from {
+      transform: scale(1.06);
     }
   }
 </style>

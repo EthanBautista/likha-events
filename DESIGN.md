@@ -127,7 +127,7 @@ The site avoids the party-store look: no bright primaries, confetti, bubbly disp
 - A serif for headings, captions and prices, a sans for everything else.
 - Flat surfaces. Depth comes from tone (paper vs. sage band) and hairlines, never shadows.
 - Pill-shaped buttons and filter chips that echo the arch's curve.
-- Slow, restrained motion in transform and opacity only, settling on `cubic-bezier(0.16, 1, 0.3, 1)` and switched off under "reduce motion". The Gallery and Photo viewer have it so far; the homepage, header, Packages and Contact follow in tickets 14 and 15.
+- Slow, restrained motion in transform and opacity only, settling on `cubic-bezier(0.16, 1, 0.3, 1)` and switched off under "reduce motion". The Gallery, Photo viewer, homepage, header and footer have it so far; Packages and Contact follow in ticket 15.
 
 ## Colors
 
@@ -236,9 +236,10 @@ Soft and assured: pill-shaped, at least 44px tall, in the sans at body size.
 - **Error:** a brick message in Label size below the field. Required fields use native browser validation, and the 3-photo limit has its own message.
 
 ### Navigation
-- **Desktop (48rem and up):** the forest "Likha" wordmark on the left, then Home · Gallery · Packages & Rentals · Contact as Label-size links with 0.04em tracking, in charcoal. Hover turns forest with a sage underline. The current page is forest with a forest underline. A hairline runs under the header. The links are about 40px tall, which is under the 44px target.
-- **Phone:** the menu collapses behind a "Menu" button (hairline border, `--radius` corners, three-line icon that turns into an ×), opening into a full-width stacked list at body size. The current page is underlined.
-- **Footer:** a `sage-band` band with the wordmark, the serif tagline and the Instagram and Facebook links with line icons. Below them a hairline, then the copyright.
+- **Desktop (48rem and up):** the forest "Likha" wordmark on the left, then Home · Gallery · Packages & Rentals · Contact as Label-size links with 0.04em tracking, in charcoal. Hover turns forest with a sage underline. The current page is forest with a forest underline. A hairline runs under the header. The links are 44px tall.
+- **Phone:** the menu collapses behind a "Menu" button (hairline border, `--radius` corners, three-line icon that turns into an ×, `sage-band` fill on hover or press). It opens as a full-width paper panel lying over the page under the header, closed by the button, Escape, a tap outside or tabbing on past it, with the links stacked at body size. The current page is underlined. Without JavaScript the menu stays open in the header instead.
+- **Footer:** a `sage-band` band with the wordmark, the serif tagline and the Instagram and Facebook links with line icons, sitting on the tagline's baseline. Hover draws a forest underline. Below them a hairline, then the copyright.
+- **Underlines:** menu and footer links use the global `.link-line` class: no text underline, but a 1px line that draws out from the centre on hover (on devices that can hover) or keyboard focus, and stays under the current page.
 
 ### Photo viewer
 A native `<dialog>` up to 60rem wide on paper over the charcoal backdrop. A sticky bar holds the Setup's caption (Title) and a round Close button: a 44px forest-outlined circle with a thin line ×, filling `sage-band` on hover, named "Close" for screen readers. Below it, the Setup's photos are stacked and centred, uncropped, with `--radius` corners, each no taller than the screen below the bar. The page behind doesn't scroll or shift while the viewer is open.
@@ -251,10 +252,14 @@ A numbered list on a `sage-band` band. Each step has a 2.5rem forest circle with
 
 ## Motion
 
-Motion is the atelier hanging its work: slow, quiet, and only ever moving the frames, never the page around them. It uses transform and opacity only, eases out on the `--ease-settle` token (`cubic-bezier(0.16, 1, 0.3, 1)`), and under "reduce motion" nothing moves at all.
+Motion is the atelier hanging its work: slow, quiet, and only ever moving the frames, never the page around them. It moves things with transform and opacity only, eases out on the `--ease-settle` token (`cubic-bezier(0.16, 1, 0.3, 1)`), and under "reduce motion" nothing moves at all. The one exception to "transform and opacity" is a hover colour change on a link, pill or the Menu button, which eases over `--duration-exit` rather than snapping. Under "reduce motion" even that is instant.
 
-- **Setup cards (Gallery):** the first time a card scrolls into view it rises 1.5rem and fades in over 800ms, while its photo settles from 1.06 to full size inside the arch over 1.4s. Cards arriving together are staggered 90ms apart, capped at four steps. Cards stay visible by default, so the Gallery never depends on the script to be seen.
-- **Hover and press:** on hover or keyboard focus the photo eases to 1.04 inside the arch over 900ms. A press settles the card to 0.98.
+The durations are tokens in `tokens.css`: `--duration-press` (150ms), `--duration-exit` (200ms), `--duration-open` (380ms), `--duration-rise` (800ms), `--duration-linger` (900ms), `--duration-settle` (1.4s) and `--stagger` (90ms). Scroll reveals come from `src/motion.ts`, which reads the same tokens.
+
+- **Homepage hero:** on load the wordmark, tagline and "Get a quote" rise 1.5rem and fade in over 800ms, one stagger apart, while the arch rises beside them and its photo settles from 1.06. It is CSS only.
+- **Scroll reveals:** the first time it scrolls into view, content rises 1.5rem and fades in over 800ms: the homepage's "See the gallery", Packages teaser, Service area line and closing call to action. Setup cards (Gallery and homepage) do the same while their photo settles from 1.06 to full size inside the arch over 1.4s. Things arriving together are staggered 90ms apart, capped at four steps. Content stays visible by default, so no page depends on the script to be seen.
+- **Hover and press:** on hover or keyboard focus a Gallery card's photo eases to 1.04 inside the arch over 900ms, and a press settles the card to 0.98. Pills settle to 0.98 on press too. Links and pills ease between colours over 200ms. Menu and footer links draw a 1px line out from the centre on hover or keyboard focus.
+- **Phone menu:** the panel slides down 0.75rem and fades in over 380ms, and lifts away faster (200ms). The menu icon's three lines fold into an × at the same pace.
 - **Event type filter:** a View Transition. Cards that stay glide to their new places, leaving cards fade out in 200ms, and arriving cards fade and rise 1rem. The rest of the page swaps without a cross-fade.
 - **Photo viewer:** opens by rising 1.5rem and fading in over 380ms with the backdrop, and closes faster (200ms) by dropping 1rem. Photos still loading fade in once ready.
 
@@ -267,7 +272,7 @@ Motion is the atelier hanging its work: slow, quiet, and only ever moving the fr
 - **Do** separate sections with paper and sage bands and 1px hairlines.
 - **Do** let the photos carry the colour. The frame around them stays paper, ink and green.
 - **Do** keep touch targets at least 44px tall and every page free of sideways scrolling at 375px.
-- **Do** write any motion (tickets 13 to 15) with transform and opacity only, slow and restrained, and turn it all off under `prefers-reduced-motion`.
+- **Do** write any motion with transform and opacity only (hover colour fades aside), on the motion tokens, slow and restrained, and turn it all off under `prefers-reduced-motion`.
 
 ### Don't:
 - **Don't** use `sage` for text, or put text on a full-strength sage background.

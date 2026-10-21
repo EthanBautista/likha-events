@@ -48,5 +48,9 @@ const imageUrl = new URL("/og-image.png", Astro.site);
       <slot />
     </main>
     <SiteFooter />
+    <script>
+      // iPhones only show a pressed state (:active) when a touch listener is present.
+      document.addEventListener("touchstart", () => {}, { passive: true });
+    </script>
   </body>
 </html>

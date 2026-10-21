@@ -53,52 +53,12 @@ const viewerId = (setup: Setup) => `setup-${setup.id}`;
 
 <script>
   import { eventTypes, eventTypeSlug, type EventType } from "../event-types";
+  import { reduceMotion, revealOnScroll, riseWithPhoto } from "../motion";
 
   const filter = document.querySelector<HTMLElement>(".filter")!;
   const buttons = [...filter.querySelectorAll<HTMLButtonElement>("button")];
   const setups = [...document.querySelectorAll<HTMLElement>(".grid > li")];
   const status = document.querySelector<HTMLElement>(".filter-status")!;
-  // Read when each motion starts, so turning "reduce motion" on takes effect without a reload.
-  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
-  const settle = getComputedStyle(document.documentElement).getPropertyValue("--ease-settle");
-
-  // Each card rises into place once, the first time it scrolls into view, while its photo settles into
-  // the arch. Cards are shown by default and only start hidden once their animation runs, so the
-  // Gallery never depends on this script to be seen.
-  const reveal = (setup: HTMLElement, delay: number) => {
-    if (reduceMotion.matches) return;
-    const timing = { delay, easing: settle, fill: "backwards" } as const;
-    setup.animate({ opacity: [0, 1], transform: ["translateY(1.5rem)", "none"] }, { ...timing, duration: 800 });
-    setup.querySelector("img")?.animate({ transform: ["scale(1.06)", "none"] }, { ...timing, duration: 1400 });
-  };
-  // Cards arriving together are staggered, up to a short cap so a long row never keeps anyone waiting.
-  const revealTogether = (arriving: HTMLElement[]) =>
-    arriving.forEach((setup, index) => reveal(setup, Math.min(index, 4) * 90));
-
-  const arrivals = new IntersectionObserver(
-    (entries) => {
-      const arriving = entries.filter((entry) => entry.isIntersecting).map((entry) => entry.target as HTMLElement);
-      for (const setup of arriving) arrivals.unobserve(setup);
-      revealTogether(arriving);
-    },
-    // Starts just before a card scrolls on screen, so it is already held back when it appears.
-    { rootMargin: "0px 0px 10% 0px" },
-  );
-
-  // iPhones only show a card's pressed state (:active) when a touch listener is present.
-  document.querySelector(".grid")!.addEventListener("touchstart", () => {}, { passive: true });
-
-  const startRevealing = () => {
-    if (reduceMotion.matches) return;
-    // Cards already on screen start straight away, before the first observer callback, so they don't
-    // flash in fully shown first.
-    const onScreen = setups.filter((setup) => {
-      const { top, bottom } = setup.getBoundingClientRect();
-      return !setup.hidden && top < innerHeight && bottom > 0;
-    });
-    revealTogether(onScreen);
-    for (const setup of setups) if (!onScreen.includes(setup)) arrivals.observe(setup);
-  };
 
   // An undefined Event type means "All".
   const show = (eventType: EventType | undefined) => {
@@ -120,7 +80,7 @@ const viewerId = (setup: Setup) => `setup-${setup.id}`;
     }
     // From here the transition introduces the cards, so none waits to rise in on scroll. The names stay
     // set afterwards, ready for the next change.
-    arrivals.disconnect();
+    arrivals.stop();
     setups.forEach((setup, index) => (setup.style.viewTransitionName = `setup-${index}`));
     document.startViewTransition(() => {
       show(eventType);
@@ -151,7 +111,8 @@ const viewerId = (setup: Setup) => `setup-${setup.id}`;
 
   filter.hidden = false;
   show(fromUrl());
-  startRevealing();
+  // Each card rises into place once, the first time it scrolls into view, while its photo settles into the arch.
+  const arrivals = revealOnScroll(setups, riseWithPhoto);
   for (const button of buttons) {
     button.addEventListener("click", () => choose(eventTypeNamed(button.dataset.eventType)));
   }
@@ -208,11 +169,11 @@ const viewerId = (setup: Setup) => `setup-${setup.id}`;
      press by settling back slightly. */
   @media (prefers-reduced-motion: no-preference) {
     .grid :global(.setup-card) {
-      transition: scale 150ms ease-out;
+      transition: scale var(--duration-press) ease-out;
     }
 
     .grid :global(.arch img) {
-      transition: scale 900ms var(--ease-settle);
+      transition: scale var(--duration-linger) var(--ease-settle);
     }
 
     .grid > li:has(.open-viewer:focus-visible) :global(.arch img) {
@@ -248,7 +209,7 @@ const viewerId = (setup: Setup) => `setup-${setup.id}`;
 
   /* A card leaving fades quickly; a card arriving fades and rises once the others have begun to move. */
   ::view-transition-old(*):only-child {
-    animation: setup-leave 200ms ease-in both;
+    animation: setup-leave var(--duration-exit) ease-in both;
   }
 
   ::view-transition-new(*):only-child {

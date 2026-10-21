@@ -21,7 +21,7 @@ const currentPath = normalise(Astro.url.pathname);
         {
           mainMenu.map(({ label, href }) => (
             <li>
-              <a href={href} aria-current={currentPath === href ? "page" : undefined}>
+              <a class="link-line" href={href} aria-current={currentPath === href ? "page" : undefined}>
                 {label}
               </a>
             </li>
@@ -43,18 +43,31 @@ const currentPath = normalise(Astro.url.pathname);
 
   setOpen(false);
   button.hidden = false;
+  // The menu's opening and closing motion starts only once its closed state is in place, so it doesn't play
+  // as the menu tucks away on load. Reading a computed style makes the browser apply that state first.
+  getComputedStyle(header.querySelector("nav")!).display;
+  header.dataset.menuReady = "";
 
   button.addEventListener("click", () => setOpen(header.dataset.menu !== "open"));
-  header.addEventListener("keydown", (event) => {
+  document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && header.dataset.menu === "open") {
       setOpen(false);
       button.focus();
     }
   });
+  // The open menu lies over the page, so a tap anywhere else, or tabbing on past it, puts it away.
+  document.addEventListener("click", (event) => {
+    if (header.dataset.menu === "open" && !header.contains(event.target as Node)) setOpen(false);
+  });
+  header.addEventListener("focusout", (event) => {
+    const next = event.relatedTarget as Node | null;
+    if (header.dataset.menu === "open" && next && !header.contains(next)) setOpen(false);
+  });
 </script>
 
 <style>
   .site-header {
+    position: relative;
     border-bottom: 1px solid var(--color-line);
   }
 
@@ -74,6 +87,10 @@ const currentPath = normalise(Astro.url.pathname);
     line-height: 0;
   }
 
+  .logo:hover {
+    color: var(--color-action-hover);
+  }
+
   .logo :global(svg) {
     width: 6.5rem;
     height: auto;
@@ -88,23 +105,30 @@ const currentPath = normalise(Astro.url.pathname);
   }
 
   .menu a {
-    display: inline-block;
-    padding-block: var(--space-xs);
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
     color: var(--color-text);
     font-size: var(--text-sm);
     letter-spacing: 0.04em;
-    text-decoration: none;
-    border-bottom: 1px solid transparent;
   }
 
-  .menu a:hover {
-    color: var(--color-action);
-    border-bottom-color: var(--color-sage);
+  /* The hover line is sage; the current page's is forest. */
+  .menu a::after {
+    background: var(--color-sage);
   }
 
+  .menu a:hover,
   .menu a[aria-current="page"] {
     color: var(--color-action);
-    border-bottom-color: currentColor;
+  }
+
+  .menu a:active {
+    color: var(--color-action-hover);
+  }
+
+  .menu a[aria-current="page"]::after {
+    background: currentColor;
   }
 
   .menu-button {
@@ -129,6 +153,17 @@ const currentPath = normalise(Astro.url.pathname);
       cursor: pointer;
     }
 
+    .menu-button:active {
+      background: var(--color-sage-band);
+    }
+
+    @media (hover: hover) {
+      .menu-button:hover {
+        background: var(--color-sage-band);
+      }
+    }
+
+    /* The three lines fold into an × as the menu opens. */
     .menu-icon,
     .menu-icon::before,
     .menu-icon::after {
@@ -150,11 +185,11 @@ const currentPath = normalise(Astro.url.pathname);
     }
 
     .menu-icon::before {
-      top: -0.3125rem;
+      translate: 0 -0.3125rem;
     }
 
     .menu-icon::after {
-      top: 0.3125rem;
+      translate: 0 0.3125rem;
     }
 
     [data-menu="open"] .menu-icon {
@@ -162,40 +197,85 @@ const currentPath = normalise(Astro.url.pathname);
     }
 
     [data-menu="open"] .menu-icon::before {
-      top: 0;
-      transform: rotate(45deg);
+      translate: 0;
+      rotate: 45deg;
     }
 
     [data-menu="open"] .menu-icon::after {
-      top: 0;
-      transform: rotate(-45deg);
+      translate: 0;
+      rotate: -45deg;
     }
 
+    /* Without the script the menu stays open, on a line of its own under the logo. */
     nav {
       flex-basis: 100%;
+    }
+
+    /* With it, the menu opens as a panel lying over the page just under the header, so nothing below shifts. */
+    [data-menu] nav {
+      position: absolute;
+      z-index: 5;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: var(--color-bg);
+      border-bottom: 1px solid var(--color-line);
     }
 
     .menu {
       flex-direction: column;
       gap: 0;
-      padding-bottom: var(--space-sm);
+      padding: var(--space-xs) var(--gutter) var(--space-md);
     }
 
     .menu a {
-      display: block;
-      padding-block: var(--space-sm);
+      display: flex;
+      width: fit-content;
+      min-height: 3rem;
       font-size: var(--text-base);
     }
 
-    .menu a[aria-current="page"] {
-      border-bottom-color: transparent;
-      text-decoration: underline;
-      text-decoration-thickness: 1px;
-      text-underline-offset: 0.4em;
+    .menu a::after {
+      bottom: 0.5rem;
     }
 
-    [data-menu="closed"] .menu {
+    [data-menu="closed"] nav {
       display: none;
+    }
+  }
+
+  /* The panel slides down a little as it fades in, and lifts away a little faster as it closes. */
+  @media (max-width: 47.99rem) and (prefers-reduced-motion: no-preference) {
+    [data-menu-ready] nav {
+      transition:
+        opacity var(--duration-open) var(--ease-settle),
+        translate var(--duration-open) var(--ease-settle),
+        display var(--duration-open) allow-discrete;
+    }
+
+    [data-menu-ready][data-menu="closed"] nav {
+      opacity: 0;
+      translate: 0 -0.75rem;
+      transition-duration: var(--duration-exit);
+      transition-timing-function: ease-in;
+    }
+
+    @starting-style {
+      [data-menu="open"] nav {
+        opacity: 0;
+        translate: 0 -0.75rem;
+      }
+    }
+
+    .menu-button {
+      transition: background-color var(--duration-exit) ease-out;
+    }
+
+    .menu-icon::before,
+    .menu-icon::after {
+      transition:
+        translate var(--duration-open) var(--ease-settle),
+        rotate var(--duration-open) var(--ease-settle);
     }
   }
 </style>
