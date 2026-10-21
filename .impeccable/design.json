@@ -1,0 +1,136 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-20T00:00:00Z",
+  "title": "Design System: Likha Events",
+  "extensions": {
+    "colorMeta": {
+      "bg": { "role": "neutral", "displayName": "Paper", "canonical": "#f8f6f1", "tonalRamp": ["#0c0b08", "#252420", "#41403c", "#5f5d59", "#82807c", "#a3a19d", "#c9c7c2", "#f0eee9"] },
+      "text": { "role": "neutral", "displayName": "Charcoal Ink", "canonical": "#303838", "tonalRamp": ["#060d0d", "#1e2626", "#394242", "#576060", "#798282", "#9aa4a4", "#c0caca", "#e7f1f1"] },
+      "text-muted": { "role": "neutral", "displayName": "Slate", "canonical": "#56605c", "tonalRamp": ["#060d0a", "#1e2623", "#39423e", "#56605c", "#78837f", "#99a4a0", "#bfcac6", "#e6f2ed"] },
+      "action": { "role": "primary", "displayName": "Forest", "canonical": "#183828", "tonalRamp": ["#001105", "#0a2b1c", "#284837", "#456654", "#678976", "#88ab97", "#add1bd", "#d4f9e4"] },
+      "action-hover": { "role": "primary", "displayName": "Deep Forest", "canonical": "#0f2619", "tonalRamp": ["#001005", "#132a1c", "#2e4638", "#4c6455", "#6e8877", "#8ea998", "#b4cfbd", "#daf7e4"] },
+      "on-action": { "role": "primary", "displayName": "Paper on Forest", "canonical": "#f8f6f1", "tonalRamp": ["#0c0b08", "#252420", "#41403c", "#5f5d59", "#82807c", "#a3a19d", "#c9c7c2", "#f0eee9"] },
+      "sage": { "role": "secondary", "displayName": "Sage", "canonical": "#788880", "tonalRamp": ["#030e09", "#1a2821", "#35443d", "#53625a", "#75857d", "#96a69e", "#bbccc3", "#e2f3eb"] },
+      "sage-band": { "role": "secondary", "displayName": "Sage Mist", "canonical": "#e2e7e2", "tonalRamp": ["#090c09", "#212522", "#3d413d", "#5b5f5b", "#7d827d", "#9ea39e", "#c4c9c4", "#ebf0eb"] },
+      "line": { "role": "neutral", "displayName": "Hairline", "canonical": "#d6d9d3", "tonalRamp": ["#0a0c08", "#232520", "#3e413c", "#5c5f59", "#7f817c", "#a0a39d", "#c5c8c2", "#edf0ea"] },
+      "error": { "role": "error", "displayName": "Brick", "canonical": "#9c2b1e", "tonalRamp": ["#2d0000", "#4f0000", "#721d13", "#953e32", "#bd6254", "#e28374", "#ffa998", "#ffd0be"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Page h1s and the large Package price." },
+      "headline": { "displayName": "Headline", "purpose": "Section h2s, the homepage tagline and Package names." },
+      "title": { "displayName": "Title", "purpose": "Rental names, booking step titles, the viewer heading; Setup captions at line-height 1.3." },
+      "body": { "displayName": "Body", "purpose": "All running text, at most 65ch per line." },
+      "label": { "displayName": "Label", "purpose": "Hints, errors and copyright; menu links add 0.04em tracking; the sample tag is uppercase with 0.08em." }
+    },
+    "shadows": [],
+    "motion": [],
+    "breakpoints": [
+      { "name": "menu", "value": "48rem" },
+      { "name": "split", "value": "56rem" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Solid forest pill for the main action in each place.",
+      "html": "<a class=\"ds-pill ds-pill-solid\" href=\"#\">Get a quote</a>",
+      "css": ".ds-pill { display: inline-flex; align-items: center; min-height: 2.75rem; padding: var(--space-xs) var(--space-md); border: 1px solid var(--color-action); border-radius: 100vmax; background: transparent; color: var(--color-action); font-family: var(--font-body); font-size: var(--text-base); text-decoration: none; cursor: pointer; } .ds-pill-solid { background: var(--color-action); color: var(--color-on-action); } .ds-pill-solid:hover { background: var(--color-action-hover); color: var(--color-on-action); } .ds-pill:focus-visible { outline: 2px solid var(--color-action); outline-offset: 3px; }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Outline forest pill for a secondary action, such as See the gallery.",
+      "html": "<a class=\"ds-pill-outline\" href=\"#\">See the gallery</a>",
+      "css": ".ds-pill-outline { display: inline-flex; align-items: center; min-height: 2.75rem; padding: var(--space-xs) var(--space-md); border: 1px solid var(--color-action); border-radius: 100vmax; background: transparent; color: var(--color-action); font-family: var(--font-body); font-size: var(--text-base); text-decoration: none; } .ds-pill-outline:hover { background: var(--color-sage-band); } .ds-pill-outline:focus-visible { outline: 2px solid var(--color-action); outline-offset: 3px; }"
+    },
+    {
+      "name": "Event type filter",
+      "kind": "chip",
+      "refersTo": "filter-chip",
+      "description": "Outline pills; the selected Event type is solid forest.",
+      "html": "<div class=\"ds-filter\"><button class=\"ds-chip\" aria-pressed=\"true\">All</button><button class=\"ds-chip\" aria-pressed=\"false\">Baby shower</button><button class=\"ds-chip\" aria-pressed=\"false\">Birthday</button><button class=\"ds-chip\" aria-pressed=\"false\">Other</button></div>",
+      "css": ".ds-filter { display: flex; flex-wrap: wrap; gap: var(--space-xs); } .ds-chip { min-height: 2.75rem; padding: var(--space-xs) var(--space-md); border: 1px solid var(--color-action); border-radius: 100vmax; background: transparent; color: var(--color-action); font-family: var(--font-body); font-size: var(--text-base); cursor: pointer; } .ds-chip:hover { background: var(--color-sage-band); } .ds-chip[aria-pressed='true'] { background: var(--color-action); color: var(--color-on-action); } .ds-chip:focus-visible { outline: 2px solid var(--color-action); outline-offset: 3px; }"
+    },
+    {
+      "name": "Setup card",
+      "kind": "card",
+      "refersTo": "arch-frame",
+      "description": "The signature arch: a 4:5 portrait with a semicircular top, with the serif caption beneath.",
+      "html": "<figure class=\"ds-setup\"><div class=\"ds-arch\"><span class=\"ds-sample\">Sample</span></div><figcaption>Sage and gold baby shower</figcaption></figure>",
+      "css": ".ds-setup { margin: 0; width: 16rem; } .ds-arch { position: relative; aspect-ratio: 4 / 5; overflow: hidden; border-radius: 100vmax 100vmax var(--radius) var(--radius); background: var(--color-sage-band); } .ds-sample { position: absolute; left: 50%; bottom: var(--space-sm); translate: -50% 0; padding: 0.125rem var(--space-xs); border-radius: var(--radius); background: var(--color-action); color: var(--color-on-action); font-family: var(--font-body); font-size: var(--text-sm); letter-spacing: 0.08em; text-transform: uppercase; } .ds-setup figcaption { margin-top: var(--space-sm); font-family: var(--font-heading); font-size: var(--text-lg); line-height: 1.3; text-align: center; color: var(--color-text); }"
+    },
+    {
+      "name": "Package card",
+      "kind": "card",
+      "refersTo": "package-card",
+      "description": "Arch-topped hairline card with the name, a serif price in forest and an included list.",
+      "html": "<article class=\"ds-package\"><h3>Petite</h3><p class=\"ds-price\">$450</p><ul><li>Balloon garland</li><li>Backdrop panel</li><li>Setup and teardown</li></ul></article>",
+      "css": ".ds-package { width: 18rem; padding: var(--space-lg) var(--space-md); border: 1px solid var(--color-line); border-radius: 100vmax 100vmax var(--radius) var(--radius) / 8rem 8rem var(--radius) var(--radius); background: var(--color-bg); color: var(--color-text); text-align: center; font-family: var(--font-body); } .ds-package h3 { margin: 0; font-family: var(--font-heading); font-weight: 500; font-size: var(--text-xl); line-height: 1.1; } .ds-price { margin: var(--space-xs) auto var(--space-md); font-family: var(--font-heading); font-size: var(--text-2xl); line-height: 1; color: var(--color-action); } .ds-package ul { margin: 0; padding: var(--space-md) 0 0; border-top: 1px solid var(--color-line); list-style: none; text-align: left; } .ds-package li { padding-block: 0.375rem; } .ds-package li + li { border-top: 1px solid var(--color-line); }"
+    },
+    {
+      "name": "Text field",
+      "kind": "input",
+      "refersTo": "input-field",
+      "description": "White input with a slate border and a label above.",
+      "html": "<div class=\"ds-field\"><label for=\"ds-venue\">Venue or city</label><input id=\"ds-venue\" type=\"text\"></div>",
+      "css": ".ds-field { display: grid; gap: 0.375rem; max-width: 34rem; font-family: var(--font-body); font-size: var(--text-base); color: var(--color-text); } .ds-field label { font-weight: 500; } .ds-field input { min-height: 2.75rem; padding: var(--space-xs) var(--space-sm); border: 1px solid var(--color-text-muted); border-radius: var(--radius); background: #fff; color: var(--color-text); font: inherit; } .ds-field input:focus-visible { outline: 2px solid var(--color-action); outline-offset: 3px; }"
+    },
+    {
+      "name": "Main menu",
+      "kind": "nav",
+      "refersTo": "nav-link",
+      "description": "Label-size sans links; the current page is forest with an underline.",
+      "html": "<nav class=\"ds-nav\"><a href=\"#\">Home</a><a href=\"#\" aria-current=\"page\">Gallery</a><a href=\"#\">Packages &amp; Rentals</a><a href=\"#\">Contact</a></nav>",
+      "css": ".ds-nav { display: flex; gap: var(--space-lg); font-family: var(--font-body); } .ds-nav a { padding-block: var(--space-xs); color: var(--color-text); font-size: var(--text-sm); letter-spacing: 0.04em; text-decoration: none; border-bottom: 1px solid transparent; } .ds-nav a:hover { color: var(--color-action); border-bottom-color: var(--color-sage); } .ds-nav a[aria-current='page'] { color: var(--color-action); border-bottom-color: currentColor; } .ds-nav a:focus-visible { outline: 2px solid var(--color-action); outline-offset: 3px; }"
+    },
+    {
+      "name": "Booking step",
+      "kind": "custom",
+      "refersTo": "sage-band",
+      "description": "Numbered step on a sage band, with a forest circle and a serif numeral.",
+      "html": "<div class=\"ds-band\"><ol class=\"ds-steps\"><li><h3>Send an Inquiry</h3><p>Tell us your date and the look you're after.</p></li><li><h3>Get a quote</h3><p>We reply with a price.</p></li></ol></div>",
+      "css": ".ds-band { padding: var(--space-xl) var(--gutter); background: var(--color-sage-band); color: var(--color-text); font-family: var(--font-body); font-size: var(--text-base); } .ds-steps { margin: 0; padding: 0; list-style: none; counter-reset: step; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: var(--space-lg); } .ds-steps li { counter-increment: step; } .ds-steps li::before { content: counter(step); display: grid; place-items: center; width: 2.5rem; height: 2.5rem; margin-bottom: var(--space-sm); border-radius: 50%; background: var(--color-action); color: var(--color-on-action); font-family: var(--font-heading); font-size: var(--text-lg); } .ds-steps h3 { margin: 0 0 var(--space-xs); font-family: var(--font-heading); font-weight: 500; font-size: var(--text-lg); line-height: 1.1; } .ds-steps p { margin: 0; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Party Atelier",
+    "overview": "Likha Events is a designer's studio, not a party store. The site should read like the atelier's own portfolio: warm off-white paper, charcoal ink, a single forest-green voice for action, and the brand's arch framing each Setup like a piece on the studio wall. The customer's own colours and themes are what fill the arches, so the frame around them stays composed and quiet, and each Setup's colours carry the page.\n\nThe system is light and airy, not dense. Sections breathe on a generous vertical rhythm, alternating paper with soft sage bands. A high-contrast serif (Cormorant Garamond) carries headings, captions and prices with an atelier's flourish, and a clean geometric sans (Jost) keeps everything else plain and readable. Components are soft and assured: thin hairlines, generous padding, curves wherever the arch allows, and one solid green action at a time.\n\nThe site avoids the party-store look: no bright primaries, confetti, bubbly display type or busy pattern backgrounds. When a Setup is bold and colourful, the photo is allowed to be loud, and the frame stays calm around it.",
+    "keyCharacteristics": [
+      "Warm off-white paper and charcoal ink, with forest green reserved for actions, links and prices.",
+      "The arch (a semicircular top over a 4:5 portrait) frames every featured photo.",
+      "A serif for headings, captions and prices, a sans for everything else.",
+      "Flat surfaces. Depth comes from tone (paper vs. sage band) and hairlines, never shadows.",
+      "Pill-shaped buttons and filter chips that echo the arch's curve.",
+      "No motion yet. Motion comes in tickets 13 to 15 and must respect \"reduce motion\"."
+    ],
+    "rules": [
+      { "name": "The Sage Is Not Ink Rule", "body": "The brand sage (sage) never carries text. Wherever the brand guide says \"sage band\", the band is sage-band and the text on it stays charcoal or forest.", "section": "colors" },
+      { "name": "The One Green Voice Rule", "body": "Forest marks things you can act on, plus prices. A paragraph, heading or decoration is never forest just to add colour.", "section": "colors" },
+      { "name": "The AA Pairing Rule", "body": "Every text colour on every background meets WCAG AA (4.5:1). A new pairing is checked before it ships, and its ratio is noted beside the token in tokens.css.", "section": "colors" },
+      { "name": "The Serif Speaks for the Studio Rule", "body": "The serif is for headings, captions, prices and the tagline. Labels, form text, buttons and navigation use the sans.", "section": "typography" },
+      { "name": "The Medium Weight Rule", "body": "Headings sit at weight 500. Cormorant gets heavier quickly, so don't go bolder for emphasis. Use size or a sage-band setting instead.", "section": "typography" },
+      { "name": "The Paper and Mist Rule", "body": "Lift something by moving it onto or off a sage band, or by giving it a hairline. Don't add drop shadows.", "section": "elevation" },
+      { "name": "The Arch Frames the Work Rule", "body": "Any photo of Likha Events' work shown as a single feature goes in an arch. The viewer's photo list is the exception, because it shows the whole photo uncropped.", "section": "shapes" }
+    ],
+    "dos": [
+      "Do put every featured photo of a Setup or Rental in the arch (4:5 aspect, rounded.arch), cropped by CSS with object-fit: cover.",
+      "Do use the custom properties in src/styles/tokens.css for colour, type, space and --radius. Add a new token there, with its contrast ratio noted, rather than writing a new one-off value.",
+      "Do keep one solid forest pill as the main action in each place, with outline pills or text links for anything beside it.",
+      "Do separate sections with paper and sage bands and 1px hairlines.",
+      "Do let the photos carry the colour. The frame around them stays paper, ink and green.",
+      "Do keep touch targets at least 44px tall and every page free of sideways scrolling at 375px.",
+      "Do write any motion (tickets 13 to 15) with transform and opacity only, slow and restrained, and turn it all off under prefers-reduced-motion."
+    ],
+    "donts": [
+      "Don't use sage for text, or put text on a full-strength sage background.",
+      "Don't add drop shadows, gradients or glows to cards or buttons.",
+      "Don't add a party-store look: bright primary colours, confetti, balloon clip art, bubbly or script display fonts, or pattern backgrounds.",
+      "Don't set headings bolder than 500, or set labels, buttons or form text in the serif.",
+      "Don't add new rectangular buttons. Calls to action are pills.",
+      "Don't alter or re-crop the stored photos. Framing happens in CSS."
+    ]
+  }
+}
