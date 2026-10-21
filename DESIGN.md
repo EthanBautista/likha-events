@@ -210,7 +210,7 @@ The vector artwork in `src/assets/brand/` (`arch.svg`, `arch-balloons.svg`, `log
 
 ### Buttons
 Soft and assured: pill-shaped, at least 44px tall, in the sans at body size.
-- **Primary (solid):** forest pill with paper text. Used for the main action in each place: the homepage's "Get a quote" and "Send an inquiry", and the Photo viewer's Close.
+- **Primary (solid):** forest pill with paper text. Used for the main action in each place: the homepage's and Gallery's "Get a quote", and the homepage's "Send an inquiry".
 - **Outline:** 1px forest border, transparent fill, forest text. Used for a secondary action that should still look like a button, such as "See the gallery" under the featured Setups, and for the Event type filter.
 - **Hover:** solid deepens to `action-hover`. Outline fills with `sage-band`.
 - **Text link:** a forest underlined link for tertiary actions beside a pill, such as "Follow us on Instagram" in the homepage closing section and "See Packages & Rentals" in the sage band.
@@ -241,7 +241,7 @@ Soft and assured: pill-shaped, at least 44px tall, in the sans at body size.
 - **Footer:** a `sage-band` band with the wordmark, the serif tagline and the Instagram and Facebook links with line icons. Below them a hairline, then the copyright.
 
 ### Photo viewer
-A native `<dialog>` up to 60rem wide on paper over the charcoal backdrop. A sticky bar holds the Setup's caption (Title) and the Close button. Below it, the Setup's photos are stacked and centred, uncropped, with `--radius` corners, each no taller than the screen below the bar. The page behind doesn't scroll or shift while the viewer is open.
+A native `<dialog>` up to 60rem wide on paper over the charcoal backdrop. A sticky bar holds the Setup's caption (Title) and a round Close button: a 44px forest-outlined circle with a thin line ×, filling `sage-band` on hover, named "Close" for screen readers. Below it, the Setup's photos are stacked and centred, uncropped, with `--radius` corners, each no taller than the screen below the bar. The page behind doesn't scroll or shift while the viewer is open.
 
 ### Sample tag
 A small forest label (uppercase, 0.08em tracking) centred at the foot of an arch, or at the top of a Package card. It stays until the owner replaces sample content.

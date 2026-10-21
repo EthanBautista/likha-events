@@ -21,7 +21,10 @@ const allPhotos = [coverPhoto, ...photos];
   <div class="bar">
     <h2 id={`${id}-caption`}>{caption}</h2>
     <form method="dialog">
-      <button type="submit" class="pill pill-solid" autofocus>Close</button>
+      <button type="submit" class="close" autofocus>
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        <span class="visually-hidden">Close</span>
+      </button>
     </form>
   </div>
   <ul class="photos" aria-label="Photos">
@@ -199,6 +202,34 @@ const allPhotos = [coverPhoto, ...photos];
 
   form {
     flex-shrink: 0;
+  }
+
+  /* A quiet round × that leaves the photos the focus: the outline pill's border and hover, as a circle. */
+  .close {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    border: 1px solid var(--color-action);
+    border-radius: 50%;
+    background: transparent;
+    color: var(--color-action);
+    cursor: pointer;
+  }
+
+  .close:hover {
+    background: var(--color-sage-band);
+  }
+
+  .close svg {
+    width: 1.25rem;
+    height: 1.25rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-linecap: round;
   }
 
   .photos {
