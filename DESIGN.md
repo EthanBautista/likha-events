@@ -127,7 +127,7 @@ The site avoids the party-store look: no bright primaries, confetti, bubbly disp
 - A serif for headings, captions and prices, a sans for everything else.
 - Flat surfaces. Depth comes from tone (paper vs. sage band) and hairlines, never shadows.
 - Pill-shaped buttons and filter chips that echo the arch's curve.
-- No motion yet. Motion comes in tickets 13 to 15 and must respect "reduce motion".
+- Slow, restrained motion in transform and opacity only, settling on `cubic-bezier(0.16, 1, 0.3, 1)` and switched off under "reduce motion". The Gallery and Photo viewer have it so far; the homepage, header, Packages and Contact follow in tickets 14 and 15.
 
 ## Colors
 
@@ -216,7 +216,7 @@ Soft and assured: pill-shaped, at least 44px tall, in the sans at body size.
 - **Text link:** a forest underlined link for tertiary actions beside a pill, such as "Follow us on Instagram" in the homepage closing section and "See Packages & Rentals" in the sage band.
 - **Focus:** a 2px forest outline, offset 3px, on every focusable element.
 - **Drift to fix in the polish tickets:** these calls to action still use `--radius` rectangles instead of pills:
-  - Gallery's "Get a quote" and the booking call to action on Packages & Rentals. Both also lack the 44px minimum height.
+  - The booking call to action on Packages & Rentals, which also lacks the 44px minimum height.
   - Contact's Send button.
   - Contact's Instagram and Facebook chat buttons, which also fill solid forest on hover instead of `sage-band`.
 
@@ -241,13 +241,22 @@ Soft and assured: pill-shaped, at least 44px tall, in the sans at body size.
 - **Footer:** a `sage-band` band with the wordmark, the serif tagline and the Instagram and Facebook links with line icons. Below them a hairline, then the copyright.
 
 ### Photo viewer
-A native `<dialog>` up to 60rem wide on paper over the charcoal backdrop. A sticky bar holds the Setup's caption (Title) and the Close button. Below it, the Setup's photos are stacked full width, uncropped, with `--radius` corners. The page behind doesn't scroll or shift while the viewer is open.
+A native `<dialog>` up to 60rem wide on paper over the charcoal backdrop. A sticky bar holds the Setup's caption (Title) and the Close button. Below it, the Setup's photos are stacked and centred, uncropped, with `--radius` corners, each no taller than the screen below the bar. The page behind doesn't scroll or shift while the viewer is open.
 
 ### Sample tag
 A small forest label (uppercase, 0.08em tracking) centred at the foot of an arch, or at the top of a Package card. It stays until the owner replaces sample content.
 
 ### Booking steps
 A numbered list on a `sage-band` band. Each step has a 2.5rem forest circle with a serif numeral in paper, a Title-style heading and a short body line.
+
+## Motion
+
+Motion is the atelier hanging its work: slow, quiet, and only ever moving the frames, never the page around them. It uses transform and opacity only, eases out on the `--ease-settle` token (`cubic-bezier(0.16, 1, 0.3, 1)`), and under "reduce motion" nothing moves at all.
+
+- **Setup cards (Gallery):** the first time a card scrolls into view it rises 1.5rem and fades in over 800ms, while its photo settles from 1.06 to full size inside the arch over 1.4s. Cards arriving together are staggered 90ms apart, capped at four steps. Cards stay visible by default, so the Gallery never depends on the script to be seen.
+- **Hover and press:** on hover or keyboard focus the photo eases to 1.04 inside the arch over 900ms. A press settles the card to 0.98.
+- **Event type filter:** a View Transition. Cards that stay glide to their new places, leaving cards fade out in 200ms, and arriving cards fade and rise 1rem. The rest of the page swaps without a cross-fade.
+- **Photo viewer:** opens by rising 1.5rem and fading in over 380ms with the backdrop, and closes faster (200ms) by dropping 1rem. Photos still loading fade in once ready.
 
 ## Do's and Don'ts
 

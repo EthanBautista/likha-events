@@ -104,7 +104,7 @@
       "A serif for headings, captions and prices, a sans for everything else.",
       "Flat surfaces. Depth comes from tone (paper vs. sage band) and hairlines, never shadows.",
       "Pill-shaped buttons and filter chips that echo the arch's curve.",
-      "No motion yet. Motion comes in tickets 13 to 15 and must respect \"reduce motion\"."
+      "Slow, restrained motion in transform and opacity only, settling on cubic-bezier(0.16, 1, 0.3, 1) and switched off under \"reduce motion\". The Gallery and Photo viewer have it so far; the homepage, header, Packages and Contact follow in tickets 14 and 15."
     ],
     "rules": [
       { "name": "The Sage Is Not Ink Rule", "body": "The brand sage (sage) never carries text. Wherever the brand guide says \"sage band\", the band is sage-band and the text on it stays charcoal or forest.", "section": "colors" },

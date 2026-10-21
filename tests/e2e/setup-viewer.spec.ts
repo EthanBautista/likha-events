@@ -142,6 +142,8 @@ test("the gallery stays scrolled where it was after closing", async ({ page }) =
   const last = setups.find((each) => each.caption === captionsNewestFirst(setups).at(-1))!;
   await page.goto("/gallery/");
   await card(page, last).scrollIntoViewIfNeeded();
+  // Let the card finish rising into view, or clicking it mid-way scrolls the page a little further.
+  await card(page, last).evaluate((li) => Promise.all(li.getAnimations({ subtree: true }).map((each) => each.finished)));
   const scrolled = await page.evaluate(() => scrollY);
   expect(scrolled, "the last Setup is below the fold").toBeGreaterThan(0);
 

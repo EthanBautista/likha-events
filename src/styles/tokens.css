@@ -35,4 +35,7 @@
   --gutter: clamp(1rem, 0.5rem + 2.5vw, 2.5rem);
   --content-width: 72rem;
   --radius: 0.25rem;
+
+  /* Motion: the settling ease-out every arrival uses. */
+  --ease-settle: cubic-bezier(0.16, 1, 0.3, 1);
 }

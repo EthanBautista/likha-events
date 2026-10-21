@@ -85,6 +85,16 @@ const allPhotos = [coverPhoto, ...photos];
     });
   }
 
+  // Photos still loading wait unseen and fade in once ready (see the styles). Marked by the script, so
+  // without it every photo simply shows.
+  for (const photo of document.querySelectorAll<HTMLImageElement>(".setup-viewer .photos img")) {
+    if (photo.complete) continue;
+    photo.classList.add("loading");
+    const settled = () => photo.classList.remove("loading");
+    photo.addEventListener("load", settled, { once: true });
+    photo.addEventListener("error", settled, { once: true });
+  }
+
   addEventListener("popstate", () => {
     goingBack = false;
     showViewerFromHistory();
@@ -105,6 +115,8 @@ const allPhotos = [coverPhoto, ...photos];
     border: none;
     background: var(--color-bg);
     color: var(--color-text);
+    /* Scrolling to the end of the photos doesn't carry on into the page behind. */
+    overscroll-behavior: contain;
   }
 
   /* The page behind stays where it was while a viewer is open, without shifting sideways as its scrollbar goes. */
@@ -118,6 +130,53 @@ const allPhotos = [coverPhoto, ...photos];
 
   .setup-viewer::backdrop {
     background: rgb(48 56 56 / 0.85);
+  }
+
+  /* The viewer rises gently into place over a darkening page, and drops away a little faster on close. */
+  @media (prefers-reduced-motion: no-preference) {
+    .setup-viewer,
+    .setup-viewer::backdrop {
+      transition:
+        opacity 200ms ease-in,
+        translate 200ms ease-in,
+        display 200ms allow-discrete,
+        overlay 200ms allow-discrete;
+    }
+
+    .setup-viewer[open],
+    .setup-viewer[open]::backdrop {
+      transition-duration: 380ms;
+      transition-timing-function: var(--ease-settle);
+    }
+
+    .setup-viewer:not([open]) {
+      opacity: 0;
+      translate: 0 1rem;
+    }
+
+    .setup-viewer:not([open])::backdrop {
+      opacity: 0;
+    }
+
+    @starting-style {
+      .setup-viewer[open] {
+        opacity: 0;
+        translate: 0 1.5rem;
+      }
+
+      .setup-viewer[open]::backdrop {
+        opacity: 0;
+      }
+    }
+
+    /* A photo still loading is held back, then fades in rather than popping in. */
+    .photos img {
+      transition: opacity 500ms ease-out;
+    }
+
+    .photos img.loading {
+      opacity: 0;
+    }
   }
 
   .bar {
@@ -150,10 +209,15 @@ const allPhotos = [coverPhoto, ...photos];
     gap: var(--space-md);
   }
 
+  /* Each photo fits on screen below the bar, so moving down the list shows one whole photo at a time. */
   .photos img {
     display: block;
-    width: 100%;
+    width: auto;
+    max-width: 100%;
     height: auto;
+    /* The bar is about 4.5rem tall; the rest leaves a little paper above and below. */
+    max-height: calc(100dvh - 6rem);
+    margin-inline: auto;
     border-radius: var(--radius);
   }
 </style>
