@@ -41,10 +41,21 @@ const photoFields = Array.from({ length: maxPhotos }, (_, index) => `inspiration
         <label>Leave this empty: <input name="bot-field" tabindex="-1" autocomplete="off" /></label>
       </p>
 
-      <!-- data-missing is the message shown in place of the browser's own when the field is left empty. -->
+      <!--
+        Each field's message shows in the "-error" line under it, in place of the browser's own popup.
+        data-missing is the message when the field is left empty, and data-invalid when it is filled in wrongly.
+      -->
       <div class="field">
         <label for="name">Your name</label>
-        <input id="name" name="name" autocomplete="name" required data-missing="Please enter your name." />
+        <input
+          id="name"
+          name="name"
+          autocomplete="name"
+          required
+          data-missing="Please enter your name."
+          aria-describedby="name-error"
+        />
+        <p class="error" id="name-error"></p>
       </div>
 
       <div class="field">
@@ -54,7 +65,9 @@ const photoFields = Array.from({ length: maxPhotos }, (_, index) => `inspiration
           name="contact"
           required
           data-missing="Please enter a phone number or email so we can reply."
+          aria-describedby="contact-error"
         />
+        <p class="error" id="contact-error"></p>
       </div>
 
       <div class="field">
@@ -65,25 +78,50 @@ const photoFields = Array.from({ length: maxPhotos }, (_, index) => `inspiration
           type="date"
           required
           data-missing="Please choose the date of your event."
+          aria-describedby="event-date-error"
         />
+        <p class="error" id="event-date-error"></p>
       </div>
 
       <div class="field">
         <label for="venue">Venue or city</label>
-        <input id="venue" name="venue" required data-missing="Please enter the venue or city." />
+        <input
+          id="venue"
+          name="venue"
+          required
+          data-missing="Please enter the venue or city."
+          aria-describedby="venue-error"
+        />
+        <p class="error" id="venue-error"></p>
       </div>
 
       <div class="field">
         <label for="event-type">Event type</label>
-        <select id="event-type" name="event-type" required data-missing="Please choose an Event type.">
+        <select
+          id="event-type"
+          name="event-type"
+          required
+          data-missing="Please choose an Event type."
+          aria-describedby="event-type-error"
+        >
           <option value="">Choose one</option>
           {eventTypes.map((eventType) => <option>{eventType}</option>)}
         </select>
+        <p class="error" id="event-type-error"></p>
       </div>
 
       <div class="field">
         <label for="guests">Number of guests <span class="optional">(optional)</span></label>
-        <input id="guests" name="guests" type="number" min="1" inputmode="numeric" />
+        <input
+          id="guests"
+          name="guests"
+          type="number"
+          min="1"
+          inputmode="numeric"
+          data-invalid="Please enter the number of guests as a whole number, like 40."
+          aria-describedby="guests-error"
+        />
+        <p class="error" id="guests-error"></p>
       </div>
 
       <div class="field">
@@ -116,7 +154,15 @@ const photoFields = Array.from({ length: maxPhotos }, (_, index) => `inspiration
         {photoFields.slice(1).map((name) => <input type="file" name={name} accept="image/*" hidden />)}
       </div>
 
-      <button class="send" type="submit">Send inquiry</button>
+      <div class="send-row">
+        <button class="pill pill-solid send" type="submit">
+          <svg class="sending-arc" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+            <circle cx="10" cy="10" r="8" pathLength="100" />
+          </svg>
+          <span class="send-label">Send inquiry</span>
+        </button>
+        <p class="visually-hidden" role="status"></p>
+      </div>
     </form>
 
     <aside class="chat" aria-labelledby="chat-heading">
@@ -124,13 +170,13 @@ const photoFields = Array.from({ length: maxPhotos }, (_, index) => `inspiration
       <p>Send us a message on Instagram or Facebook instead.</p>
       <ul>
         <li>
-          <a class="chat-button" href={social.instagram}>
+          <a class="pill chat-button" href={social.instagram}>
             <SocialIcon network="instagram" />
             Message us on Instagram
           </a>
         </li>
         <li>
-          <a class="chat-button" href={social.facebook}>
+          <a class="pill chat-button" href={social.facebook}>
             <SocialIcon network="facebook" />
             Message us on Facebook
           </a>
@@ -141,22 +187,50 @@ const photoFields = Array.from({ length: maxPhotos }, (_, index) => `inspiration
 </BaseLayout>
 
 <script>
-  const fields = document.querySelectorAll<HTMLInputElement | HTMLSelectElement>(".inquiry [data-missing]");
-
-  for (const field of fields) {
-    field.addEventListener("invalid", () => {
-      if (field.validity.valueMissing) field.setCustomValidity(field.dataset.missing!);
-    });
-    // Clear the message once the visitor answers, so the browser checks the field afresh.
-    for (const type of ["input", "change"]) {
-      field.addEventListener(type, () => field.setCustomValidity(""));
-    }
-  }
+  type Field = HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement;
 
   const form = document.querySelector<HTMLFormElement>(".inquiry")!;
   const photos = document.querySelector<HTMLInputElement>("#photos")!;
-  const photosError = document.querySelector<HTMLElement>("#photos-error")!;
   const maxPhotos = Number(photos.dataset.max);
+
+  // Shows the message in the line under the field, or clears it when the message is empty.
+  const showError = (field: Field, message: string) => {
+    document.getElementById(`${field.id}-error`)!.textContent = message;
+    if (message) field.setAttribute("aria-invalid", "true");
+    else field.removeAttribute("aria-invalid");
+  };
+
+  // When sending finds a problem, each field with one says what it needs under it, and the first is focused.
+  // The browser's own popup is held back, and with it the browser's focusing, so the script focuses instead.
+  let focusedFirst = false;
+  form.addEventListener(
+    "invalid",
+    (event) => {
+      const field = event.target as Field;
+      event.preventDefault();
+      const { missing, invalid } = field.dataset;
+      if (field.validity.valueMissing && missing) field.setCustomValidity(missing);
+      else if (!field.validity.customError && invalid) field.setCustomValidity(invalid);
+      showError(field, field.validationMessage);
+      if (!focusedFirst) {
+        focusedFirst = true;
+        field.focus();
+        // Every field is checked in one go, so the next attempt focuses afresh.
+        setTimeout(() => (focusedFirst = false));
+      }
+    },
+    // "invalid" doesn't bubble.
+    { capture: true },
+  );
+
+  // Once the visitor answers, the browser checks the field afresh, and its message goes when it's right.
+  for (const type of ["input", "change"]) {
+    form.addEventListener(type, (event) => {
+      const field = event.target as Field;
+      if (field.dataset.missing || field.dataset.invalid) field.setCustomValidity("");
+      if (field.validity.valid && field.hasAttribute("aria-invalid")) showError(field, "");
+    });
+  }
   const photoFields = [...form.querySelectorAll<HTMLInputElement>('input[type="file"]')].map((input) => input.name);
 
   // Some phones leave out the type of photos such as HEIC, so fall back to the file name.
@@ -174,7 +248,35 @@ const photoFields = Array.from({ length: maxPhotos }, (_, index) => `inspiration
       message = `"${notImage.name}" isn't an image. Please choose photos only.`;
     }
     photos.setCustomValidity(message);
-    photosError.textContent = message;
+    showError(photos, message);
+  });
+
+  // While the Inquiry and its photos are on their way, which can take a while on mobile data, the button
+  // says so and another press sends nothing more.
+  const send = form.querySelector<HTMLButtonElement>(".send")!;
+  const sendLabel = send.querySelector<HTMLElement>(".send-label")!;
+  const sendStatus = form.querySelector<HTMLElement>('[role="status"]')!;
+  const idleLabel = sendLabel.textContent!;
+  const sendingLabel = "Sending your inquiry…";
+  let sending = false;
+
+  const showSending = (isSending: boolean) => {
+    sending = isSending;
+    send.toggleAttribute("data-sending", isSending);
+    if (isSending) send.setAttribute("aria-disabled", "true");
+    else send.removeAttribute("aria-disabled");
+    sendLabel.textContent = isSending ? sendingLabel : idleLabel;
+    sendStatus.textContent = isSending ? sendingLabel : "";
+  };
+
+  form.addEventListener("submit", (event) => {
+    if (sending) event.preventDefault();
+    else showSending(true);
+  });
+
+  // Coming back to the page from the thank-you page, the form is ready to send again.
+  addEventListener("pageshow", (event) => {
+    if (event.persisted) showSending(false);
   });
 
   // Send each chosen photo in a field of its own, as Netlify Forms takes one file per field.
@@ -244,26 +346,82 @@ const photoFields = Array.from({ length: maxPhotos }, (_, index) => `inspiration
     background: #fff;
     color: var(--color-text);
     font: inherit;
+    caret-color: var(--color-action);
+  }
+
+  /* The border deepens to forest under the pointer and while typing, and turns brick while the field
+     has a message under it. */
+  input:hover,
+  select:hover,
+  textarea:hover,
+  input:focus,
+  select:focus,
+  textarea:focus {
+    border-color: var(--color-action);
+  }
+
+  [aria-invalid="true"] {
+    border-color: var(--color-error);
   }
 
   textarea {
     resize: vertical;
   }
 
-  .send {
-    justify-self: start;
-    min-height: 2.75rem;
-    padding: var(--space-xs) var(--space-lg);
-    border: 0;
-    border-radius: var(--radius);
-    background: var(--color-action);
-    color: var(--color-on-action);
-    font: inherit;
+  /* The photo picker's own button, as a small outline pill. */
+  input[type="file"] {
+    padding-block: 0.3125rem;
     cursor: pointer;
   }
 
-  .send:hover {
-    background: var(--color-action-hover);
+  input[type="file"]::file-selector-button {
+    margin-right: var(--space-sm);
+    padding: 0.25rem var(--space-sm);
+    border: 1px solid var(--color-action);
+    border-radius: 100vmax;
+    background: transparent;
+    color: var(--color-action);
+    font: inherit;
+    font-size: var(--text-sm);
+    cursor: pointer;
+  }
+
+  input[type="file"]:hover::file-selector-button {
+    background: var(--color-sage-band);
+  }
+
+  .send-row {
+    margin-top: var(--space-xs);
+  }
+
+  .send {
+    gap: var(--space-xs);
+    padding-inline: var(--space-lg);
+  }
+
+  /* While sending, a thin arc turns before the label. It takes no room until then, and under "reduce motion"
+     the label alone says it is sending. */
+  .sending-arc {
+    display: none;
+    flex: none;
+    width: 1.125rem;
+    height: 1.125rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-dasharray: 30 70;
+  }
+
+  /* While sending it no longer darkens or settles back, so it doesn't look ready for another press. */
+  .send[data-sending],
+  .send[data-sending]:hover {
+    background: var(--color-action);
+    cursor: progress;
+  }
+
+  .send[data-sending]:active {
+    scale: none;
   }
 
   .chat {
@@ -283,6 +441,7 @@ const photoFields = Array.from({ length: maxPhotos }, (_, index) => `inspiration
 
   .chat ul {
     display: grid;
+    justify-items: start;
     gap: var(--space-sm);
     margin: 0;
     padding: 0;
@@ -290,19 +449,12 @@ const photoFields = Array.from({ length: maxPhotos }, (_, index) => `inspiration
   }
 
   .chat-button {
-    display: inline-flex;
-    align-items: center;
     gap: var(--space-xs);
-    min-height: 2.75rem;
-    padding: var(--space-xs) var(--space-md);
-    border: 1px solid var(--color-action);
-    border-radius: var(--radius);
-    text-decoration: none;
   }
 
+  /* On the sage band an outline pill fills with paper, so it still lifts on hover. */
   .chat-button:hover {
-    background: var(--color-action);
-    color: var(--color-on-action);
+    background: var(--color-bg);
   }
 
   @media (min-width: 56rem) {
@@ -313,6 +465,49 @@ const photoFields = Array.from({ length: maxPhotos }, (_, index) => `inspiration
 
     .intro {
       grid-column: 1 / -1;
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    input,
+    select,
+    textarea {
+      transition: border-color var(--duration-exit) ease-out;
+    }
+
+    input[type="file"]::file-selector-button {
+      transition: background-color var(--duration-exit) ease-out;
+    }
+
+    /* A message eases in just under its field, rather than popping in. */
+    .error:not(:empty) {
+      animation: error-in var(--duration-open) var(--ease-settle);
+    }
+
+    .send[data-sending] .sending-arc {
+      display: block;
+      animation:
+        arc-in var(--duration-exit) ease-out,
+        arc-turn var(--duration-turn) linear infinite;
+    }
+  }
+
+  @keyframes error-in {
+    from {
+      opacity: 0;
+      transform: translateY(-0.375rem);
+    }
+  }
+
+  @keyframes arc-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @keyframes arc-turn {
+    to {
+      rotate: 1turn;
     }
   }
 </style>

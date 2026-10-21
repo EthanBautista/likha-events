@@ -94,10 +94,40 @@ for (const missing of requiredFields) {
     const field = page.getByLabel(missing.label);
     await expect(field).toBeFocused();
     expect(await field.evaluate((element: HTMLInputElement) => element.validationMessage)).toBe(missing.message);
+    // The message is shown under the field, and read out with it.
+    await expect(page.getByRole("main").getByText(missing.message)).toBeVisible();
+    await expect(field).toHaveAccessibleDescription(missing.message);
+    await expect(field).toHaveAttribute("aria-invalid", "true");
     expect(posts).toEqual([]);
     await expect(page).toHaveURL("/contact/");
   });
 }
+
+test("filling in the whole form raises no errors in the page", async ({ page }) => {
+  const errors: Error[] = [];
+  page.on("pageerror", (error) => errors.push(error));
+
+  await fillIn(page, requiredFields);
+  await page.getByLabel("Number of guests").fill("40");
+  await page.getByLabel("Theme or colours").fill("Sage and cream");
+  await page.getByLabel("Décor wanted").fill("Balloon arch and a backdrop");
+
+  expect(errors).toEqual([]);
+});
+
+test("a missing field's message goes once it is answered", async ({ page }) => {
+  await page.getByRole("button", { name: "Send inquiry" }).click();
+  const name = page.getByLabel("Your name");
+  const message = page.getByRole("main").getByText("Please enter your name.");
+  await expect(message).toBeVisible();
+
+  await name.fill("Maria Santos");
+
+  await expect(message).toBeHidden();
+  await expect(name).not.toHaveAttribute("aria-invalid", "true");
+  // The other missing fields still say what they need.
+  await expect(page.getByRole("main").getByText("Please enter the venue or city.")).toBeVisible();
+});
 
 test("an empty Inquiry is not sent", async ({ page }) => {
   const posts = watchPosts(page);
@@ -122,6 +152,34 @@ test("a complete Inquiry is sent to Netlify and lands on a thank-you page", asyn
   expect(sent.form?.get("name")).toBe("Maria Santos");
   expect(sent.form?.get("event-type")).toBe("Baby shower");
 });
+
+test("while an Inquiry is sending, the button says so and a second press sends nothing more", async ({ page }) => {
+  // Keep the browser on the form, as it stays while a slow post on mobile data is still on its way: each
+  // send the page lets go is counted, then held back before it leaves.
+  await page.evaluate(() => {
+    window.sends = 0;
+    addEventListener("submit", (event) => {
+      if (!event.defaultPrevented) window.sends++;
+      event.preventDefault();
+    });
+  });
+  await fillIn(page, requiredFields);
+
+  await page.getByRole("button", { name: "Send inquiry" }).click();
+
+  const sending = page.getByRole("button", { name: "Sending your inquiry…" });
+  await expect(sending).toHaveAttribute("aria-disabled", "true");
+  await expect(page.getByRole("status")).toHaveText("Sending your inquiry…");
+  // It reads as unavailable, but a visitor can still tap it.
+  await sending.click({ force: true });
+  expect(await page.evaluate(() => window.sends)).toBe(1);
+});
+
+declare global {
+  interface Window {
+    sends: number;
+  }
+}
 
 test("the optional details are labelled, and an Inquiry without them is still sent", async ({ page }) => {
   const sent = await standInForNetlify(page);

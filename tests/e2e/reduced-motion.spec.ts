@@ -3,8 +3,9 @@ import { readSetups } from "./setups";
 
 const setups = readSetups();
 
-// With "reduce motion" turned on, nothing moves: the homepage, the menu, every Setup, every filter result
-// and the Photo viewer are fully shown straight away, without waiting for an animation.
+// With "reduce motion" turned on, nothing moves: the homepage, the menu, every Setup, every filter result,
+// the Photo viewer, Packages & Rentals, the Contact form and the thank-you page are fully shown straight
+// away, without waiting for an animation.
 test.use({ reducedMotion: "reduce" });
 
 // Read once, with no waiting, so an element that is still fading or sliding in fails.
@@ -85,5 +86,52 @@ test.describe("the Gallery", () => {
 
     await viewer(page).getByRole("button", { name: "Close" }).click();
     expect(await viewer(page).isVisible(), "closed without a closing animation").toBe(false);
+  });
+});
+
+test.describe("Packages & Rentals", () => {
+  const content = (page: Page) => page.getByRole("main").locator("h2, h3, p, img, a").filter({ visible: true });
+
+  test("every Package, Rental and booking step is shown straight away, including those further down", async ({
+    page,
+  }) => {
+    await page.goto("/packages-and-rentals/");
+
+    await expectShownNow(page, content(page));
+    await page.getByRole("heading", { name: "How booking works" }).scrollIntoViewIfNeeded();
+    await expectShownNow(page, content(page));
+  });
+});
+
+test.describe("the Contact form", () => {
+  test("a missing field's message is shown straight away", async ({ page }) => {
+    await page.goto("/contact/");
+
+    await page.getByRole("button", { name: "Send inquiry" }).click();
+
+    await expectShownNow(page, page.getByText("Please enter your name."));
+  });
+
+  test("sending is shown straight away, with nothing turning", async ({ page }) => {
+    await page.goto("/contact/");
+    // Keep the browser on the form, as it stays while a slow post is still on its way.
+    await page.evaluate(() => addEventListener("submit", (event) => event.preventDefault()));
+    await page.getByLabel("Your name").fill("Maria Santos");
+    await page.getByLabel("Phone number or email").fill("maria@example.com");
+    await page.getByLabel("Event date").fill("2027-05-15");
+    await page.getByLabel("Venue or city").fill("Markham");
+    await page.getByLabel("Event type").selectOption("Baby shower");
+
+    await page.getByRole("button", { name: "Send inquiry" }).click();
+
+    await expectShownNow(page, page.getByRole("button", { name: "Sending your inquiry…" }));
+  });
+});
+
+test.describe("the thank-you page", () => {
+  test("is shown straight away", async ({ page }) => {
+    await page.goto("/contact/thanks/");
+
+    await expectShownNow(page, page.getByRole("main").locator("h1, p"));
   });
 });

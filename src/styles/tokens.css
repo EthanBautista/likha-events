@@ -45,4 +45,5 @@
   --duration-linger: 900ms; /* a photo easing closer on hover */
   --duration-settle: 1400ms; /* a photo settling into its arch */
   --stagger: 90ms; /* between things arriving together */
+  --duration-turn: 1s; /* one turn of the arc while an Inquiry is sending */
 }

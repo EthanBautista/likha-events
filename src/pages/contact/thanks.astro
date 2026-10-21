@@ -1,4 +1,5 @@
 ---
+import ArchBalloons from "../../assets/brand/arch-balloons.svg";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { inquiryReplyTime, social } from "../../site-settings";
 ---
@@ -9,6 +10,7 @@ import { inquiryReplyTime, social } from "../../site-settings";
   description="Your inquiry is on its way to Likha Events, and we'll be in touch soon with a quote."
 >
   <section class="container thanks">
+    <ArchBalloons class="motif" aria-hidden="true" focusable="false" />
     <h1>Thank you for your inquiry</h1>
     <p>
       It's on its way to Likha Events. We'll reply {inquiryReplyTime} by phone or email, whichever you gave us,
@@ -24,5 +26,35 @@ import { inquiryReplyTime, social } from "../../site-settings";
 <style>
   .thanks {
     padding-block: var(--space-xl) var(--space-2xl);
+  }
+
+  /* The brand's arch with balloons, in decorative sage. Its balloon highlights are cut in the page colour. */
+  .motif {
+    --logo-knockout: var(--color-bg);
+    display: block;
+    width: 4.5rem;
+    height: auto;
+    margin-bottom: var(--space-md);
+    color: var(--color-sage);
+  }
+
+  .thanks p {
+    margin: 0 0 var(--space-sm);
+  }
+
+  /* The page arrives like the homepage hero: the arch, the heading, then the words rise in one after another.
+     It is CSS only, so it never waits on a script. */
+  @media (prefers-reduced-motion: no-preference) {
+    .thanks > * {
+      animation: rise-in var(--duration-rise) var(--ease-settle) backwards;
+    }
+
+    .thanks > :nth-child(2) {
+      animation-delay: var(--stagger);
+    }
+
+    .thanks > :nth-child(n + 3) {
+      animation-delay: calc(2 * var(--stagger));
+    }
   }
 </style>

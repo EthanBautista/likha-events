@@ -183,3 +183,12 @@ svg {
     transition: scale var(--duration-open) var(--ease-settle);
   }
 }
+
+/* A page's opening content rising into place on load, as the homepage hero and the thank-you page do. The
+   same rise as the scroll reveals in motion.ts. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(1.5rem);
+  }
+}

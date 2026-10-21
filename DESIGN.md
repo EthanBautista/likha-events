@@ -127,7 +127,7 @@ The site avoids the party-store look: no bright primaries, confetti, bubbly disp
 - A serif for headings, captions and prices, a sans for everything else.
 - Flat surfaces. Depth comes from tone (paper vs. sage band) and hairlines, never shadows.
 - Pill-shaped buttons and filter chips that echo the arch's curve.
-- Slow, restrained motion in transform and opacity only, settling on `cubic-bezier(0.16, 1, 0.3, 1)` and switched off under "reduce motion". The Gallery, Photo viewer, homepage, header and footer have it so far; Packages and Contact follow in ticket 15.
+- Slow, restrained motion in transform and opacity only, settling on `cubic-bezier(0.16, 1, 0.3, 1)` and switched off under "reduce motion". Every page has it.
 
 ## Colors
 
@@ -139,7 +139,7 @@ A warm neutral page, with green as the brand's single accent: forest for action,
 - **Paper on Forest** (`on-action`): text on forest. Same value as `bg`.
 
 ### Secondary
-- **Sage** (`sage`): the brand guide's sage, used only for decoration, such as the hover underline in the menu and future motifs. At 3.5:1 on paper it is **never used for text**.
+- **Sage** (`sage`): the brand guide's sage, used only for decoration, such as the hover underline in the menu and the arch motif on the thank-you page. At 3.5:1 on paper it is **never used for text**.
 - **Sage Mist** (`sage-band`): a light tint of sage used for the soft bands (homepage Packages teaser, booking section, footer, Contact's chat panel), the empty arch behind a loading photo, and the outline button's hover fill.
 
 ### Neutral
@@ -184,7 +184,7 @@ A warm neutral page, with green as the brand's single accent: forest for action,
 - **Bands:** a `sage-band` section runs the full width of the page while its content stays in the container. Paper and sage bands alternate to separate sections, with no rules or cards between them.
 - **Breakpoints:** 48rem (the menu collapses below it, and the footer goes to two columns above it) and 56rem (the homepage hero splits into text and arch, and Contact splits into form and chat panel).
 - **Alignment:** homepage sections are centred. Gallery, Packages and Contact are left-aligned for reading and scanning, except the Package cards, which are centred under their arch tops.
-- **Touch targets:** pills, filter chips, form fields, the Send button, the phone Menu button and the footer's social links are at least 2.75rem (44px) tall. See the drift notes under Components for the exceptions.
+- **Touch targets:** pills, filter chips, form fields, the Send button, the phone Menu button and the footer's social links are at least 2.75rem (44px) tall.
 
 ## Elevation & Depth
 
@@ -201,7 +201,7 @@ Buttons and filter chips take the arch's curve as a **pill** (`rounded.pill`). S
 
 `--radius` is the only radius token in `tokens.css`. The pill and arch values are repeated as literals in each component that uses them.
 
-The vector artwork in `src/assets/brand/` (`arch.svg`, `arch-balloons.svg`, `logo-lockup.svg`, `logo-wordmark.svg`) is the brand's own. Only the wordmark is in use so far. The arch outlines are on hand for motifs.
+The vector artwork in `src/assets/brand/` (`arch.svg`, `arch-balloons.svg`, `logo-lockup.svg`, `logo-wordmark.svg`) is the brand's own. The wordmark is the logo, and `arch-balloons.svg` sits in sage above the thank-you page's heading. The plain arch outline is on hand for other motifs.
 
 ### Named Rules
 **The Arch Frames the Work Rule.** Any photo of Likha Events' work shown as a single feature goes in an arch. The viewer's photo list is the exception, because it shows the whole photo uncropped.
@@ -210,15 +210,13 @@ The vector artwork in `src/assets/brand/` (`arch.svg`, `arch-balloons.svg`, `log
 
 ### Buttons
 Soft and assured: pill-shaped, at least 44px tall, in the sans at body size.
-- **Primary (solid):** forest pill with paper text. Used for the main action in each place: the homepage's and Gallery's "Get a quote", and the homepage's "Send an inquiry".
-- **Outline:** 1px forest border, transparent fill, forest text. Used for a secondary action that should still look like a button, such as "See the gallery" under the featured Setups, and for the Event type filter.
+- **Primary (solid):** forest pill with paper text. Used for the main action in each place: the homepage's and Gallery's "Get a quote", "Send an inquiry" on the homepage and under How booking works, and Contact's "Send inquiry".
+- **Outline:** 1px forest border, transparent fill, forest text. Used for a secondary action that should still look like a button, such as "See the gallery" under the featured Setups and Contact's chat buttons, and for the Event type filter.
 - **Hover:** solid deepens to `action-hover`. Outline fills with `sage-band`.
 - **Text link:** a forest underlined link for tertiary actions beside a pill, such as "Follow us on Instagram" in the homepage closing section and "See Packages & Rentals" in the sage band.
 - **Focus:** a 2px forest outline, offset 3px, on every focusable element.
-- **Drift to fix in the polish tickets:** these calls to action still use `--radius` rectangles instead of pills:
-  - The booking call to action on Packages & Rentals, which also lacks the 44px minimum height.
-  - Contact's Send button.
-  - Contact's Instagram and Facebook chat buttons, which also fill solid forest on hover instead of `sage-band`.
+- **On a sage band:** an outline pill fills with paper on hover instead, so it still lifts. Contact's Instagram and Facebook chat buttons do this.
+- **Sending:** while an Inquiry is on its way, Contact's Send pill reads "Sending your inquiry…" with a thin turning arc before the label, and pressing it again sends nothing more.
 
 ### Chips (Event type filter)
 - **Style:** the outline pill.
@@ -232,8 +230,9 @@ Soft and assured: pill-shaped, at least 44px tall, in the sans at body size.
 
 ### Inputs / Fields
 - **Style:** white background, 1px slate border, `--radius` corners, 44px tall, full width up to the form's 34rem. Labels sit above in sans at weight 500, and optional fields add a slate "(optional)".
-- **Focus:** the global 2px forest outline.
-- **Error:** a brick message in Label size below the field. Required fields use native browser validation, and the 3-photo limit has its own message.
+- **Hover and focus:** the border deepens to forest, and focus adds the global 2px forest outline. The caret is forest.
+- **Error:** a brick message in Label size below the field, read out as its description, and a brick border. The browser's own popup is held back, so a failed send shows every field's message at once and focuses the first. Each message goes once its field is answered.
+- **Photo picker:** the file input's own button is a small outline pill.
 
 ### Navigation
 - **Desktop (48rem and up):** the forest "Likha" wordmark on the left, then Home · Gallery · Packages & Rentals · Contact as Label-size links with 0.04em tracking, in charcoal. Hover turns forest with a sage underline. The current page is forest with a forest underline. A hairline runs under the header. The links are 44px tall.
@@ -248,19 +247,22 @@ A native `<dialog>` up to 60rem wide on paper over the charcoal backdrop. A stic
 A small forest label (uppercase, 0.08em tracking) centred at the foot of an arch, or at the top of a Package card. It stays until the owner replaces sample content.
 
 ### Booking steps
-A numbered list on a `sage-band` band. Each step has a 2.5rem forest circle with a serif numeral in paper, a Title-style heading and a short body line.
+A numbered list on a `sage-band` band. Each step has a 2.5rem forest circle with a serif numeral in paper, a Title-style heading and a short body line. The band ends the Packages & Rentals page, so it runs down to the footer with a hairline between them, with no strip of paper.
 
 ## Motion
 
-Motion is the atelier hanging its work: slow, quiet, and only ever moving the frames, never the page around them. It moves things with transform and opacity only, eases out on the `--ease-settle` token (`cubic-bezier(0.16, 1, 0.3, 1)`), and under "reduce motion" nothing moves at all. The one exception to "transform and opacity" is a hover colour change on a link, pill or the Menu button, which eases over `--duration-exit` rather than snapping. Under "reduce motion" even that is instant.
+Motion is the atelier hanging its work: slow, quiet, and only ever moving the frames, never the page around them. It moves things with transform and opacity only, eases out on the `--ease-settle` token (`cubic-bezier(0.16, 1, 0.3, 1)`), and under "reduce motion" nothing moves at all. The one exception to "transform and opacity" is a colour change on hover: a link, pill or the Menu button, or a form field's border on hover or focus, which eases over `--duration-exit` rather than snapping. Under "reduce motion" even that is instant.
 
-The durations are tokens in `tokens.css`: `--duration-press` (150ms), `--duration-exit` (200ms), `--duration-open` (380ms), `--duration-rise` (800ms), `--duration-linger` (900ms), `--duration-settle` (1.4s) and `--stagger` (90ms). Scroll reveals come from `src/motion.ts`, which reads the same tokens.
+The durations are tokens in `tokens.css`: `--duration-press` (150ms), `--duration-exit` (200ms), `--duration-open` (380ms), `--duration-rise` (800ms), `--duration-linger` (900ms), `--duration-settle` (1.4s), `--duration-turn` (1s, the sending arc's turn) and `--stagger` (90ms). Scroll reveals come from `src/motion.ts`, which reads the same tokens.
 
 - **Homepage hero:** on load the wordmark, tagline and "Get a quote" rise 1.5rem and fade in over 800ms, one stagger apart, while the arch rises beside them and its photo settles from 1.06. It is CSS only.
 - **Scroll reveals:** the first time it scrolls into view, content rises 1.5rem and fades in over 800ms: the homepage's "See the gallery", Packages teaser, Service area line and closing call to action. Setup cards (Gallery and homepage) do the same while their photo settles from 1.06 to full size inside the arch over 1.4s. Things arriving together are staggered 90ms apart, capped at four steps. Content stays visible by default, so no page depends on the script to be seen.
 - **Hover and press:** on hover or keyboard focus a Gallery card's photo eases to 1.04 inside the arch over 900ms, and a press settles the card to 0.98. Pills settle to 0.98 on press too. Links and pills ease between colours over 200ms. Menu and footer links draw a 1px line out from the centre on hover or keyboard focus.
 - **Phone menu:** the panel slides down 0.75rem and fades in over 380ms, and lifts away faster (200ms). The menu icon's three lines fold into an × at the same pace.
 - **Event type filter:** a View Transition. Cards that stay glide to their new places, leaving cards fade out in 200ms, and arriving cards fade and rise 1rem. The rest of the page swaps without a cross-fade.
+- **Packages & Rentals:** Package cards and booking steps rise into view like the homepage sections, staggered as rows. Rental cards arrive like Setup cards, their photos settling into the arch.
+- **Contact:** field borders ease to forest over 200ms. An error message eases in just under its field over 380ms, dropping 0.375rem into place. While sending, the arc in the Send pill fades in and turns once a second. Under "reduce motion" the arc is hidden and the label alone says it is sending.
+- **Thank-you page:** arrives like the homepage hero, CSS only: the arch motif, the heading and the words rise in one stagger apart. Both pages use the shared `rise-in` keyframes in `global.css`.
 - **Photo viewer:** opens by rising 1.5rem and fading in over 380ms with the backdrop, and closes faster (200ms) by dropping 1rem. Photos still loading fade in once ready.
 
 ## Do's and Don'ts
@@ -272,7 +274,7 @@ The durations are tokens in `tokens.css`: `--duration-press` (150ms), `--duratio
 - **Do** separate sections with paper and sage bands and 1px hairlines.
 - **Do** let the photos carry the colour. The frame around them stays paper, ink and green.
 - **Do** keep touch targets at least 44px tall and every page free of sideways scrolling at 375px.
-- **Do** write any motion with transform and opacity only (hover colour fades aside), on the motion tokens, slow and restrained, and turn it all off under `prefers-reduced-motion`.
+- **Do** write any motion with transform and opacity only (hover and focus colour fades aside), on the motion tokens, slow and restrained, and turn it all off under `prefers-reduced-motion`.
 
 ### Don't:
 - **Don't** use `sage` for text, or put text on a full-strength sage background.
