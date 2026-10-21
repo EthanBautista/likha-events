@@ -24,6 +24,7 @@ const viewerId = (setup: Setup) => `setup-${setup.id}`;
 
     <!-- Hidden until the script runs, so without JavaScript every Setup simply stays shown. -->
     <div class="filter" role="group" aria-label="Filter by Event type" hidden>
+      <span class="highlight" aria-hidden="true"></span>
       <button type="button" class="pill" aria-pressed="true">All</button>
       {
         eventTypes.inGallery(setups).map((eventType) => (
@@ -54,39 +55,98 @@ const viewerId = (setup: Setup) => `setup-${setup.id}`;
 </BaseLayout>
 
 <script>
-  import { reduceMotion, revealOnScroll, riseWithPhoto } from "../motion";
+  import { milliseconds, reduceMotion, revealOnScroll, riseWithPhoto, token } from "../motion";
 
   const filter = document.querySelector<HTMLElement>(".filter")!;
   const buttons = [...filter.querySelectorAll<HTMLButtonElement>("button")];
   const setups = [...document.querySelectorAll<HTMLElement>(".grid > li")];
   const status = document.querySelector<HTMLElement>(".filter-status")!;
 
+  // The chosen Event type is marked by a highlight behind its button, which glides from one to the next.
+  const highlight = filter.querySelector<HTMLElement>(".highlight")!;
+  const placeHighlight = () => {
+    const pressed = buttons.find((button) => button.getAttribute("aria-pressed") === "true")!;
+    highlight.style.translate = `${pressed.offsetLeft}px ${pressed.offsetTop}px`;
+    highlight.style.width = `${pressed.offsetWidth}px`;
+    highlight.style.height = `${pressed.offsetHeight}px`;
+  };
+
   // Event types are known here by their slugs, as in the URL. An undefined slug means "All".
   const show = (slug: string | undefined) => {
     for (const button of buttons) {
       button.setAttribute("aria-pressed", String(button.dataset.eventType === slug));
     }
+    placeHighlight();
     for (const setup of setups) {
       setup.hidden = slug !== undefined && setup.dataset.eventType !== slug;
     }
   };
 
+  const grid = document.querySelector<HTMLElement>(".grid")!;
+  const glide = 550;
+  const clearLeaving = (setup: HTMLElement) => {
+    setup.classList.remove("leaving");
+    setup.style.removeProperty("inset");
+    setup.style.removeProperty("width");
+  };
+
   // Changing the Event type eases between results: cards that stay glide to their new places, and the
-  // rest fade out or in. Browsers without View Transitions simply switch.
-  const showWithTransition = (slug: string | undefined, done: () => void) => {
-    if (reduceMotion.matches || !document.startViewTransition) {
+  // rest fade out or in. Each change starts from wherever the cards are, so choosing again mid-way
+  // carries on smoothly rather than jumping.
+  const showWithMotion = (slug: string | undefined) => {
+    if (reduceMotion.matches) {
       show(slug);
-      done();
       return;
     }
-    // From here the transition introduces the cards, so none waits to rise in on scroll. The names stay
-    // set afterwards, ready for the next change.
+    // From here these animations introduce the cards, so none waits to rise in on scroll.
     arrivals.stop();
-    setups.forEach((setup, index) => (setup.style.viewTransitionName = `setup-${index}`));
-    document.startViewTransition(() => {
-      show(slug);
-      done();
-    });
+
+    // Where each card on screen is now, and how faded, part-way through any change still running.
+    const before = new Map(
+      setups
+        .filter((setup) => !setup.hidden)
+        .map((setup) => [setup, { rect: setup.getBoundingClientRect(), opacity: getComputedStyle(setup).opacity }]),
+    );
+    for (const setup of setups) {
+      for (const animation of setup.getAnimations()) animation.cancel();
+      clearLeaving(setup);
+    }
+
+    show(slug);
+
+    const gridRect = grid.getBoundingClientRect();
+    for (const setup of setups) {
+      const was = before.get(setup);
+      if (was && !setup.hidden) {
+        const { left, top } = setup.getBoundingClientRect();
+        setup.animate(
+          {
+            transform: [`translate(${was.rect.left - left}px, ${was.rect.top - top}px)`, "none"],
+            opacity: [was.opacity, "1"],
+          },
+          { duration: glide, easing: token("--ease-settle") },
+        );
+      } else if (was) {
+        // Held where it was, out of the layout, while it fades; then hidden.
+        setup.hidden = false;
+        setup.classList.add("leaving");
+        setup.style.inset = `${was.rect.top - gridRect.top}px auto auto ${was.rect.left - gridRect.left}px`;
+        setup.style.width = `${was.rect.width}px`;
+        setup
+          .animate({ opacity: [was.opacity, "0"] }, { duration: milliseconds("--duration-exit"), easing: "ease-in" })
+          .finished.then(() => {
+            setup.hidden = true;
+            clearLeaving(setup);
+          })
+          .catch(() => {});
+      } else if (!setup.hidden) {
+        // Arrives once the others have begun to move.
+        setup.animate(
+          { opacity: [0, 1], transform: ["translateY(1rem)", "none"] },
+          { duration: glide, delay: 120, easing: token("--ease-settle"), fill: "backwards" },
+        );
+      }
+    }
   };
 
   // The chosen Event type is kept in the URL, so a filtered gallery can be shared or linked to.
@@ -101,15 +161,20 @@ const viewerId = (setup: Setup) => `setup-${setup.id}`;
     if (slug) url.searchParams.set("type", slug);
     else url.searchParams.delete("type");
     history.replaceState(history.state, "", url);
-    showWithTransition(slug, () => {
-      // Announced only when the visitor chooses, not on load.
-      const shown = setups.filter((setup) => !setup.hidden).length;
-      status.textContent = `Showing ${shown} ${shown === 1 ? "Setup" : "Setups"}`;
-    });
+    showWithMotion(slug);
+    // Announced only when the visitor chooses, not on load.
+    const shown = setups.filter((setup) => !setup.hidden && !setup.classList.contains("leaving")).length;
+    status.textContent = `Showing ${shown} ${shown === 1 ? "Setup" : "Setups"}`;
   };
 
   filter.hidden = false;
   show(fromUrl());
+  // Placed straight away on load, gliding only from then on. It follows its button as the buttons wrap
+  // or the font loads.
+  highlight.getBoundingClientRect();
+  filter.classList.add("glides");
+  const follow = new ResizeObserver(placeHighlight);
+  for (const button of buttons) follow.observe(button);
   // Each card rises into place once, the first time it scrolls into view, while its photo settles into the arch.
   const arrivals = revealOnScroll(setups, riseWithPhoto);
   for (const button of buttons) {
@@ -131,6 +196,7 @@ const viewerId = (setup: Setup) => `setup-${setup.id}`;
   }
 
   .filter {
+    position: relative;
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-xs);
@@ -141,8 +207,48 @@ const viewerId = (setup: Setup) => `setup-${setup.id}`;
     display: none;
   }
 
+  /* The pressed button's solid fill, drawn behind the buttons so it can glide between them (see the
+     script). The buttons themselves stay clear, each label turning light as the highlight reaches it. */
+  .highlight {
+    position: absolute;
+    top: 0;
+    left: 0;
+    border-radius: 100vmax;
+    background: var(--color-action);
+  }
+
+  .filter .pill {
+    position: relative;
+  }
+
+  .filter .pill[aria-pressed="true"] {
+    background: transparent;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .filter.glides .highlight {
+      transition:
+        translate var(--duration-open) var(--ease-settle),
+        width var(--duration-open) var(--ease-settle),
+        height var(--duration-open) var(--ease-settle);
+    }
+
+    /* The hover tint goes at once rather than fading over the arriving highlight. */
+    .filter .pill {
+      transition:
+        color var(--duration-exit) ease-out,
+        scale var(--duration-press) ease-out;
+    }
+  }
+
   .grid > li {
     position: relative;
+  }
+
+  /* A card fading out after the Event type changes, held where it was (see the script). */
+  .grid > li:global(.leaving) {
+    position: absolute;
+    pointer-events: none;
   }
 
   .open-viewer {
@@ -156,6 +262,7 @@ const viewerId = (setup: Setup) => `setup-${setup.id}`;
   }
 
   .grid {
+    position: relative;
     list-style: none;
     margin: 0;
     padding: 0;
@@ -191,40 +298,3 @@ const viewerId = (setup: Setup) => `setup-${setup.id}`;
   }
 </style>
 
-<style is:global>
-  /* Filtering by Event type, run as a View Transition (see the script). Only the cards move, so the
-     rest of the page swaps without a cross-fade. */
-  ::view-transition-old(root),
-  ::view-transition-new(root) {
-    animation: none;
-    /* Not blended together as in a cross-fade, which would wash the page out while the cards move. */
-    mix-blend-mode: normal;
-  }
-
-  ::view-transition-group(*) {
-    animation-duration: 550ms;
-    animation-timing-function: var(--ease-settle);
-  }
-
-  /* A card leaving fades quickly; a card arriving fades and rises once the others have begun to move. */
-  ::view-transition-old(*):only-child {
-    animation: setup-leave var(--duration-exit) ease-in both;
-  }
-
-  ::view-transition-new(*):only-child {
-    animation: setup-arrive 550ms var(--ease-settle) 120ms both;
-  }
-
-  @keyframes setup-leave {
-    to {
-      opacity: 0;
-    }
-  }
-
-  @keyframes setup-arrive {
-    from {
-      opacity: 0;
-      transform: translateY(1rem);
-    }
-  }
-</style>

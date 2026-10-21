@@ -5,9 +5,9 @@
 // Read when each motion starts, so turning "reduce motion" on takes effect without a reload.
 export const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)");
 
-const token = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-// A duration token in milliseconds, whether it is written in ms or s.
-const milliseconds = (name: string) => {
+export const token = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+/** A duration token in milliseconds, whether it is written in ms or s. */
+export const milliseconds = (name: string) => {
   const value = token(name);
   return value.endsWith("ms") ? parseFloat(value) : parseFloat(value) * 1000;
 };
