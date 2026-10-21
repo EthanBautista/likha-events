@@ -40,6 +40,7 @@ typography:
 rounded:
   radius: "0.25rem"
   pill: "100vmax"
+  circle: "50%"
   arch: "100vmax 100vmax 0.25rem 0.25rem"
 spacing:
   xs: "0.5rem"
@@ -70,6 +71,15 @@ components:
     height: "2.75rem"
   button-outline-hover:
     backgroundColor: "{colors.sage-band}"
+  button-outline-on-band-hover:
+    backgroundColor: "{colors.bg}"
+  viewer-close:
+    backgroundColor: "transparent"
+    textColor: "{colors.action}"
+    rounded: "{rounded.circle}"
+    size: "2.75rem"
+  viewer-close-hover:
+    backgroundColor: "{colors.sage-band}"
   filter-chip:
     backgroundColor: "transparent"
     textColor: "{colors.action}"
@@ -82,7 +92,7 @@ components:
   nav-link:
     textColor: "{colors.text}"
     typography: "{typography.label}"
-    padding: "{spacing.xs} 0"
+    height: "2.75rem"
   nav-link-current:
     textColor: "{colors.action}"
   arch-frame:
@@ -107,6 +117,17 @@ components:
   sage-band:
     backgroundColor: "{colors.sage-band}"
     textColor: "{colors.text}"
+  chat-panel:
+    backgroundColor: "{colors.sage-band}"
+    textColor: "{colors.text}"
+    rounded: "{rounded.radius}"
+    padding: "{spacing.lg}"
+  step-number:
+    backgroundColor: "{colors.action}"
+    textColor: "{colors.on-action}"
+    typography: "{typography.title}"
+    rounded: "{rounded.circle}"
+    size: "2.5rem"
 ---
 
 # Design System: Likha Events
@@ -140,13 +161,13 @@ A warm neutral page, with green as the brand's single accent: forest for action,
 
 ### Secondary
 - **Sage** (`sage`): the brand guide's sage, used only for decoration, such as the hover underline in the menu and the arch motif on the thank-you page. At 3.5:1 on paper it is **never used for text**.
-- **Sage Mist** (`sage-band`): a light tint of sage used for the soft bands (homepage Packages teaser, booking section, footer, Contact's chat panel), the empty arch behind a loading photo, and the outline button's hover fill.
+- **Sage Mist** (`sage-band`): a light tint of sage used for the soft bands (homepage Packages teaser, booking section, footer, Contact's chat panel), the empty arch behind a loading photo, and the hover fill of the outline button, the phone Menu button and the viewer's Close.
 
 ### Neutral
 - **Paper** (`bg`): the page background.
 - **Charcoal Ink** (`text`): all body text and headings.
 - **Slate** (`text-muted`): secondary text such as hints, the "(optional)" marker, Rental descriptions, the travel-fee note and copyright. It is also the input border colour.
-- **Hairline** (`line`): borders and dividers, such as under the header, around Package cards, between list lines and inside the viewer bar.
+- **Hairline** (`line`): borders and dividers, such as under the header and the open phone menu, around Package cards and the Menu button, between list lines, inside the viewer bar, above the footer's copyright, and where two paper sections or a band and the footer meet.
 - **Brick** (`error`): form error messages only.
 - Inputs use a plain white background (a literal `#fff` in `contact.astro`, not a token), so fields lift slightly off the paper.
 
@@ -169,7 +190,7 @@ A warm neutral page, with green as the brand's single accent: forest for action,
 - **Headline** (`--text-xl`): section `h2`s, the homepage tagline, Package names.
 - **Title** (`--text-lg`): Rental names, booking step titles and the viewer's heading. Setup captions use it at line-height 1.3. The footer tagline and the Service area line use it at the body line-height.
 - **Body** (`--text-base`): all running text, at most 65ch per line, with `text-wrap: pretty` on paragraphs and `balance` on headings.
-- **Label** (`--text-sm`): hints, errors and copyright. Menu links add 0.04em tracking. The "sample" tag is uppercase with 0.08em tracking.
+- **Label** (`--text-sm`): hints, errors and copyright. Menu links and the phone Menu button add 0.04em tracking. The "sample" tag is uppercase with 0.08em tracking.
 
 ### Named Rules
 **The Serif Speaks for the Studio Rule.** The serif is for headings, captions, prices and the tagline. Labels, form text, buttons and navigation use the sans.
@@ -181,10 +202,10 @@ A warm neutral page, with green as the brand's single accent: forest for action,
 - **Container:** content is centred in a column up to `content-width`, with the fluid `gutter` on each side (16px on a 375px phone).
 - **Vertical rhythm:** sections are padded `xl` top and bottom. Page ends and the footer gap use `2xl`. Within a section, headings sit `sm`–`lg` above their content.
 - **Grids:** auto-fitting card grids with no fixed column count. Setups use cells of at least 16rem, Packages 18rem, Rentals 14rem and booking steps 15rem, each capped at `min(100%, …)` so nothing overflows at 375px. Setup grids use a taller row gap (`xl`) than column gap (`lg`) so each caption stays with its arch.
-- **Bands:** a `sage-band` section runs the full width of the page while its content stays in the container. Paper and sage bands alternate to separate sections, with no rules or cards between them.
+- **Bands:** a `sage-band` section runs the full width of the page while its content stays in the container. Paper and sage bands alternate to separate sections, with no cards between them. Where two paper sections meet (above the homepage's closing section), or a band runs into the footer (the booking band), a 1px hairline separates them instead.
 - **Breakpoints:** 48rem (the menu collapses below it, and the footer goes to two columns above it) and 56rem (the homepage hero splits into text and arch, and Contact splits into form and chat panel).
-- **Alignment:** homepage sections are centred. Gallery, Packages and Contact are left-aligned for reading and scanning, except the Package cards, which are centred under their arch tops.
-- **Touch targets:** pills, filter chips, form fields, the Send button, the phone Menu button and the footer's social links are at least 2.75rem (44px) tall.
+- **Alignment:** homepage sections are centred. Gallery, Packages and Contact are left-aligned for reading and scanning, except the Package and Rental cards, which are centred under their arch tops.
+- **Touch targets:** pills, filter chips, form fields, the Send button, the phone Menu button, the viewer's Close, the menu links and the footer's social links are at least 2.75rem (44px) tall. Stacked phone menu links are 3rem.
 
 ## Elevation & Depth
 
@@ -197,9 +218,9 @@ The system is flat. There are no box-shadows anywhere. Depth comes from tone: pa
 
 The arch is the signature shape: a 4:5 portrait whose top is a full semicircle, sitting on two barely-rounded feet (`rounded.arch`). Photos are cropped into it with CSS only, and the original image is never altered. The arch frames the homepage hero, every Setup cover and every Rental photo. Package cards take a shallower version of the same arch (a top curve 8rem tall) so text fits inside.
 
-Buttons and filter chips take the arch's curve as a **pill** (`rounded.pill`). Small square elements (the "sample" tag, inputs, the viewer's photos, the phone Menu button) use the soft `--radius`. The booking step numbers are full circles. Lines are always 1px.
+Buttons and filter chips take the arch's curve as a **pill** (`rounded.pill`). Small square elements (the "sample" tag, inputs, the viewer's photos, the phone Menu button) use the soft `--radius`. The booking step numbers and the viewer's Close are full circles (`rounded.circle`). Lines are always 1px.
 
-`--radius` is the only radius token in `tokens.css`. The pill and arch values are repeated as literals in each component that uses them.
+`--radius` is the only radius token in `tokens.css`. The pill, circle and arch values are repeated as literals in each component that uses them.
 
 The vector artwork in `src/assets/brand/` (`arch.svg`, `arch-balloons.svg`, `logo-lockup.svg`, `logo-wordmark.svg`) is the brand's own. The wordmark is the logo, and `arch-balloons.svg` sits in sage above the thank-you page's heading. The plain arch outline is on hand for other motifs.
 
@@ -236,7 +257,7 @@ Soft and assured: pill-shaped, at least 44px tall, in the sans at body size.
 
 ### Navigation
 - **Desktop (48rem and up):** the forest "Likha" wordmark on the left, then Home · Gallery · Packages & Rentals · Contact as Label-size links with 0.04em tracking, in charcoal. Hover turns forest with a sage underline. The current page is forest with a forest underline. A hairline runs under the header. The links are 44px tall.
-- **Phone:** the menu collapses behind a "Menu" button (hairline border, `--radius` corners, three-line icon that turns into an ×, `sage-band` fill on hover or press). It opens as a full-width paper panel lying over the page under the header, closed by the button, Escape, a tap outside or tabbing on past it, with the links stacked at body size. The current page is underlined. Without JavaScript the menu stays open in the header instead.
+- **Phone:** the menu collapses behind a "Menu" button (hairline border, `--radius` corners, three-line icon that turns into an ×, `sage-band` fill on hover or press). It opens as a full-width paper panel lying over the page under the header, closed by the button, Escape, a tap outside or tabbing on past it, with the links stacked at body size, 3rem tall. The current page is underlined. Without JavaScript the menu stays open in the header instead.
 - **Footer:** a `sage-band` band with the wordmark, the serif tagline and the Instagram and Facebook links with line icons, sitting on the tagline's baseline. Hover draws a forest underline. Below them a hairline, then the copyright.
 - **Underlines:** menu and footer links use the global `.link-line` class: no text underline, but a 1px line that draws out from the centre on hover (on devices that can hover) or keyboard focus, and stays under the current page.
 
@@ -253,17 +274,17 @@ A numbered list on a `sage-band` band. Each step has a 2.5rem forest circle with
 
 Motion is the atelier hanging its work: slow, quiet, and only ever moving the frames, never the page around them. It moves things with transform and opacity only, eases out on the `--ease-settle` token (`cubic-bezier(0.16, 1, 0.3, 1)`), and under "reduce motion" nothing moves at all. The one exception to "transform and opacity" is a colour change on hover: a link, pill or the Menu button, or a form field's border on hover or focus, which eases over `--duration-exit` rather than snapping. Under "reduce motion" even that is instant.
 
-The durations are tokens in `tokens.css`: `--duration-press` (150ms), `--duration-exit` (200ms), `--duration-open` (380ms), `--duration-rise` (800ms), `--duration-linger` (900ms), `--duration-settle` (1.4s), `--duration-turn` (1s, the sending arc's turn) and `--stagger` (90ms). Scroll reveals come from `src/motion.ts`, which reads the same tokens.
+The durations are tokens in `tokens.css`: `--duration-press` (150ms), `--duration-exit` (200ms), `--duration-open` (380ms), `--duration-rise` (800ms), `--duration-linger` (900ms), `--duration-settle` (1.4s), `--duration-turn` (1s, the sending arc's turn) and `--stagger` (90ms). Scroll reveals come from `src/motion.ts`, which reads the same tokens. Three timings are still literals in their own files: the filter's View Transition (550ms, with arriving cards 120ms behind) in `gallery.astro`, and the viewer's photo fade-in (500ms) in `SetupViewer.astro`.
 
 - **Homepage hero:** on load the wordmark, tagline and "Get a quote" rise 1.5rem and fade in over 800ms, one stagger apart, while the arch rises beside them and its photo settles from 1.06. It is CSS only.
 - **Scroll reveals:** the first time it scrolls into view, content rises 1.5rem and fades in over 800ms: the homepage's "See the gallery", Packages teaser, Service area line and closing call to action. Setup cards (Gallery and homepage) do the same while their photo settles from 1.06 to full size inside the arch over 1.4s. Things arriving together are staggered 90ms apart, capped at four steps. Content stays visible by default, so no page depends on the script to be seen.
 - **Hover and press:** on hover or keyboard focus a Gallery card's photo eases to 1.04 inside the arch over 900ms, and a press settles the card to 0.98. Pills settle to 0.98 on press too. Links and pills ease between colours over 200ms. Menu and footer links draw a 1px line out from the centre on hover or keyboard focus.
 - **Phone menu:** the panel slides down 0.75rem and fades in over 380ms, and lifts away faster (200ms). The menu icon's three lines fold into an × at the same pace.
-- **Event type filter:** a View Transition. Cards that stay glide to their new places, leaving cards fade out in 200ms, and arriving cards fade and rise 1rem. The rest of the page swaps without a cross-fade.
+- **Event type filter:** a View Transition over 550ms. Cards that stay glide to their new places, leaving cards fade out in 200ms, and arriving cards fade and rise 1rem. The rest of the page swaps without a cross-fade.
 - **Packages & Rentals:** Package cards and booking steps rise into view like the homepage sections, staggered as rows. Rental cards arrive like Setup cards, their photos settling into the arch.
 - **Contact:** field borders ease to forest over 200ms. An error message eases in just under its field over 380ms, dropping 0.375rem into place. While sending, the arc in the Send pill fades in and turns once a second. Under "reduce motion" the arc is hidden and the label alone says it is sending.
 - **Thank-you page:** arrives like the homepage hero, CSS only: the arch motif, the heading and the words rise in one stagger apart. Both pages use the shared `rise-in` keyframes in `global.css`.
-- **Photo viewer:** opens by rising 1.5rem and fading in over 380ms with the backdrop, and closes faster (200ms) by dropping 1rem. Photos still loading fade in once ready.
+- **Photo viewer:** opens by rising 1.5rem and fading in over 380ms with the backdrop, and closes faster (200ms) by dropping 1rem. Photos still loading fade in over 500ms once ready.
 
 ## Do's and Don'ts
 

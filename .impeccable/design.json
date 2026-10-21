@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-20T00:00:00Z",
+  "generatedAt": "2026-10-20T23:30:00-04:00",
   "title": "Design System: Likha Events",
   "extensions": {
     "colorMeta": {
@@ -20,10 +20,20 @@
       "headline": { "displayName": "Headline", "purpose": "Section h2s, the homepage tagline and Package names." },
       "title": { "displayName": "Title", "purpose": "Rental names, booking step titles, the viewer heading; Setup captions at line-height 1.3." },
       "body": { "displayName": "Body", "purpose": "All running text, at most 65ch per line." },
-      "label": { "displayName": "Label", "purpose": "Hints, errors and copyright; menu links add 0.04em tracking; the sample tag is uppercase with 0.08em." }
+      "label": { "displayName": "Label", "purpose": "Hints, errors and copyright; menu links and the phone Menu button add 0.04em tracking; the sample tag is uppercase with 0.08em." }
     },
     "shadows": [],
-    "motion": [],
+    "motion": [
+      { "name": "ease-settle", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "The settling ease-out every arrival uses: reveals, the menu panel, the Photo viewer opening, the link line drawing out." },
+      { "name": "duration-press", "value": "150ms", "purpose": "A pill or Setup card settling to 0.98 as it is pressed." },
+      { "name": "duration-exit", "value": "200ms", "purpose": "Something leaving or closing (menu panel, Photo viewer, filtered-out cards), and hover colour fades on links and pills." },
+      { "name": "duration-open", "value": "380ms", "purpose": "An overlay or menu opening, the menu icon folding into an ×, the link line drawing out." },
+      { "name": "duration-rise", "value": "800ms", "purpose": "Content rising 1.5rem and fading into view on load or first scroll." },
+      { "name": "duration-linger", "value": "900ms", "purpose": "A Gallery card's photo easing to 1.04 inside its arch on hover or focus." },
+      { "name": "duration-settle", "value": "1400ms", "purpose": "A photo settling from 1.06 to full size inside its arch as it is revealed." },
+      { "name": "stagger", "value": "90ms", "purpose": "Between things arriving together, capped at four steps." },
+      { "name": "duration-turn", "value": "1s", "purpose": "One turn of the thin arc in Contact's Send pill while an Inquiry is sending." }
+    ],
     "breakpoints": [
       { "name": "menu", "value": "48rem" },
       { "name": "split", "value": "56rem" }
@@ -82,9 +92,9 @@
       "name": "Main menu",
       "kind": "nav",
       "refersTo": "nav-link",
-      "description": "Label-size sans links; the current page is forest with an underline.",
+      "description": "Label-size sans links. Hover turns forest as a sage line draws out from the centre; the current page is forest with a forest line.",
       "html": "<nav class=\"ds-nav\"><a href=\"#\">Home</a><a href=\"#\" aria-current=\"page\">Gallery</a><a href=\"#\">Packages &amp; Rentals</a><a href=\"#\">Contact</a></nav>",
-      "css": ".ds-nav { display: flex; gap: var(--space-lg); font-family: var(--font-body); } .ds-nav a { padding-block: var(--space-xs); color: var(--color-text); font-size: var(--text-sm); letter-spacing: 0.04em; text-decoration: none; border-bottom: 1px solid transparent; } .ds-nav a:hover { color: var(--color-action); border-bottom-color: var(--color-sage); } .ds-nav a[aria-current='page'] { color: var(--color-action); border-bottom-color: currentColor; } .ds-nav a:focus-visible { outline: 2px solid var(--color-action); outline-offset: 3px; }"
+      "css": ".ds-nav { display: flex; gap: var(--space-lg); font-family: var(--font-body); } .ds-nav a { position: relative; display: inline-flex; align-items: center; min-height: 2.75rem; color: var(--color-text); font-size: var(--text-sm); letter-spacing: 0.04em; text-decoration: none; transition: color var(--duration-exit) ease-out; } .ds-nav a::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0.375rem; height: 1px; background: var(--color-sage); scale: 0 1; transition: scale var(--duration-open) var(--ease-settle); } .ds-nav a:hover, .ds-nav a[aria-current='page'] { color: var(--color-action); } .ds-nav a:hover::after, .ds-nav a:focus-visible::after, .ds-nav a[aria-current='page']::after { scale: 1; } .ds-nav a[aria-current='page']::after { background: currentColor; } .ds-nav a:focus-visible { outline: 2px solid var(--color-action); outline-offset: 3px; } @media (prefers-reduced-motion: reduce) { .ds-nav a, .ds-nav a::after { transition: none; } }"
     },
     {
       "name": "Booking step",
@@ -93,6 +103,22 @@
       "description": "Numbered step on a sage band, with a forest circle and a serif numeral.",
       "html": "<div class=\"ds-band\"><ol class=\"ds-steps\"><li><h3>Send an Inquiry</h3><p>Tell us your date and the look you're after.</p></li><li><h3>Get a quote</h3><p>We reply with a price.</p></li></ol></div>",
       "css": ".ds-band { padding: var(--space-xl) var(--gutter); background: var(--color-sage-band); color: var(--color-text); font-family: var(--font-body); font-size: var(--text-base); } .ds-steps { margin: 0; padding: 0; list-style: none; counter-reset: step; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: var(--space-lg); } .ds-steps li { counter-increment: step; } .ds-steps li::before { content: counter(step); display: grid; place-items: center; width: 2.5rem; height: 2.5rem; margin-bottom: var(--space-sm); border-radius: 50%; background: var(--color-action); color: var(--color-on-action); font-family: var(--font-heading); font-size: var(--text-lg); } .ds-steps h3 { margin: 0 0 var(--space-xs); font-family: var(--font-heading); font-weight: 500; font-size: var(--text-lg); line-height: 1.1; } .ds-steps p { margin: 0; }"
+    },
+    {
+      "name": "Photo viewer bar",
+      "kind": "custom",
+      "refersTo": "button-outline",
+      "description": "The viewer's sticky bar: the Setup caption in serif Title and a quiet round × Close, the outline pill's border and hover as a 44px circle.",
+      "html": "<div class=\"ds-viewer-bar\"><h2>Sage and gold baby shower</h2><button class=\"ds-close\" type=\"button\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M6 6l12 12M18 6L6 18\" /></svg><span class=\"ds-vh\">Close</span></button></div>",
+      "css": ".ds-viewer-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); padding: var(--space-sm) var(--gutter); background: var(--color-bg); border-bottom: 1px solid var(--color-line); } .ds-viewer-bar h2 { margin: 0; font-family: var(--font-heading); font-weight: 500; font-size: var(--text-lg); line-height: 1.1; color: var(--color-text); } .ds-close { display: grid; place-items: center; flex-shrink: 0; width: 2.75rem; height: 2.75rem; padding: 0; border: 1px solid var(--color-action); border-radius: 50%; background: transparent; color: var(--color-action); cursor: pointer; transition: background-color var(--duration-exit) ease-out; } .ds-close:hover { background: var(--color-sage-band); } .ds-close:focus-visible { outline: 2px solid var(--color-action); outline-offset: 3px; } .ds-close svg { width: 1.25rem; height: 1.25rem; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; } .ds-vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }"
+    },
+    {
+      "name": "Chat panel",
+      "kind": "card",
+      "refersTo": "chat-panel",
+      "description": "Contact's \"Prefer to chat?\" box: a sage-band block whose outline pills fill with paper on hover, so they still lift.",
+      "html": "<aside class=\"ds-chat\"><h2>Prefer to chat?</h2><p>Send us a message on Instagram or Facebook instead.</p><a class=\"ds-chat-pill\" href=\"#\">Message us on Instagram</a></aside>",
+      "css": ".ds-chat { max-width: 22rem; padding: var(--space-lg); border-radius: var(--radius); background: var(--color-sage-band); color: var(--color-text); font-family: var(--font-body); font-size: var(--text-base); } .ds-chat h2 { margin: 0 0 var(--space-xs); font-family: var(--font-heading); font-weight: 500; font-size: var(--text-xl); line-height: 1.1; } .ds-chat p { margin: 0 0 var(--space-md); } .ds-chat-pill { display: inline-flex; align-items: center; min-height: 2.75rem; padding: var(--space-xs) var(--space-md); border: 1px solid var(--color-action); border-radius: 100vmax; background: transparent; color: var(--color-action); text-decoration: none; transition: background-color var(--duration-exit) ease-out; } .ds-chat-pill:hover { background: var(--color-bg); } .ds-chat-pill:focus-visible { outline: 2px solid var(--color-action); outline-offset: 3px; } @media (prefers-reduced-motion: reduce) { .ds-chat-pill { transition: none; } }"
     }
   ],
   "narrative": {
@@ -104,7 +130,7 @@
       "A serif for headings, captions and prices, a sans for everything else.",
       "Flat surfaces. Depth comes from tone (paper vs. sage band) and hairlines, never shadows.",
       "Pill-shaped buttons and filter chips that echo the arch's curve.",
-      "Slow, restrained motion in transform and opacity only, settling on cubic-bezier(0.16, 1, 0.3, 1) and switched off under \"reduce motion\". The Gallery and Photo viewer have it so far; the homepage, header, Packages and Contact follow in tickets 14 and 15."
+      "Slow, restrained motion in transform and opacity only, settling on cubic-bezier(0.16, 1, 0.3, 1) and switched off under \"reduce motion\". Every page has it."
     ],
     "rules": [
       { "name": "The Sage Is Not Ink Rule", "body": "The brand sage (sage) never carries text. Wherever the brand guide says \"sage band\", the band is sage-band and the text on it stays charcoal or forest.", "section": "colors" },
@@ -122,7 +148,7 @@
       "Do separate sections with paper and sage bands and 1px hairlines.",
       "Do let the photos carry the colour. The frame around them stays paper, ink and green.",
       "Do keep touch targets at least 44px tall and every page free of sideways scrolling at 375px.",
-      "Do write any motion (tickets 13 to 15) with transform and opacity only, slow and restrained, and turn it all off under prefers-reduced-motion."
+      "Do write any motion with transform and opacity only (hover and focus colour fades aside), on the motion tokens, slow and restrained, and turn it all off under prefers-reduced-motion."
     ],
     "donts": [
       "Don't use sage for text, or put text on a full-strength sage background.",
