@@ -71,3 +71,9 @@ Checked so far in Chromium at a 375×812 phone viewport (touch, Pixel 5 profile)
 B moves the caption below the photo, into a museum label. That breaks story 43 ("the caption and Close button stay quietly at the top"). If B wins, either accept that change to the spec or keep B's wall and mat with the caption at the top.
 
 **Still needed from the developer:** open the prototypes on a real phone, pick a direction, and record the choice and why here. Ticket 04 builds it, and DESIGN.md records it.
+
+### Developer's answers to the critique (2026-10-21)
+
+- **What comes next:** the viewer first. Once a direction is picked, ticket 04 builds it, with the stage sized by a grid (`auto 1fr auto`) rather than a fixed allowance for the caption (priority issues 1, 2 and 4).
+- **Cards:** only the faster first covers. Load the first 1–3 covers eagerly, and the first with `fetchpriority="high"`, on the Gallery and the homepage. No "9 photos" line.
+- **Story 43 stays.** If B wins, keep its sage wall and paper mat but put the caption back at the top.
