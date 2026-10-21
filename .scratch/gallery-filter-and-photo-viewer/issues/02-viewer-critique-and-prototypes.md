@@ -4,13 +4,13 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-human
+**Status:** done
 
 - [x] An Impeccable critique of the Photo viewer, the filter row and the gallery cards at 375px and desktop, with its findings written in this ticket's comments
 - [x] For the cards, the critique says plainly whether anything needs fixing. They are redesigned only if it does
 - [x] 2–3 throwaway prototypes of the one-photo-at-a-time viewer: warm charcoal (the colour already behind the viewer) plus one or two alternatives such as deep sage, or cream done properly. Each shows a whole, uncropped photo, the caption, the Close button, the "N / total" counter and desktop thumbnails
-- [ ] The prototypes run on a phone with real sample photos, kept out of the shipped site
-- [ ] The developer picks a direction. The choice, and the reason, are recorded in this ticket's comments (this last step needs the developer)
+- [x] The prototypes run on a phone with real sample photos, kept out of the shipped site
+- [x] The developer picks a direction. The choice, and the reason, are recorded in this ticket's comments (this last step needs the developer)
 - [x] The prototype code is removed or left clearly marked as throwaway
 
 ## Comments
@@ -77,3 +77,12 @@ B moves the caption below the photo, into a museum label. That breaks story 43 (
 - **What comes next:** the viewer first. Once a direction is picked, ticket 04 builds it, with the stage sized by a grid (`auto 1fr auto`) rather than a fixed allowance for the caption (priority issues 1, 2 and 4).
 - **Cards:** only the faster first covers. Load the first 1–3 covers eagerly, and the first with `fetchpriority="high"`, on the Gallery and the homepage. No "9 photos" line.
 - **Story 43 stays.** If B wins, keep its sage wall and paper mat but put the caption back at the top.
+
+### Direction chosen (2026-10-21)
+
+**B · Deep sage, the atelier wall.** The developer compared all three on a real phone and on desktop. Why B:
+- **The photos stand out.** The thin paper mat on the deep sage wall lifts both pale photos (cupcakes, fondant) and busy ones (the gold baby-shower wall) better than charcoal or cream.
+- **It feels most like Likha.** The sage wall and serif label read as the atelier and use the brand's own sage, rather than a generic dark photo viewer.
+- **The desktop layout.** The photo beside a label column with a thumbnail grid works best on a wide screen.
+
+**For ticket 04:** story 43 stays, so build B with the caption and Close at the top rather than in a label under the photo. Keep B's wall (`#2c3a33`, which becomes a token with its contrast ratios), the paper mat around each photo, the serif "3 / 9" counter and the labelled "Close" pill. On desktop, keep the photo-plus-label-column layout with the thumbnail grid. The prototype is on `prototype/viewer-directions` for reference; it stays off main. DESIGN.md records the direction once it's built.
