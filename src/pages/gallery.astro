@@ -61,21 +61,21 @@ const viewerId = (setup: Setup) => `setup-${setup.id}`;
   const setups = [...document.querySelectorAll<HTMLElement>(".grid > li")];
   const status = document.querySelector<HTMLElement>(".filter-status")!;
 
-  // Event types are known here by their slugs, as in the URL. An undefined Event type means "All".
-  const show = (eventType: string | undefined) => {
+  // Event types are known here by their slugs, as in the URL. An undefined slug means "All".
+  const show = (slug: string | undefined) => {
     for (const button of buttons) {
-      button.setAttribute("aria-pressed", String(button.dataset.eventType === eventType));
+      button.setAttribute("aria-pressed", String(button.dataset.eventType === slug));
     }
     for (const setup of setups) {
-      setup.hidden = eventType !== undefined && setup.dataset.eventType !== eventType;
+      setup.hidden = slug !== undefined && setup.dataset.eventType !== slug;
     }
   };
 
   // Changing the Event type eases between results: cards that stay glide to their new places, and the
   // rest fade out or in. Browsers without View Transitions simply switch.
-  const showWithTransition = (eventType: string | undefined, done: () => void) => {
+  const showWithTransition = (slug: string | undefined, done: () => void) => {
     if (reduceMotion.matches || !document.startViewTransition) {
-      show(eventType);
+      show(slug);
       done();
       return;
     }
@@ -84,7 +84,7 @@ const viewerId = (setup: Setup) => `setup-${setup.id}`;
     arrivals.stop();
     setups.forEach((setup, index) => (setup.style.viewTransitionName = `setup-${index}`));
     document.startViewTransition(() => {
-      show(eventType);
+      show(slug);
       done();
     });
   };
@@ -96,12 +96,12 @@ const viewerId = (setup: Setup) => `setup-${setup.id}`;
     return buttons.find((button) => button.dataset.eventType === slug)?.dataset.eventType;
   };
 
-  const choose = (eventType: string | undefined) => {
+  const choose = (slug: string | undefined) => {
     const url = new URL(location.href);
-    if (eventType) url.searchParams.set("type", eventType);
+    if (slug) url.searchParams.set("type", slug);
     else url.searchParams.delete("type");
     history.replaceState(history.state, "", url);
-    showWithTransition(eventType, () => {
+    showWithTransition(slug, () => {
       // Announced only when the visitor chooses, not on load.
       const shown = setups.filter((setup) => !setup.hidden).length;
       status.textContent = `Showing ${shown} ${shown === 1 ? "Setup" : "Setups"}`;

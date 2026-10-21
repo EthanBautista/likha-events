@@ -46,7 +46,8 @@ Good to know:
 
 - **Other is always there.** It isn't on the list, and you can't remove or rename it. Pick it for any event that doesn't have its own type.
 - **Removing an Event type never hides a Setup.** Its Setups show under Other until you pick a new type for them.
-- **Renaming changes its gallery link.** A link to the gallery filtered by the old name, such as one you shared on Instagram, shows every Setup instead. After a rename, open each of its Setups and pick the new name.
+- **After renaming one, pick the new name on its Setups.** Until you open each of its Setups and pick the new name, they show under Other. Fixing only capitals, such as "baby shower" to "Baby shower", doesn't need this.
+- **Renaming changes its gallery link.** A link to the gallery filtered by the old name, such as one you shared on Instagram, shows every Setup instead.
 - **When to add a type**: once you have about 2 or 3 Setups of one kind of event under Other, such as graduations, give it its own type. That way Other doesn't fill up with events visitors would look for by name.
 - The gallery only shows an Event type once it has a Setup, so it's fine to add one before you have photos for it.
 

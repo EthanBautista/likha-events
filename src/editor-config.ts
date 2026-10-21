@@ -1,11 +1,11 @@
 import type { CmsConfig, Field } from "@sveltia/cms";
-import { other, type EventTypes } from "./event-types";
+import { otherEventType, type EventTypes } from "./event-types";
 import { editorPhotosPattern } from "./photos";
 
 // The editor page's configuration (Sveltia CMS, ADR 0001). The owner edits Setups, Packages,
-// Rentals and the Event types list only, never page layout or headings. Each field mirrors the content schemas in
-// content-schemas.ts, and a test checks they match, so the editor won't save an entry the build
-// would reject. Fields are required unless `required: false`.
+// Rentals and the Event types list only, never page layout or headings. Each field mirrors the
+// content schemas in content-schemas.ts, and a test checks they match, so the editor won't save an
+// entry the build would reject. Fields are required unless `required: false`.
 
 /**
  * The business's Cloudinary account (ADR 0003). The API key is public, used by Cloudinary's Media
@@ -34,10 +34,10 @@ const photoPattern: [string, string] = [editorPhotosPattern, "Choose photos from
 /** Text the build trims before checking it isn't empty, so only spaces won't do. */
 const notBlank: [string, string] = [String.raw`\S`, "Write something here, not just spaces."];
 
-/** A name on the Event types list: not only spaces, and not Other in any capitals, since the site always adds Other. */
+/** A name on the Event types list: not only spaces, and not Other in any capitals, since the site always adds Other. The Event types module leaves out the same names. */
 const anyCapitals = (word: string) => [...word].map((letter) => `[${letter.toUpperCase()}${letter.toLowerCase()}]`).join("");
 const eventTypeName: [string, string] = [
-  String.raw`^(?!\s*${anyCapitals(other)}\s*$)[\s\S]*\S`,
+  String.raw`^(?!\s*${anyCapitals(otherEventType)}\s*$)[\s\S]*\S`,
   "Write a name here, not just spaces. Other is always there, so it isn't needed on the list.",
 ];
 

@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { z } from "astro/zod";
 import { eventTypesSchema, packageSchema, rentalSchema, setupSchema } from "../../src/content-schemas";
+import { eventTypesFrom } from "../../src/event-types";
 import { eventTypesForForms } from "../e2e/event-types";
 import { readPackagesInOrder } from "../e2e/packages";
 import { readRentalsInOrder } from "../e2e/rentals";
@@ -91,31 +92,33 @@ test("the editor has collections for Setups, Packages, Rentals and the Event typ
 });
 
 test.describe("the Event types list", () => {
-  const listField = () => {
+  const listFile = () => {
     const files = collections.find((collection) => collection.name === "eventTypes")?.files ?? [];
     expect(files.map((file) => file.file)).toEqual(["src/content/event-types.json"]);
-    return files[0].fields.find((field) => field.name === "names");
+    return files[0];
   };
-  const buildAccepts = (name: string) => eventTypesSchema.safeParse({ names: [name] }).success;
+  const listField = () => listFile().fields.find((field) => field.name === "names");
+  /** Whether the site keeps this name as an Event type, rather than leaving it out. */
+  const siteKeeps = (name: string) =>
+    eventTypesSchema.safeParse({ names: [name] }).success && eventTypesFrom([name]).all.length === 2;
 
   test("is the one field the build reads, a list of names", () => {
-    const files = collections.find((collection) => collection.name === "eventTypes")?.files ?? [];
-    expect(files[0]?.fields.map((field) => field.name)).toEqual(Object.keys(eventTypesSchema.shape));
+    expect(listFile().fields.map((field) => field.name)).toEqual(Object.keys(eventTypesSchema.shape));
     expect(listField()?.widget).toBe("list");
     expect(listField()?.required, "an empty list leaves only Other").toBe(false);
     expect(listField()?.field?.widget).toBe("string");
   });
 
-  test("takes the names the build accepts, and refuses blanks and Other", () => {
+  test("takes the names the site keeps, and refuses blanks and Other, which it leaves out", () => {
     const nameField = listField()!.field!;
     expect(nameField.pattern, "pattern").toBeDefined();
     for (const name of ["Bridal shower", "Wedding", "  Graduation ", "Others", "Brother's 40th"]) {
       expect(editorAccepts(nameField, [name]), name).toBe(true);
-      expect(buildAccepts(name), name).toBe(true);
+      expect(siteKeeps(name), name).toBe(true);
     }
     for (const name of ["", "   ", "Other", "other", " OTHER ", "oThEr"]) {
       expect(editorAccepts(nameField, [name]), JSON.stringify(name)).toBe(false);
-      expect(buildAccepts(name), JSON.stringify(name)).toBe(false);
+      expect(siteKeeps(name), JSON.stringify(name)).toBe(false);
     }
     expect(nameField.pattern![1]).toContain("Other is always there");
   });

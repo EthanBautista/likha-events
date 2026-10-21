@@ -1,5 +1,4 @@
 import { z } from "astro/zod";
-import { other } from "./event-types";
 import { isPhotoUrl } from "./photos";
 
 // What each content entry must hold. The build checks every content file against these (see
@@ -21,17 +20,12 @@ export const setupSchema = z.object({
   sample: z.boolean().default(false),
 });
 
-/** The owner's list of Event types. Other isn't on it, because the site always adds it. */
+/**
+ * The owner's list of Event types. Other isn't on it, because the site always adds it. A blank name or
+ * Other on the list doesn't fail the build: the Event types module leaves it out (see event-types.ts).
+ */
 export const eventTypesSchema = z.object({
-  names: z
-    .array(
-      z
-        .string()
-        .trim()
-        .min(1)
-        .refine((name) => name.toLowerCase() !== other.toLowerCase(), "Other is always there, so it isn't on the list"),
-    )
-    .default([]),
+  names: z.array(z.string()).default([]),
 });
 
 export const packageSchema = z.object({

@@ -5,7 +5,7 @@ import { join } from "node:path";
 const eventTypesFile = join(import.meta.dirname, "../../src/content/event-types.json");
 
 /** The names on the owner's list, as written there. Other is never on it. */
-export function readEventTypeNames(): string[] {
+function readEventTypeNames(): string[] {
   return (JSON.parse(readFileSync(eventTypesFile, "utf8")) as { names: string[] }).names;
 }
 
