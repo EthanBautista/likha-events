@@ -13,12 +13,14 @@
       "sage": { "role": "secondary", "displayName": "Sage", "canonical": "#788880", "tonalRamp": ["#030e09", "#1a2821", "#35443d", "#53625a", "#75857d", "#96a69e", "#bbccc3", "#e2f3eb"] },
       "sage-band": { "role": "secondary", "displayName": "Sage Mist", "canonical": "#e2e7e2", "tonalRamp": ["#090c09", "#212522", "#3d413d", "#5b5f5b", "#7d827d", "#9ea39e", "#c4c9c4", "#ebf0eb"] },
       "line": { "role": "neutral", "displayName": "Hairline", "canonical": "#d6d9d3", "tonalRamp": ["#0a0c08", "#232520", "#3e413c", "#5c5f59", "#7f817c", "#a0a39d", "#c5c8c2", "#edf0ea"] },
-      "error": { "role": "error", "displayName": "Brick", "canonical": "#9c2b1e", "tonalRamp": ["#2d0000", "#4f0000", "#721d13", "#953e32", "#bd6254", "#e28374", "#ffa998", "#ffd0be"] }
+      "error": { "role": "error", "displayName": "Brick", "canonical": "#9c2b1e", "tonalRamp": ["#2d0000", "#4f0000", "#721d13", "#953e32", "#bd6254", "#e28374", "#ffa998", "#ffd0be"] },
+      "wall": { "role": "secondary", "displayName": "Deep Sage Wall", "canonical": "#2c3a33" },
+      "on-wall-muted": { "role": "secondary", "displayName": "Sage Mist on the Wall", "canonical": "#c9d2cc" }
     },
     "typographyMeta": {
       "display": { "displayName": "Display", "purpose": "Page h1s and the large Package price." },
       "headline": { "displayName": "Headline", "purpose": "Section h2s, the homepage tagline and Package names." },
-      "title": { "displayName": "Title", "purpose": "Rental names, booking step titles, the viewer heading; Setup captions at line-height 1.3." },
+      "title": { "displayName": "Title", "purpose": "Rental names, booking step titles, the viewer caption on a phone; Setup captions at line-height 1.3." },
       "body": { "displayName": "Body", "purpose": "All running text, at most 65ch per line." },
       "label": { "displayName": "Label", "purpose": "Hints, errors and copyright; menu links and the phone Menu button add 0.04em tracking; the sample tag is uppercase with 0.08em." }
     },
@@ -105,12 +107,12 @@
       "css": ".ds-band { padding: var(--space-xl) var(--gutter); background: var(--color-sage-band); color: var(--color-text); font-family: var(--font-body); font-size: var(--text-base); } .ds-steps { margin: 0; padding: 0; list-style: none; counter-reset: step; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: var(--space-lg); } .ds-steps li { counter-increment: step; } .ds-steps li::before { content: counter(step); display: grid; place-items: center; width: 2.5rem; height: 2.5rem; margin-bottom: var(--space-sm); border-radius: 50%; background: var(--color-action); color: var(--color-on-action); font-family: var(--font-heading); font-size: var(--text-lg); } .ds-steps h3 { margin: 0 0 var(--space-xs); font-family: var(--font-heading); font-weight: 500; font-size: var(--text-lg); line-height: 1.1; } .ds-steps p { margin: 0; }"
     },
     {
-      "name": "Photo viewer bar",
+      "name": "Photo viewer label",
       "kind": "custom",
-      "refersTo": "button-outline",
-      "description": "The viewer's sticky bar: the Setup caption in serif Title and a quiet round × Close, the outline pill's border and hover as a 44px circle.",
-      "html": "<div class=\"ds-viewer-bar\"><h2>Sage and gold baby shower</h2><button class=\"ds-close\" type=\"button\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M6 6l12 12M18 6L6 18\" /></svg><span class=\"ds-vh\">Close</span></button></div>",
-      "css": ".ds-viewer-bar { display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); padding: var(--space-sm) var(--gutter); background: var(--color-bg); border-bottom: 1px solid var(--color-line); } .ds-viewer-bar h2 { margin: 0; font-family: var(--font-heading); font-weight: 500; font-size: var(--text-lg); line-height: 1.1; color: var(--color-text); } .ds-close { display: grid; place-items: center; flex-shrink: 0; width: 2.75rem; height: 2.75rem; padding: 0; border: 1px solid var(--color-action); border-radius: 50%; background: transparent; color: var(--color-action); cursor: pointer; transition: background-color var(--duration-exit) ease-out; } .ds-close:hover { background: var(--color-sage-band); } .ds-close:focus-visible { outline: 2px solid var(--color-action); outline-offset: 3px; } .ds-close svg { width: 1.25rem; height: 1.25rem; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; } .ds-vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }"
+      "refersTo": "viewer-button",
+      "description": "The viewer's label on the deep sage wall: the Event type, the serif caption, the serif \"3 / 9\" counter and a labelled × Close outline pill, in paper.",
+      "html": "<div class=\"ds-viewer-label\"><p class=\"ds-type\">Baby shower</p><h2>Sage and gold baby shower</h2><p class=\"ds-count\">3<span> / 9</span></p><button class=\"ds-close\" type=\"button\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M6 6l12 12M18 6L6 18\" /></svg>Close</button></div>",
+      "css": ".ds-viewer-label { display: grid; gap: var(--space-xs); justify-items: start; padding: var(--space-lg) var(--gutter); background: var(--color-wall); color: var(--color-bg); font-family: var(--font-body); } .ds-type { margin: 0; color: var(--color-on-wall-muted); font-size: var(--text-sm); letter-spacing: 0.08em; text-transform: uppercase; } .ds-viewer-label h2 { margin: 0; font-family: var(--font-heading); font-weight: 500; font-size: var(--text-xl); line-height: 1.1; color: inherit; } .ds-count { margin: 0; font-family: var(--font-heading); font-size: var(--text-xl); font-variant-numeric: tabular-nums; } .ds-count span { color: var(--color-on-wall-muted); font-size: 0.6em; } .ds-close { display: flex; align-items: center; gap: var(--space-xs); height: 2.75rem; padding: 0 var(--space-md) 0 var(--space-sm); border: 1px solid var(--color-on-wall-line); border-radius: 100vmax; background: transparent; color: inherit; font: inherit; font-size: var(--text-sm); letter-spacing: 0.04em; cursor: pointer; } .ds-close:hover { background: var(--color-on-wall-hover); } .ds-close:focus-visible { outline: 2px solid var(--color-bg); outline-offset: 3px; } .ds-close svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; }"
     },
     {
       "name": "Chat panel",
@@ -139,7 +141,7 @@
       { "name": "The Serif Speaks for the Studio Rule", "body": "The serif is for headings, captions, prices and the tagline. Labels, form text, buttons and navigation use the sans.", "section": "typography" },
       { "name": "The Medium Weight Rule", "body": "Headings sit at weight 500. Cormorant gets heavier quickly, so don't go bolder for emphasis. Use size or a sage-band setting instead.", "section": "typography" },
       { "name": "The Paper and Mist Rule", "body": "Lift something by moving it onto or off a sage band, or by giving it a hairline. Don't add drop shadows.", "section": "elevation" },
-      { "name": "The Arch Frames the Work Rule", "body": "Any photo of Likha Events' work shown as a single feature goes in an arch. The viewer's photo list is the exception, because it shows the whole photo uncropped.", "section": "shapes" }
+      { "name": "The Arch Frames the Work Rule", "body": "Any photo of Likha Events' work shown as a single feature goes in an arch. The Photo viewer is the exception, because it shows the whole photo uncropped, matted like a print.", "section": "shapes" }
     ],
     "dos": [
       "Do put every featured photo of a Setup or Rental in the arch (4:5 aspect, rounded.arch), cropped by CSS with object-fit: cover.",

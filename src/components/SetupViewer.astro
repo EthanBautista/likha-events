@@ -4,6 +4,8 @@ import Photo from "./Photo.astro";
 
 interface Props {
   setup: Setup;
+  /** The Setup's Event type as the site shows it, named above the caption. */
+  eventType: string;
   /**
    * The viewer's element id. The page opens each viewer with a button that has `commandfor` set to this
    * id and `command="show-modal"`, which works without JavaScript.
@@ -11,38 +13,77 @@ interface Props {
   id: string;
 }
 
-const { setup, id } = Astro.props;
+const { setup, eventType, id } = Astro.props;
 const { caption, coverPhoto, photos } = setup.data;
 const allPhotos = [coverPhoto, ...photos];
+const total = allPhotos.length;
 ---
 
-<!-- A modal dialog keeps focus inside while open, closes on Escape, and hands focus back on close. -->
+<!--
+  A modal dialog keeps focus inside while open, closes on Escape, and hands focus back on close. It's the
+  atelier wall: each photo hangs in a paper mat on deep sage, one at a time. The pieces sit flat in the
+  dialog so the phone and desktop layouts can each place them on their own grid.
+-->
 <dialog class="setup-viewer" id={id} aria-labelledby={`${id}-caption`}>
-  <div class="bar">
+  <header class="label">
+    <p class="event-type">{eventType}</p>
     <h2 id={`${id}-caption`}>{caption}</h2>
-    <form method="dialog">
-      <button type="submit" class="close" autofocus>
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6L6 18" /></svg>
-        <span class="visually-hidden">Close</span>
-      </button>
-    </form>
-  </div>
-  <ul class="photos" aria-label="Photos">
+  </header>
+  <form method="dialog" class="close-form">
+    <button type="submit" class="close wall-button" autofocus>
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6L6 18" /></svg>
+      Close
+    </button>
+  </form>
+
+  <!-- One photo per screen: swiping is the browser's own scroll, settling on each photo. Focusable, so
+  the arrow keys scroll it even without JavaScript. -->
+  <ul class="track" aria-label="Photos" tabindex="0">
     {
       allPhotos.map((photo, index) => (
         <li>
           <Photo
             src={photo}
-            alt={`${caption}, photo ${index + 1} of ${allPhotos.length}`}
-            sizes="(min-width: 60rem) 56rem, 100vw"
+            alt={`${caption}, photo ${index + 1} of ${total}`}
+            sizes="(min-width: 48rem) calc(100vw - 22rem), 100vw"
           />
         </li>
       ))
     }
   </ul>
+
+  <!-- Kept up to date by the script, so shown only once it runs. Screen readers hear "Photo 3 of 9" as it changes. -->
+  <p class="counter" role="status">
+    <span aria-hidden="true"><span class="now">1</span><span class="of"> / {total}</span></span>
+    <span class="visually-hidden">Photo <span class="now">1</span> of {total}</span>
+  </p>
+
+  <!-- Desktop only, beside the photo. -->
+  <div class="steps">
+    <button type="button" class="previous wall-button" disabled>
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15 5l-7 7 7 7" /></svg>
+      Previous<span class="visually-hidden"> photo</span>
+    </button>
+    <button type="button" class="next wall-button" disabled={total === 1}>
+      Next<span class="visually-hidden"> photo</span>
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 5l7 7-7 7" /></svg>
+    </button>
+  </div>
+  <div class="thumbnails" role="group" aria-label="Jump to a photo">
+    {
+      allPhotos.map((photo, index) => (
+        <button type="button" aria-current={index === 0 ? "true" : undefined}>
+          <Photo src={photo} alt="" sizes="6rem" />
+          <span class="visually-hidden">Photo {index + 1}</span>
+        </button>
+      ))
+    }
+  </div>
 </dialog>
 
 <script>
+  import { reduceMotion } from "../motion";
+
   // An open viewer has its own history entry at the same URL, recording which viewer is open. So the
   // browser or phone back gesture closes it instead of leaving the page, and forward or a reload opens it again.
   interface ViewerEntry {
@@ -52,17 +93,80 @@ const allPhotos = [coverPhoto, ...photos];
 
   const viewers = [...document.querySelectorAll<HTMLDialogElement>(".setup-viewer")];
 
+  // The extras on top of the swipeable track: the counter, and on desktop the buttons, keys and thumbnails.
+  // A viewer always opens on its cover.
+  const toCover = new Map<HTMLDialogElement, () => void>();
+  for (const viewer of viewers) {
+    const track = viewer.querySelector<HTMLElement>(".track")!;
+    const slides = [...track.children];
+    const counterNumbers = [...viewer.querySelectorAll<HTMLElement>(".counter .now")];
+    const previous = viewer.querySelector<HTMLButtonElement>(".previous")!;
+    const next = viewer.querySelector<HTMLButtonElement>(".next")!;
+    const thumbnails = [...viewer.querySelectorAll<HTMLButtonElement>(".thumbnails button")];
+    let current = 0;
+
+    const show = (index: number) => {
+      current = index;
+      for (const number of counterNumbers) number.textContent = String(index + 1);
+      previous.disabled = index === 0;
+      next.disabled = index === slides.length - 1;
+      for (const thumbnail of thumbnails) thumbnail.removeAttribute("aria-current");
+      thumbnails[index].setAttribute("aria-current", "true");
+    };
+    // Glides to the photo, or jumps under "reduce motion". The counter and buttons change straight away.
+    const goTo = (index: number, smooth = !reduceMotion.matches) => {
+      const photo = Math.max(0, Math.min(slides.length - 1, index));
+      track.scrollTo({ left: photo * track.clientWidth, behavior: smooth ? "smooth" : "instant" });
+      show(photo);
+    };
+    toCover.set(viewer, () => goTo(0, false));
+
+    previous.addEventListener("click", () => goTo(current - 1));
+    next.addEventListener("click", () => goTo(current + 1));
+    thumbnails.forEach((thumbnail, index) => thumbnail.addEventListener("click", () => goTo(index)));
+    // Held back from the browser, which would otherwise scroll the track a second time when it has focus.
+    viewer.addEventListener("keydown", (event) => {
+      if (event.key === "ArrowLeft") goTo(current - 1);
+      else if (event.key === "ArrowRight") goTo(current + 1);
+      else return;
+      event.preventDefault();
+    });
+
+    // The counter follows the track once it settles on a photo, however it got there.
+    const followTrack = () => {
+      const index = Math.round(track.scrollLeft / track.clientWidth);
+      if (index !== current) show(index);
+    };
+    if ("onscrollend" in window) track.addEventListener("scrollend", followTrack);
+    else {
+      let settling: ReturnType<typeof setTimeout> | undefined;
+      track.addEventListener("scroll", () => {
+        clearTimeout(settling);
+        settling = setTimeout(followTrack, 100);
+      });
+    }
+    // Keep the current photo in place when the screen turns or resizes.
+    new ResizeObserver(() => track.scrollTo({ left: current * track.clientWidth, behavior: "instant" })).observe(track);
+
+    viewer.classList.add("enhanced");
+  }
+
+  const showViewer = (viewer: HTMLDialogElement) => {
+    viewer.showModal();
+    toCover.get(viewer)!();
+  };
+
   const showViewerFromHistory = () => {
     const id = viewerIn(history.state);
     for (const viewer of viewers) {
-      if (viewer.id === id && !viewer.open) viewer.showModal();
+      if (viewer.id === id && !viewer.open) showViewer(viewer);
       if (viewer.id !== id && viewer.open) viewer.close();
     }
   };
 
   const open = (viewer: HTMLDialogElement) => {
     history.pushState({ setupViewer: viewer.id } satisfies ViewerEntry, "");
-    viewer.showModal();
+    showViewer(viewer);
   };
 
   // Going back takes a moment on a slow phone. A tap in that moment opens its viewer once the back is
@@ -90,7 +194,7 @@ const allPhotos = [coverPhoto, ...photos];
 
   // Photos still loading wait unseen and fade in once ready (see the styles). Marked by the script, so
   // without it every photo simply shows.
-  for (const photo of document.querySelectorAll<HTMLImageElement>(".setup-viewer .photos img")) {
+  for (const photo of document.querySelectorAll<HTMLImageElement>(".setup-viewer .track img")) {
     if (photo.complete) continue;
     photo.classList.add("loading");
     const settled = () => photo.classList.remove("loading");
@@ -109,17 +213,28 @@ const allPhotos = [coverPhoto, ...photos];
 
 <style>
   .setup-viewer {
+    position: fixed;
+    inset: 0;
     width: 100%;
-    max-width: 60rem;
-    max-height: 100%;
-    height: 100%;
-    margin: 0 auto;
+    height: 100dvh;
+    max-width: none;
+    max-height: none;
+    margin: 0;
     padding: 0;
     border: none;
-    background: var(--color-bg);
-    color: var(--color-text);
-    /* Scrolling to the end of the photos doesn't carry on into the page behind. */
+    background: var(--color-wall);
+    color: var(--color-bg);
     overscroll-behavior: contain;
+    /* Phone: the caption and Close quietly at the top, the photo filling what's left, the counter under it. */
+    grid-template: auto minmax(0, 1fr) auto / minmax(0, 1fr) auto;
+    grid-template-areas:
+      "label close"
+      "track track"
+      "counter counter";
+  }
+
+  .setup-viewer[open] {
+    display: grid;
   }
 
   /* The page behind stays where it was while a viewer is open, without shifting sideways as its scrollbar goes. */
@@ -132,16 +247,20 @@ const allPhotos = [coverPhoto, ...photos];
   }
 
   .setup-viewer::backdrop {
-    background: rgb(48 56 56 / 0.85);
+    background: var(--color-wall);
   }
 
-  /* The viewer rises gently into place over a darkening page, and drops away a little faster on close. */
+  /* The forest focus ring would vanish on the wall. */
+  .setup-viewer :focus-visible {
+    outline-color: var(--color-bg);
+  }
+
+  /* The wall fades in over the page, and fades away a little faster on close. */
   @media (prefers-reduced-motion: no-preference) {
     .setup-viewer,
     .setup-viewer::backdrop {
       transition:
         opacity var(--duration-exit) ease-in,
-        translate var(--duration-exit) ease-in,
         display var(--duration-exit) allow-discrete,
         overlay var(--duration-exit) allow-discrete;
     }
@@ -152,103 +271,266 @@ const allPhotos = [coverPhoto, ...photos];
       transition-timing-function: var(--ease-settle);
     }
 
-    .setup-viewer:not([open]) {
-      opacity: 0;
-      translate: 0 1rem;
-    }
-
+    .setup-viewer:not([open]),
     .setup-viewer:not([open])::backdrop {
       opacity: 0;
     }
 
     @starting-style {
-      .setup-viewer[open] {
-        opacity: 0;
-        translate: 0 1.5rem;
-      }
-
+      .setup-viewer[open],
       .setup-viewer[open]::backdrop {
         opacity: 0;
       }
     }
 
     /* A photo still loading is held back, then fades in rather than popping in. */
-    .photos img {
+    .track img {
       transition: opacity 500ms ease-out;
     }
 
-    .photos img.loading {
+    .track img.loading {
       opacity: 0;
     }
   }
 
-  .bar {
-    position: sticky;
-    top: 0;
-    z-index: 1;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-md);
-    padding: var(--space-sm) var(--gutter);
-    background: var(--color-bg);
-    border-bottom: 1px solid var(--color-line);
+  .label {
+    grid-area: label;
+    align-self: center;
+    padding: var(--space-sm) 0 var(--space-sm) var(--gutter);
+  }
+
+  .event-type {
+    margin: 0;
+    color: var(--color-on-wall-muted);
+    font-size: var(--text-sm);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
   }
 
   h2 {
     margin: 0;
+    color: inherit;
     font-size: var(--text-lg);
+    line-height: 1.25;
   }
 
-  form {
-    flex-shrink: 0;
+  .close-form {
+    grid-area: close;
+    align-self: center;
+    padding: var(--space-sm) var(--gutter);
   }
 
-  /* A quiet round × that leaves the photos the focus: the outline pill's border and hover, as a circle. */
-  .close {
-    position: relative;
-    display: grid;
-    place-items: center;
-    width: 2.75rem;
+  /* Close, Previous and Next: labelled outline pills, as a gallery attendant would say it, quiet on the wall. */
+  .wall-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-xs);
     height: 2.75rem;
-    padding: 0;
-    border: 1px solid var(--color-action);
-    border-radius: 50%;
+    padding: 0 var(--space-md);
+    border: 1px solid var(--color-on-wall-line);
+    border-radius: 100vmax;
     background: transparent;
-    color: var(--color-action);
+    color: inherit;
+    font: inherit;
+    font-size: var(--text-sm);
+    letter-spacing: 0.04em;
     cursor: pointer;
   }
 
-  .close:hover {
-    background: var(--color-sage-band);
+  .wall-button:not(:disabled):hover {
+    background: var(--color-on-wall-hover);
   }
 
-  .close svg {
-    width: 1.25rem;
-    height: 1.25rem;
+  .wall-button:disabled {
+    opacity: 0.3;
+    cursor: default;
+  }
+
+  .close {
+    padding-left: var(--space-sm);
+  }
+
+  .setup-viewer svg {
+    width: 1rem;
+    height: 1rem;
+    flex-shrink: 0;
     fill: none;
     stroke: currentColor;
     stroke-width: 1.5;
     stroke-linecap: round;
+    stroke-linejoin: round;
   }
 
-  .photos {
-    list-style: none;
+  .track {
+    grid-area: track;
+    display: flex;
     margin: 0;
-    padding: var(--space-md) var(--gutter) var(--space-xl);
-    display: grid;
-    gap: var(--space-md);
+    padding: 0;
+    list-style: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
   }
 
-  /* Each photo fits on screen below the bar, so moving down the list shows one whole photo at a time. */
-  .photos img {
+  .track::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Each photo has a whole screen of the track to itself, so its space is there before it loads. */
+  .track li {
+    flex: 0 0 100%;
+    display: grid;
+    grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+    place-items: center;
+    padding: var(--space-md) var(--gutter);
+    scroll-snap-align: center;
+    scroll-snap-stop: always;
+  }
+
+  /* Hung like a print: the whole photo, uncropped, in a thin paper mat. */
+  .track img {
     display: block;
     width: auto;
-    max-width: 100%;
     height: auto;
-    /* The bar is about 4.5rem tall; the rest leaves a little paper above and below. */
-    max-height: calc(100dvh - 6rem);
-    margin-inline: auto;
+    max-width: 100%;
+    max-height: 100%;
+    padding: 0.375rem;
+    background: var(--color-bg);
     border-radius: var(--radius);
+  }
+
+  /* No mat until the photo arrives, or a bare paper square would sit in the middle of its space. */
+  .track img.loading {
+    background: transparent;
+  }
+
+  .counter {
+    grid-area: counter;
+    justify-self: center;
+    margin: 0;
+    padding: 0 var(--gutter) var(--space-md);
+    font-family: var(--font-heading);
+    font-size: var(--text-xl);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+  }
+
+  .of {
+    color: var(--color-on-wall-muted);
+    font-size: 0.6em;
+  }
+
+  /* Phone: only the counter. The photo has the whole screen, and swiping moves it. */
+  .steps,
+  .thumbnails {
+    display: none;
+  }
+
+  .steps {
+    grid-area: steps;
+    gap: var(--space-sm);
+  }
+
+  .steps button {
+    flex: 1;
+  }
+
+  /*
+   * Desktop: the photo on the wall to the left, and a label column to the right holding Close, the caption,
+   * the counter, Previous and Next, and the thumbnails.
+   */
+  @media (min-width: 48rem) and (pointer: fine) {
+    .setup-viewer {
+      grid-template: auto auto auto auto minmax(0, 1fr) / minmax(0, 1fr) 18rem;
+      grid-template-areas:
+        "track close"
+        "track label"
+        "track counter"
+        "track steps"
+        "track thumbs";
+      padding-right: var(--space-lg);
+    }
+
+    .track li {
+      padding: var(--space-lg) var(--space-xl);
+    }
+
+    .close-form {
+      justify-self: end;
+      padding: var(--space-lg) 0 var(--space-xl);
+    }
+
+    .label {
+      padding: 0;
+    }
+
+    h2 {
+      padding-block: var(--space-xs) var(--space-md);
+      font-size: var(--text-xl);
+      line-height: 1.1;
+    }
+
+    .counter {
+      justify-self: start;
+      padding: 0 0 var(--space-md);
+    }
+
+    .steps {
+      display: flex;
+    }
+
+    /* A grid of small prints. The current one wears its paper mat; the rest wait dimmed on the wall. */
+    .thumbnails {
+      grid-area: thumbs;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      align-content: start;
+      gap: var(--space-xs);
+      overflow-y: auto;
+      scrollbar-width: thin;
+      /* Room for the focus ring, which the scrolling box would otherwise cut off. */
+      margin-inline: -0.375rem;
+      padding: var(--space-lg) 0.375rem var(--space-lg);
+    }
+
+    .thumbnails button {
+      aspect-ratio: 1;
+      padding: 3px;
+      border: none;
+      border-radius: var(--radius);
+      background: transparent;
+      opacity: 0.55;
+      cursor: pointer;
+    }
+
+    .thumbnails button:hover {
+      opacity: 0.85;
+    }
+
+    .thumbnails button[aria-current="true"] {
+      opacity: 1;
+      background: var(--color-bg);
+    }
+
+    .thumbnails img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  }
+
+  @media (min-width: 48rem) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+    .thumbnails button {
+      transition: opacity var(--duration-exit) ease-out;
+    }
+  }
+
+  /* Without the script nothing keeps them up to date, so they stay hidden and the track simply swipes. */
+  .setup-viewer:not(:global(.enhanced)) :is(.counter, .steps, .thumbnails) {
+    display: none;
   }
 </style>

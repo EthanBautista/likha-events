@@ -12,6 +12,10 @@ colors:
   sage-band: "#e2e7e2"
   line: "#d6d9d3"
   error: "#9c2b1e"
+  wall: "#2c3a33"
+  on-wall-muted: "#c9d2cc"
+  on-wall-line: "rgb(248 246 241 / 0.4)"
+  on-wall-hover: "rgb(248 246 241 / 0.1)"
 typography:
   display:
     fontFamily: "Cormorant Garamond Variable, Cormorant Garamond, Georgia, serif"
@@ -73,13 +77,14 @@ components:
     backgroundColor: "{colors.sage-band}"
   button-outline-on-band-hover:
     backgroundColor: "{colors.bg}"
-  viewer-close:
+  viewer-button:
     backgroundColor: "transparent"
-    textColor: "{colors.action}"
-    rounded: "{rounded.circle}"
-    size: "2.75rem"
-  viewer-close-hover:
-    backgroundColor: "{colors.sage-band}"
+    textColor: "{colors.bg}"
+    typography: "{typography.label}"
+    rounded: "{rounded.pill}"
+    height: "2.75rem"
+  viewer-button-hover:
+    backgroundColor: "{colors.on-wall-hover}"
   filter-chip:
     backgroundColor: "transparent"
     textColor: "{colors.action}"
@@ -161,14 +166,19 @@ A warm neutral page, with green as the brand's single accent: forest for action,
 
 ### Secondary
 - **Sage** (`sage`): the brand guide's sage, used only for decoration, such as the hover underline in the menu and the arch motif on the thank-you page. At 3.5:1 on paper it is **never used for text**.
-- **Sage Mist** (`sage-band`): a light tint of sage used for the soft bands (homepage Packages teaser, booking section, footer, Contact's chat panel), the empty arch behind a loading photo, and the hover fill of the outline button, the phone Menu button and the viewer's Close.
+- **Sage Mist** (`sage-band`): a light tint of sage used for the soft bands (homepage Packages teaser, booking section, footer, Contact's chat panel), the empty arch behind a loading photo, and the hover fill of the outline button, and the phone Menu button.
 
 ### Neutral
 - **Paper** (`bg`): the page background.
 - **Charcoal Ink** (`text`): all body text and headings.
 - **Slate** (`text-muted`): secondary text such as hints, the "(optional)" marker, Rental descriptions, the travel-fee note and copyright. It is also the input border colour.
-- **Hairline** (`line`): borders and dividers, such as under the header and the open phone menu, around Package cards and the Menu button, between list lines, inside the viewer bar, above the footer's copyright, and where two paper sections or a band and the footer meet.
+- **Hairline** (`line`): borders and dividers, such as under the header and the open phone menu, around Package cards and the Menu button, between list lines, above the footer's copyright, and where two paper sections or a band and the footer meet.
 - **Brick** (`error`): form error messages only.
+
+### The Photo viewer's wall
+- **Deep Sage Wall** (`wall`): the Photo viewer's background, and its backdrop. Text on it is paper (11.0:1), and its focus ring is paper too, as forest would vanish.
+- **Sage Mist on the Wall** (`on-wall-muted`): secondary text on the wall, such as the Event type above the caption and the counter's "/ 9" (7.7:1).
+- **Wall Line** (`on-wall-line`, paper at 40%) and **Wall Hover** (`on-wall-hover`, paper at 10%): the border and hover fill of the viewer's outline pills. Never text.
 - Inputs use a plain white background (a literal `#fff` in `contact.astro`, not a token), so fields lift slightly off the paper.
 
 ### Named Rules
@@ -188,7 +198,7 @@ A warm neutral page, with green as the brand's single accent: forest for action,
 ### Hierarchy
 - **Display** (`--text-2xl`): page `h1`s and the large Package price (which is set at line-height 1).
 - **Headline** (`--text-xl`): section `h2`s, the homepage tagline, Package names.
-- **Title** (`--text-lg`): Rental names, booking step titles and the viewer's heading. Setup captions use it at line-height 1.3. The footer tagline and the Service area line use it at the body line-height.
+- **Title** (`--text-lg`): Rental names, booking step titles and the viewer's caption on a phone (Headline on desktop). Setup captions use it at line-height 1.3. The footer tagline and the Service area line use it at the body line-height.
 - **Body** (`--text-base`): all running text, at most 65ch per line, with `text-wrap: pretty` on paragraphs and `balance` on headings.
 - **Label** (`--text-sm`): hints, errors and copyright. Menu links and the phone Menu button add 0.04em tracking. The "sample" tag is uppercase with 0.08em tracking.
 
@@ -205,11 +215,11 @@ A warm neutral page, with green as the brand's single accent: forest for action,
 - **Bands:** a `sage-band` section runs the full width of the page while its content stays in the container. Paper and sage bands alternate to separate sections, with no cards between them. Where two paper sections meet (above the homepage's closing section), or a band runs into the footer (the booking band), a 1px hairline separates them instead.
 - **Breakpoints:** 48rem (the menu collapses below it, and the footer goes to two columns above it) and 56rem (the homepage hero splits into text and arch, and Contact splits into form and chat panel).
 - **Alignment:** homepage sections are centred. Gallery, Packages and Contact are left-aligned for reading and scanning, except the Package and Rental cards, which are centred under their arch tops.
-- **Touch targets:** pills, filter chips, form fields, the Send button, the phone Menu button, the viewer's Close, the menu links and the footer's social links are at least 2.75rem (44px) tall. Stacked phone menu links are 3rem.
+- **Touch targets:** pills, filter chips, form fields, the Send button, the phone Menu button, the viewer's Close, Previous and Next, the menu links and the footer's social links are at least 2.75rem (44px) tall. Stacked phone menu links are 3rem.
 
 ## Elevation & Depth
 
-The system is flat. There are no box-shadows anywhere. Depth comes from tone: paper sits on top, `sage-band` sits behind it, and 1px hairlines separate. The only overlay is the Photo viewer, a native dialog over a charcoal backdrop at 85% opacity.
+The system is flat. There are no box-shadows anywhere. Depth comes from tone: paper sits on top, `sage-band` sits behind it, and 1px hairlines separate. The only overlay is the Photo viewer, a native dialog that fills the screen with the deep sage wall. Its photos hang in thin paper mats, which is tone again, not shadow.
 
 ### Named Rules
 **The Paper and Mist Rule.** Lift something by moving it onto or off a sage band, or by giving it a hairline. Don't add drop shadows.
@@ -218,14 +228,14 @@ The system is flat. There are no box-shadows anywhere. Depth comes from tone: pa
 
 The arch is the signature shape: a 4:5 portrait whose top is a full semicircle, sitting on two barely-rounded feet (`rounded.arch`). Photos are cropped into it with CSS only, and the original image is never altered. The arch frames the homepage hero, every Setup cover and every Rental photo. Package cards take a shallower version of the same arch (a top curve 8rem tall) so text fits inside.
 
-Buttons and filter chips take the arch's curve as a **pill** (`rounded.pill`). Small square elements (the "sample" tag, inputs, the viewer's photos, the phone Menu button) use the soft `--radius`. The booking step numbers and the viewer's Close are full circles (`rounded.circle`). Lines are always 1px.
+Buttons and filter chips take the arch's curve as a **pill** (`rounded.pill`). Small square elements (the "sample" tag, inputs, the viewer's photo mats, the phone Menu button) use the soft `--radius`. The booking step numbers are full circles (`rounded.circle`). Lines are always 1px.
 
 `--radius` is the only radius token in `tokens.css`. The pill, circle and arch values are repeated as literals in each component that uses them.
 
 The vector artwork in `src/assets/brand/` (`arch.svg`, `arch-balloons.svg`, `logo-lockup.svg`, `logo-wordmark.svg`) is the brand's own. The wordmark is the logo, and `arch-balloons.svg` sits in sage above the thank-you page's heading. The plain arch outline is on hand for other motifs.
 
 ### Named Rules
-**The Arch Frames the Work Rule.** Any photo of Likha Events' work shown as a single feature goes in an arch. The viewer's photo list is the exception, because it shows the whole photo uncropped.
+**The Arch Frames the Work Rule.** Any photo of Likha Events' work shown as a single feature goes in an arch. The Photo viewer is the exception, because it shows the whole photo uncropped, matted like a print.
 
 ## Components
 
@@ -262,7 +272,11 @@ Soft and assured: pill-shaped, at least 44px tall, in the sans at body size.
 - **Underlines:** menu and footer links use the global `.link-line` class: no text underline, but a 1px line that draws out from the centre on hover (on devices that can hover) or keyboard focus, and stays under the current page.
 
 ### Photo viewer
-A native `<dialog>` up to 60rem wide on paper over the charcoal backdrop. A sticky bar holds the Setup's caption (Title) and a round Close button: a 44px forest-outlined circle with a thin line ×, filling `sage-band` on hover, named "Close" for screen readers. Below it, the Setup's photos are stacked and centred, uncropped, with `--radius` corners, each no taller than the screen below the bar. The page behind doesn't scroll or shift while the viewer is open.
+The atelier wall: a native `<dialog>` filling the screen with the deep sage `wall`, showing one photo at a time. Each photo hangs whole and uncropped, like a print, in a thin paper mat (0.375rem of `bg`, `--radius` corners), with wall all round it. The photos are a horizontal scroll-snap track, one per screen, so swiping is the browser's own scroll, and without JavaScript the track still swipes. Each photo's slot is a whole screen of the track, so nothing jumps as photos after the cover load lazily.
+- **Phone:** the Event type (`on-wall-muted` Label, uppercase, 0.08em tracking) and the caption (Title) sit quietly at the top left, with Close at the top right. The photo fills what's left, and under it a serif counter: "3" in Headline, "/ 9" smaller in `on-wall-muted`. No thumbnails and no arrows.
+- **Desktop (48rem and up, with a fine pointer):** the photo on the wall to the left, and an 18rem label column to the right holding Close, the Event type, the caption (Headline), the counter, Previous and Next pills, and a 3-column grid of square thumbnails. Thumbnails wait dimmed at 55% on the wall; the current one is full strength in its paper mat. Previous is disabled (30%) on the first photo and Next on the last, with no wrap-around. The left and right arrow keys move too.
+- **Close:** a labelled outline pill, "× Close", paper on the wall, 44px tall.
+- The page behind doesn't scroll or shift while the viewer is open. The counter, buttons and thumbnails only appear once the script runs, as nothing else would keep them up to date.
 
 ### Sample tag
 A small forest label (uppercase, 0.08em tracking) centred at the foot of an arch, or at the top of a Package card. It stays until the owner replaces sample content.
@@ -284,7 +298,7 @@ The durations are tokens in `tokens.css`: `--duration-press` (150ms), `--duratio
 - **Packages & Rentals:** Package cards and booking steps rise into view like the homepage sections, staggered as rows. Rental cards arrive like Setup cards, their photos settling into the arch.
 - **Contact:** field borders ease to forest over 200ms. An error message eases in just under its field over 380ms, dropping 0.375rem into place. While sending, the arc in the Send pill fades in and turns once a second. Under "reduce motion" the arc is hidden and the label alone says it is sending.
 - **Thank-you page:** arrives like the homepage hero, CSS only: the arch motif, the heading and the words rise in one stagger apart. Both pages use the shared `rise-in` keyframes in `global.css`.
-- **Photo viewer:** opens by rising 1.5rem and fading in over 380ms with the backdrop, and closes faster (200ms) by dropping 1rem. Photos still loading fade in over 500ms once ready.
+- **Photo viewer:** the wall fades in over 380ms and fades away faster (200ms). Previous, Next, the arrow keys and the thumbnails glide the track to the photo with the browser's smooth scroll; under "reduce motion" they jump. The thumbnails ease between dimmed and full over 200ms. Photos still loading fade in over 500ms once ready.
 
 ## Do's and Don'ts
 

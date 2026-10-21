@@ -26,6 +26,129 @@ test("opening a Setup shows its caption and every photo", async ({ page }) => {
   await expect(viewer(page).getByRole("img")).toHaveCount(photoCount(setup));
 });
 
+// The Photo viewer shows one photo at a time, with a "3 / 9" counter saying which.
+const photo = (page: Page, number: number) =>
+  viewer(page).getByRole("img", { name: `${setup.caption}, photo ${number} of ${photoCount(setup)}` });
+const counter = (page: Page) => viewer(page).getByText(/^\d+ \/ \d+$/);
+
+async function expectShowing(page: Page, number: number) {
+  await expect(counter(page)).toHaveText(`${number} / ${photoCount(setup)}`);
+  await expect(photo(page, number)).toBeInViewport({ ratio: 0.9 });
+  for (const other of [number - 1, number + 1].filter((each) => each >= 1 && each <= photoCount(setup))) {
+    await expect(photo(page, other)).not.toBeInViewport();
+  }
+}
+
+test("a Setup opens on its cover photo, counted as the first", async ({ page }) => {
+  await page.goto("/gallery/");
+
+  await open(page, setup);
+
+  await expectShowing(page, 1);
+});
+
+test("moving to another photo is announced politely", async ({ page }) => {
+  await page.goto("/gallery/");
+  await open(page, setup);
+
+  await page.keyboard.press("ArrowRight");
+
+  await expect(viewer(page).getByRole("status")).toContainText(`Photo 2 of ${photoCount(setup)}`);
+});
+
+test.describe("on desktop", () => {
+  test.skip(({ isMobile }) => isMobile, "the buttons and thumbnails are for a wide screen and a mouse");
+
+  const previous = (page: Page) => viewer(page).getByRole("button", { name: "Previous photo" });
+  const next = (page: Page) => viewer(page).getByRole("button", { name: "Next photo" });
+
+  test("Next and Previous move one photo at a time, and stop at each end", async ({ page }) => {
+    await page.goto("/gallery/");
+    await open(page, setup);
+    await expect(previous(page)).toBeDisabled();
+
+    await next(page).click();
+    await expectShowing(page, 2);
+    await next(page).click();
+    await expectShowing(page, 3);
+    await previous(page).click();
+    await expectShowing(page, 2);
+
+    for (let number = 3; number <= photoCount(setup); number++) await next(page).click();
+    await expectShowing(page, photoCount(setup));
+    await expect(next(page)).toBeDisabled();
+    await expect(previous(page)).toBeEnabled();
+  });
+
+  test("the arrow keys move one photo at a time, and stop at each end", async ({ page }) => {
+    await page.goto("/gallery/");
+    await open(page, setup);
+
+    await page.keyboard.press("ArrowLeft");
+    await expectShowing(page, 1);
+    await page.keyboard.press("ArrowRight");
+    await expectShowing(page, 2);
+    await page.keyboard.press("ArrowRight");
+    await expectShowing(page, 3);
+    await page.keyboard.press("ArrowLeft");
+    await expectShowing(page, 2);
+
+    for (let number = 3; number <= photoCount(setup) + 1; number++) await page.keyboard.press("ArrowRight");
+    await expectShowing(page, photoCount(setup));
+  });
+
+  test("a thumbnail jumps straight to its photo, and the current photo's thumbnail is marked", async ({ page }) => {
+    const thumbnail = (number: number) =>
+      viewer(page).getByRole("group", { name: "Jump to a photo" }).getByRole("button", { name: `Photo ${number}`, exact: true });
+    const last = photoCount(setup);
+    await page.goto("/gallery/");
+    await open(page, setup);
+    await expect(thumbnail(1)).toHaveAttribute("aria-current", "true");
+
+    await thumbnail(last).click();
+
+    await expectShowing(page, last);
+    await expect(thumbnail(last)).toHaveAttribute("aria-current", "true");
+    await expect(thumbnail(1)).not.toHaveAttribute("aria-current", "true");
+
+    await thumbnail(2).click();
+    await expectShowing(page, 2);
+    await expect(thumbnail(2)).toHaveAttribute("aria-current", "true");
+  });
+});
+
+test.describe("on a phone", () => {
+  test.skip(({ isMobile }) => !isMobile, "the photo has the whole of a phone's screen");
+
+  // A swipe is the browser's own scrolling of the track, settling on the next photo.
+  const swipe = (page: Page, photos: number) =>
+    viewer(page)
+      .getByRole("list", { name: "Photos" })
+      .evaluate((track, photos) => track.scrollBy({ left: photos * track.clientWidth }), photos);
+
+  test("only the counter is shown, with no thumbnails or arrows", async ({ page }) => {
+    await page.goto("/gallery/");
+
+    await open(page, setup);
+
+    await expect(counter(page)).toBeVisible();
+    await expect(viewer(page).getByRole("button", { name: /Previous|Next/ })).toHaveCount(0);
+    await expect(viewer(page).getByRole("group", { name: "Jump to a photo" })).toBeHidden();
+  });
+
+  test("swiping moves to the next or previous photo, and the counter follows", async ({ page }) => {
+    await page.goto("/gallery/");
+    await open(page, setup);
+
+    await swipe(page, 1);
+    await expectShowing(page, 2);
+    await swipe(page, 1);
+    await expectShowing(page, 3);
+    await swipe(page, -1);
+    await expectShowing(page, 2);
+  });
+});
+
 const closeWays: { way: string; close: (page: Page) => Promise<unknown> }[] = [
   { way: "the Close button", close: (page) => viewer(page).getByRole("button", { name: "Close" }).click() },
   { way: "Escape", close: (page) => page.keyboard.press("Escape") },
@@ -168,11 +291,16 @@ test("the open viewer meets WCAG AA", async ({ page }) => {
 test.describe("without JavaScript", () => {
   test.use({ javaScriptEnabled: false });
 
-  test("a Setup's photos still open and close", async ({ page }) => {
+  test("a Setup's photos still open, scroll one at a time and close", async ({ page }) => {
     await page.goto("/gallery/");
 
     await open(page, setup);
     await expect(viewer(page).getByRole("img")).toHaveCount(photoCount(setup));
+    await expect(photo(page, 1)).toBeInViewport({ ratio: 0.9 });
+    await viewer(page)
+      .getByRole("list", { name: "Photos" })
+      .evaluate((track) => track.scrollBy({ left: track.clientWidth }));
+    await expect(photo(page, 2)).toBeInViewport({ ratio: 0.9 });
 
     await viewer(page).getByRole("button", { name: "Close" }).click();
     await expect(viewer(page)).toBeHidden();

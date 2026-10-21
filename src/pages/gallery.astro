@@ -50,7 +50,7 @@ const viewerId = (setup: Setup) => `setup-${setup.id}`;
       }
     </ul>
 
-    {setups.map((setup) => <SetupViewer setup={setup} id={viewerId(setup)} />)}
+    {setups.map((setup) => <SetupViewer setup={setup} eventType={eventTypes.of(setup)} id={viewerId(setup)} />)}
   </section>
 </BaseLayout>
 

@@ -87,6 +87,19 @@ test.describe("the Gallery", () => {
     await viewer(page).getByRole("button", { name: "Close" }).click();
     expect(await viewer(page).isVisible(), "closed without a closing animation").toBe(false);
   });
+
+  test("the Photo viewer moves to the next photo straight away, without gliding", async ({ page }) => {
+    const withMorePhotos = setups.find((setup) => setup.photos?.length)!;
+    await page.goto("/gallery/");
+    await cards(page).filter({ hasText: withMorePhotos.caption }).getByRole("button").click();
+    const track = viewer(page).getByRole("list", { name: "Photos" });
+
+    await page.keyboard.press("ArrowRight");
+
+    // Read at once: a glide would still be part way there.
+    expect(await track.evaluate((track) => track.scrollLeft / track.clientWidth), "on the second photo").toBe(1);
+    await expectShownNow(page, viewer(page).getByRole("img"));
+  });
 });
 
 test.describe("Packages & Rentals", () => {

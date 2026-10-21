@@ -15,6 +15,11 @@
   --color-sage-band: #e2e7e2; /* soft sage band background, charcoal text 9.6:1, muted text 5.2:1 */
   --color-line: #d6d9d3;
   --color-error: #9c2b1e; /* form error messages, 7.0:1 on bg */
+  /* The Photo viewer's deep sage wall, where photos hang in paper mats. Text on it is paper. */
+  --color-wall: #2c3a33; /* paper text 11.0:1 */
+  --color-on-wall-muted: #c9d2cc; /* secondary text on the wall, 7.7:1 */
+  --color-on-wall-line: rgb(248 246 241 / 0.4); /* paper at 40%: outline pill borders on the wall, never text */
+  --color-on-wall-hover: rgb(248 246 241 / 0.1); /* paper at 10%: outline pill hover fill on the wall */
 
   /* Type */
   --font-heading: "Cormorant Garamond Variable", "Cormorant Garamond", Georgia, serif;
