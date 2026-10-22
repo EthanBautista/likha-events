@@ -4,9 +4,9 @@
 
 **Blocked by:** 03
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Agreed price, Down payment received and Balance received, in CAD with cents, stored as whole cents, used exactly as entered
-- [ ] Costs as a list of items, each with a description and an amount, and their total
-- [ ] Owed = Agreed price − Down payment − Balance, shown on Booked or Done Inquiries, never below zero
-- [ ] Tests: entering and editing amounts, adding and removing Cost items, Owed in each status
+- [x] Agreed price, Down payment received and Balance received, in CAD with cents, stored as whole cents, used exactly as entered
+- [x] Costs as a list of items, each with a description and an amount, and their total
+- [x] Owed = Agreed price − Down payment − Balance, shown on Booked or Done Inquiries, never below zero
+- [x] Tests: entering and editing amounts, adding and removing Cost items, Owed in each status

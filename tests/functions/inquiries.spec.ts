@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { Refused, type FormSubmission, type Inquiry, type InquiryChanges, type NewInquiry } from "../../netlify/inquiries";
+import { Refused, costsTotal, owed, type FormSubmission, type Inquiry, type InquiryChanges, type NewInquiry } from "../../netlify/inquiries";
 import { startLocalStore, type LocalStore } from "./local-store";
 
 // The Inquiries module, against a local Blobs store.
@@ -426,6 +426,101 @@ test("deleting an Inquiry removes it and its photos, and leaves the others as th
   expect(await inquiries.list()).toEqual([withPhoto]);
   const [chat] = withPhoto!.photos;
   expect((await local.store("inquiry-photos").list()).blobs.map(({ key }) => key)).toEqual(["id" in chat ? chat.id : ""]);
+});
+
+// Money on an Inquiry, in CAD as whole cents.
+
+test("the Agreed price, Down payment and Balance received are saved on an Inquiry, and can be changed and cleared", async () => {
+  await local.store("inquiries").setJSON(maria.id, maria);
+  const inquiries = local.inquiries();
+
+  await inquiries.change(maria.id, { status: "Quoted", agreedPrice: 65_000 });
+  await inquiries.change(maria.id, { status: "Booked", downPayment: 32_500 });
+  expect(await inquiries.list()).toEqual([{ ...maria, status: "Booked", agreedPrice: 65_000, downPayment: 32_500 }]);
+
+  const changed = await inquiries.change(maria.id, { agreedPrice: 70_050, balance: 37_550 });
+  expect(changed).toEqual({ ...maria, status: "Booked", agreedPrice: 70_050, downPayment: 32_500, balance: 37_550 });
+
+  await inquiries.change(maria.id, { agreedPrice: null, downPayment: 0, balance: null });
+  expect(await inquiries.list()).toEqual([{ ...maria, status: "Booked", downPayment: 0 }]);
+});
+
+test("an amount is whole cents, not below zero, and a refused one changes nothing", async () => {
+  await local.store("inquiries").setJSON(maria.id, { ...maria, agreedPrice: 65_000 });
+  const inquiries = local.inquiries();
+  const notAmounts = [{ agreedPrice: 650.5 }, { agreedPrice: "650" }, { downPayment: -100 }, { balance: Number.MAX_SAFE_INTEGER + 1 }, { balance: {} }];
+
+  for (const changes of notAmounts) {
+    await expect(inquiries.change(maria.id, { status: "Booked", ...changes } as InquiryChanges), JSON.stringify(changes)).rejects.toThrow(
+      Refused,
+    );
+  }
+  expect(await inquiries.list()).toEqual([{ ...maria, agreedPrice: 65_000 }]);
+});
+
+test("Costs are listed on an Inquiry, each with a description and an amount, and can be added and removed", async () => {
+  await local.store("inquiries").setJSON(maria.id, maria);
+  const inquiries = local.inquiries();
+  const balloons = { description: "Balloons", amount: 8_450 };
+  const sign = { description: "Printed sign", amount: 3_500 };
+
+  await inquiries.change(maria.id, { costs: [balloons] });
+  await inquiries.change(maria.id, { costs: [balloons, { description: " Printed sign ", amount: 3_500 }] });
+  expect(await inquiries.list()).toEqual([{ ...maria, costs: [balloons, sign] }]);
+
+  await inquiries.change(maria.id, { costs: [sign] });
+  expect(await inquiries.list()).toEqual([{ ...maria, costs: [sign] }]);
+
+  await inquiries.change(maria.id, { costs: [] });
+  expect(await inquiries.list()).toEqual([maria]);
+});
+
+test("a Cost needs a description and an amount in whole cents, and refused Costs change nothing", async () => {
+  const balloons = { description: "Balloons", amount: 8_450 };
+  await local.store("inquiries").setJSON(maria.id, { ...maria, costs: [balloons] });
+  const inquiries = local.inquiries();
+  const notCosts = [
+    { description: "  ", amount: 100 },
+    { description: "Balloons" },
+    { amount: 100 },
+    { description: "Balloons", amount: 84.5 },
+    { description: "Balloons", amount: -100 },
+    { description: 42, amount: 100 },
+    { description: "Balloons", amount: 100, paidBy: "card" },
+    "Balloons",
+    null,
+  ];
+
+  for (const cost of notCosts) {
+    await expect(inquiries.change(maria.id, { costs: [balloons, cost] } as InquiryChanges), JSON.stringify(cost)).rejects.toThrow(Refused);
+  }
+  await expect(inquiries.change(maria.id, { costs: balloons } as unknown as InquiryChanges)).rejects.toThrow(Refused);
+  expect(await inquiries.list()).toEqual([{ ...maria, costs: [balloons] }]);
+});
+
+test("Owed is the Agreed price less the Down payment and Balance received, counted only once Booked or Done", () => {
+  const paidHalf = { ...maria, agreedPrice: 65_000, downPayment: 32_500 };
+  const owedIn = (status: Inquiry["status"]) => owed({ ...paidHalf, status });
+
+  expect(owedIn("New")).toBeUndefined();
+  expect(owedIn("Quoted")).toBeUndefined();
+  expect(owedIn("Booked")).toBe(32_500);
+  expect(owedIn("Done")).toBe(32_500);
+  expect(owedIn("Declined")).toBeUndefined();
+});
+
+test("Owed is nothing once paid in full, never below zero, and unknown with no Agreed price", () => {
+  const booked = { ...maria, status: "Booked" as const };
+
+  expect(owed({ ...booked, agreedPrice: 65_000, downPayment: 32_500, balance: 32_500 })).toBe(0);
+  expect(owed({ ...booked, agreedPrice: 65_000, downPayment: 32_500, balance: 40_000 })).toBe(0);
+  expect(owed({ ...booked, agreedPrice: 65_000 })).toBe(65_000);
+  expect(owed({ ...booked, downPayment: 32_500 })).toBeUndefined();
+});
+
+test("an Inquiry's Costs add up to their total", () => {
+  expect(costsTotal(maria)).toBe(0);
+  expect(costsTotal({ ...maria, costs: [{ description: "Balloons", amount: 8_450 }, { description: "Printed sign", amount: 3_500 }] })).toBe(11_950);
 });
 
 test("deleting an Inquiry whose photo couldn't be saved removes it, and one that isn't there deletes nothing", async () => {

@@ -721,3 +721,172 @@ test("a delete that can't be sent says so, and keeps the Inquiry", async ({ page
   await expect(page.getByRole("heading", { name: "Maria Santos", level: 1 })).toBeVisible();
   expect(await local.inquiries().list()).toHaveLength(4);
 });
+
+// Money on an Inquiry: the Agreed price, the Down payment and Balance received, its Costs, and what's Owed.
+
+const money = (page: Page) => page.getByRole("form", { name: "Money" });
+const amountField = (page: Page, label: string) => money(page).getByLabel(label, { exact: true });
+const owedLine = (page: Page) => money(page).locator("[data-owed]");
+const cost = (page: Page, number: number) => money(page).getByRole("group", { name: `Cost ${number}`, exact: true });
+const saveMoney = (page: Page) => page.getByRole("button", { name: "Save money" });
+
+/** The Inquiry from this customer, as stored. */
+const storedInquiry = async (name: string) => (await local.inquiries().list()).find((inquiry) => inquiry.name === name)!;
+
+test("the Agreed price, Down payment and Balance received are entered as written, and kept", async ({ page, context }) => {
+  await inquiriesArrive();
+  await signIn(page, context, "push-token");
+  await rows(page).filter({ hasText: "Maria Santos" }).click();
+
+  await amountField(page, "Agreed price").fill("$1,250");
+  await amountField(page, "Down payment received").fill("625.5");
+  await saveMoney(page).click();
+  await expect(says(page, "Money saved")).toBeVisible();
+  expect(await storedInquiry("Maria Santos")).toMatchObject({ agreedPrice: 125_000, downPayment: 62_550 });
+
+  await page.reload();
+  await expect(amountField(page, "Agreed price")).toHaveValue("1250.00");
+  await expect(amountField(page, "Down payment received")).toHaveValue("625.50");
+  await expect(amountField(page, "Balance received")).toHaveValue("");
+
+  // Changed, and cleared.
+  await amountField(page, "Agreed price").fill("1300.05");
+  await amountField(page, "Down payment received").fill("");
+  await saveMoney(page).click();
+  await expect(says(page, "Money saved")).toBeVisible();
+  const maria = await storedInquiry("Maria Santos");
+  expect(maria.agreedPrice).toBe(130_005);
+  expect(maria).not.toHaveProperty("downPayment");
+});
+
+test("Owed shows on a Booked or Done Inquiry, follows the amounts entered, and never goes below zero", async ({ page, context }) => {
+  await inquiriesArrive();
+  await signIn(page, context, "push-token");
+  await rows(page).filter({ hasText: "Maria Santos" }).click();
+  await amountField(page, "Agreed price").fill("650");
+  await amountField(page, "Down payment received").fill("325");
+  await saveMoney(page).click();
+  await expect(says(page, "Money saved")).toBeVisible();
+
+  await expect(owedLine(page)).toHaveText("Owed is counted once it's Booked.");
+  await statusChoice(page, "Quoted").check();
+  await expect(owedLine(page)).toHaveText("Owed is counted once it's Booked.");
+  await statusChoice(page, "Booked").check();
+  await expect(owedLine(page)).toHaveText("Owed $325.00");
+
+  await amountField(page, "Balance received").fill("300");
+  await expect(owedLine(page)).toHaveText("Owed $25.00");
+  await amountField(page, "Balance received").fill("400");
+  await expect(owedLine(page)).toHaveText("Owed $0.00");
+
+  await statusChoice(page, "Done").check();
+  await expect(owedLine(page)).toHaveText("Owed $0.00");
+  await statusChoice(page, "Declined").check();
+  await expect(owedLine(page)).toHaveText("Owed is counted once it's Booked.");
+});
+
+test("a Booked Inquiry with no Agreed price asks for one, and the list shows what's Owed", async ({ page, context }) => {
+  await inquiriesArrive();
+  await setStatus("Later Customer", "Booked");
+  await setStatus("Maria Santos", "Booked");
+  const later = await storedInquiry("Later Customer");
+  await local.inquiries().change(later.id, { agreedPrice: 80_000, downPayment: 40_000 });
+  await signIn(page, context, "push-token");
+
+  await expect(rows(page).filter({ hasText: "Later Customer" })).toContainText("Owed $400.00");
+  await expect(rows(page).filter({ hasText: "Maria Santos" })).not.toContainText("Owed");
+
+  await rows(page).filter({ hasText: "Maria Santos" }).click();
+  await expect(owedLine(page)).toHaveText("Enter the Agreed price to see what's Owed.");
+});
+
+test("Costs can be added, changed and removed, each with a description and an amount, and are totalled", async ({ page, context }) => {
+  await inquiriesArrive();
+  await signIn(page, context, "push-token");
+  await rows(page).filter({ hasText: "Maria Santos" }).click();
+  await expect(money(page).getByText("No Costs yet.")).toBeVisible();
+
+  await page.getByRole("button", { name: "Add a Cost" }).click();
+  await expect(cost(page, 1).getByLabel("What for")).toBeFocused();
+  await cost(page, 1).getByLabel("What for").fill("Balloons");
+  await cost(page, 1).getByLabel("Amount").fill("84.50");
+  await page.getByRole("button", { name: "Add a Cost" }).click();
+  await cost(page, 2).getByLabel("What for").fill("Printed sign");
+  await cost(page, 2).getByLabel("Amount").fill("35");
+  await expect(money(page).getByText("Costs total $119.50")).toBeVisible();
+  await saveMoney(page).click();
+  await expect(says(page, "Money saved")).toBeVisible();
+  expect((await storedInquiry("Maria Santos")).costs).toEqual([
+    { description: "Balloons", amount: 8_450 },
+    { description: "Printed sign", amount: 3_500 },
+  ]);
+
+  await page.reload();
+  await expect(cost(page, 2).getByLabel("What for")).toHaveValue("Printed sign");
+  await cost(page, 1).getByRole("button", { name: "Remove Cost 1" }).click();
+  await expect(cost(page, 1).getByLabel("What for")).toHaveValue("Printed sign");
+  await expect(cost(page, 2)).toHaveCount(0);
+  await cost(page, 1).getByLabel("Amount").fill("40");
+  await expect(money(page).getByText("Costs total $40.00")).toBeVisible();
+  await saveMoney(page).click();
+  await expect(says(page, "Money saved")).toBeVisible();
+  expect((await storedInquiry("Maria Santos")).costs).toEqual([{ description: "Printed sign", amount: 4_000 }]);
+
+  await cost(page, 1).getByRole("button", { name: "Remove Cost 1" }).click();
+  await saveMoney(page).click();
+  await expect(says(page, "Money saved")).toBeVisible();
+  expect(await storedInquiry("Maria Santos")).not.toHaveProperty("costs");
+  await expect(money(page).getByText("No Costs yet.")).toBeVisible();
+});
+
+test("an amount that isn't one, or a Cost half filled in, says so, and nothing is saved", async ({ page, context }) => {
+  await inquiriesArrive();
+  await signIn(page, context, "push-token");
+  await rows(page).filter({ hasText: "Maria Santos" }).click();
+
+  await amountField(page, "Agreed price").fill("about 600");
+  await page.getByRole("button", { name: "Add a Cost" }).click();
+  await cost(page, 1).getByLabel("Amount").fill("20");
+  await saveMoney(page).click();
+
+  await expect(money(page).getByText("Enter an amount in dollars, like 650 or 650.50.")).toBeVisible();
+  await expect(money(page).getByText("Say what it was for.")).toBeVisible();
+  await expect(amountField(page, "Agreed price")).toBeFocused();
+  await expect(says(page, "Money saved")).toHaveCount(0);
+  expect(await storedInquiry("Maria Santos")).not.toHaveProperty("agreedPrice");
+
+  await amountField(page, "Agreed price").fill("600");
+  await expect(money(page).getByText("Enter an amount in dollars")).toBeHidden();
+});
+
+test("money not yet saved is saved on leaving the Inquiry", async ({ page, context }) => {
+  await inquiriesArrive();
+  await signIn(page, context, "push-token");
+  await rows(page).filter({ hasText: "Maria Santos" }).click();
+
+  await amountField(page, "Agreed price").fill("650");
+  await page.getByRole("link", { name: "All Inquiries" }).click();
+  await rows(page).filter({ hasText: "Maria Santos" }).click();
+
+  await expect(amountField(page, "Agreed price")).toHaveValue("650.00");
+  await expect.poll(async () => (await storedInquiry("Maria Santos")).agreedPrice).toBe(65_000);
+});
+
+test("an Inquiry with money entered doesn't scroll sideways, and meets WCAG AA", async ({ page, context }) => {
+  const axe = () => new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+  const overflow = () => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  await inquiriesArrive();
+  await setStatus("Maria Santos", "Booked");
+  await signIn(page, context, "push-token");
+  await rows(page).filter({ hasText: "Maria Santos" }).click();
+
+  await amountField(page, "Agreed price").fill("1250");
+  await page.getByRole("button", { name: "Add a Cost" }).click();
+  await cost(page, 1).getByLabel("What for").fill("Balloons and a very long printed sign with her name on it in gold");
+  await cost(page, 1).getByLabel("Amount").fill("lots");
+  await saveMoney(page).click();
+  await expect(money(page).getByText("Enter an amount in dollars")).toBeVisible();
+
+  expect(await overflow()).toBeLessThanOrEqual(0);
+  expect((await axe()).violations).toEqual([]);
+});

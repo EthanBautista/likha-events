@@ -5,11 +5,19 @@ import "../../styles/tokens.css";
 import "../../styles/global.css";
 import { getEventTypes } from "../../event-types-list";
 import { maxPhotos } from "../../inquiry-form";
+import type { AmountField } from "../../inquiry-money";
 import { handAddedSources } from "../../inquiry-sources";
 import { inquiryStatuses } from "../../inquiry-statuses";
 import { siteName } from "../../site-settings";
 
 const eventTypes = await getEventTypes();
+
+/** The Money section's amount fields, by the name the Inquiries module keeps each under. */
+const amountFields: [AmountField, string][] = [
+  ["agreedPrice", "Agreed price"],
+  ["downPayment", "Down payment received"],
+  ["balance", "Balance received"],
+];
 
 // The Inquiry dashboard (ADR 0004): a static page whose script signs the owner in with GitHub through
 // Netlify's OAuth provider, the same login as the editor, and asks the Inquiry functions for Inquiries.
@@ -112,6 +120,44 @@ const eventTypes = await getEventTypes();
         <a class="pill inquiry-edit" data-edit hidden>Edit details</a>
         <h2>Inspiration photos</h2>
         <div class="inquiry-photos" data-photos></div>
+        <!--
+          Money, kept by the owner once they quote: in dollars and cents as agreed and paid, with nothing
+          added for HST. Owed and the Costs total follow what's entered as it's typed. Each field's message
+          shows in the "-error" line under it, as on the form for adding an Inquiry.
+        -->
+        <form class="inquiry-money" aria-labelledby="inquiry-money-heading" novalidate data-money>
+          <h2 id="inquiry-money-heading">Money</h2>
+          <p class="dashboard-quiet inquiry-money-hint">In Canadian dollars, as agreed and paid. Nothing is added for HST.</p>
+          {
+            amountFields.map(([name, label]) => (
+              <div class="field">
+                <label for={`inquiry-money-${name}`}>{label}</label>
+                <span class="inquiry-amount">
+                  <input
+                    id={`inquiry-money-${name}`}
+                    name={name}
+                    inputmode="decimal"
+                    autocomplete="off"
+                    aria-describedby={`inquiry-money-${name}-error`}
+                  />
+                </span>
+                <p class="error" id={`inquiry-money-${name}-error`}></p>
+              </div>
+            ))
+          }
+          <p class="inquiry-owed" data-owed></p>
+          <fieldset class="inquiry-costs">
+            <legend>Costs</legend>
+            <p class="dashboard-quiet" data-no-costs>No Costs yet.</p>
+            <ol class="inquiry-cost-list" data-costs></ol>
+            <button type="button" class="pill" data-add-cost>Add a Cost</button>
+            <p class="inquiry-costs-total" data-costs-total></p>
+          </fieldset>
+          <div class="inquiry-notes-save">
+            <button type="submit" class="pill pill-solid">Save money</button>
+            <p role="status" class="inquiry-saved" data-money-saved></p>
+          </div>
+        </form>
         <!--
           Deleting is for spam that slipped through or a duplicate, so it asks first, naming the Inquiry, and
           points a customer who just didn't book to Declined, which keeps a record of them.
@@ -249,6 +295,7 @@ const eventTypes = await getEventTypes();
       import type { Inquiry, InquiryChanges, InquiryPhoto, NewInquiry } from "../../../netlify/inquiries";
       import { eventTiming, inListOrder, torontoToday, type EventTiming } from "../../inquiry-dates";
       import { customerAnswers } from "../../inquiry-form";
+      import { amounts, asEntered, centsIn, costsTotal, dollars, owed, owedStatuses, type AmountField, type Cost } from "../../inquiry-money";
       import { inquiryStatuses } from "../../inquiry-statuses";
 
       /** Netlify's OAuth provider, which the editor signs in through too. */
@@ -289,6 +336,14 @@ const eventTypes = await getEventTypes();
       const declineInstead = document.querySelector<HTMLButtonElement>("[data-decline-instead]")!;
       const deleteCancel = document.querySelector<HTMLButtonElement>("[data-delete-cancel]")!;
       const listSaved = document.querySelector<HTMLElement>("[data-list-saved]")!;
+      const moneyForm = document.querySelector<HTMLFormElement>("[data-money]")!;
+      const amountInputs = amounts.map((name) => moneyForm.querySelector<HTMLInputElement>(`[name=${name}]`)!);
+      const owedLine = moneyForm.querySelector<HTMLElement>("[data-owed]")!;
+      const costList = moneyForm.querySelector<HTMLOListElement>("[data-costs]")!;
+      const noCosts = moneyForm.querySelector<HTMLElement>("[data-no-costs]")!;
+      const addCostButton = moneyForm.querySelector<HTMLButtonElement>("[data-add-cost]")!;
+      const costsTotalLine = moneyForm.querySelector<HTMLElement>("[data-costs-total]")!;
+      const moneySaved = moneyForm.querySelector<HTMLElement>("[data-money-saved]")!;
       const form = document.querySelector<HTMLFormElement>(".inquiry-form")!;
       const eventTypeChoice = form.querySelector<HTMLSelectElement>("[data-event-types]")!;
       const photoField = form.querySelector<HTMLElement>("[data-photo-field]")!;
@@ -453,7 +508,10 @@ const eventTypes = await getEventTypes();
         return status;
       }
 
-      /** One row of the list: the event's date, who it's for, what it is and where it came from, and its Inquiry status. */
+      /**
+       * One row of the list: the event's date, who it's for, what it is and where it came from, and its Inquiry
+       * status, with what's still Owed under it.
+       */
       function rowFor(inquiry: Inquiry, today: string) {
         const link = element("a", "inquiry-row");
         link.href = `?inquiry=${encodeURIComponent(inquiry.id)}`;
@@ -478,7 +536,12 @@ const eventTypes = await getEventTypes();
         const summary = what.filter(Boolean).join(" · ");
         if (summary) who.append(element("span", "inquiry-what", summary));
 
-        link.append(date, who, statusOf(inquiry));
+        const standing = element("span", "inquiry-standing");
+        standing.append(statusOf(inquiry));
+        const owing = owed(inquiry);
+        if (owing) standing.append(element("span", "inquiry-owing", `Owed ${dollars(owing)}`));
+
+        link.append(date, who, standing);
         const item = element("li");
         item.append(link);
         return item;
@@ -569,6 +632,7 @@ const eventTypes = await getEventTypes();
         answersHeading.textContent = byHand ? "Their details" : "What they sent";
         editLink.hidden = !byHand;
         editLink.href = `?edit=${encodeURIComponent(inquiry.id)}`;
+        showMoney(inquiry);
         showDeleteConfirm(false);
         deleteHeading.textContent = `Delete the Inquiry from ${inquiry.name}?`;
 
@@ -620,7 +684,7 @@ const eventTypes = await getEventTypes();
         if (!shown) return Promise.resolve(false);
         // The first change to an Inquiry starts from it as loaded, which is as saved.
         if (!lastSaved.has(id)) lastSaved.set(id, shown);
-        replaceInquiry({ ...shown, ...changes });
+        replaceInquiry(withChanges(shown, changes));
         saving = saving.then(async () => {
           const saved = await send(id, changes);
           if (saved) lastSaved.set(id, saved);
@@ -629,6 +693,14 @@ const eventTypes = await getEventTypes();
           return saved !== undefined;
         });
         return saving;
+      }
+
+      /** An Inquiry with changes made, as the Inquiries module makes them: an amount set to null, or no Costs, is taken off. */
+      function withChanges(inquiry: Inquiry, changes: InquiryChanges): Inquiry {
+        const changed = { ...inquiry, ...changes } as Inquiry & InquiryChanges;
+        for (const amount of amounts) if (changed[amount] === null) delete changed[amount];
+        if (!changed.costs?.length) delete changed.costs;
+        return changed;
       }
 
       /** Sends a change to an Inquiry, and gives it back as it now is, or undefined if it wasn't saved. */
@@ -672,11 +744,15 @@ const eventTypes = await getEventTypes();
         const status = (event.target as HTMLInputElement).value as Inquiry["status"];
         showProblem();
         statusSaved.textContent = "";
-        const done = await save(id, { status });
+        const saved = save(id, { status });
+        // Owed is counted on some statuses and not others, so it follows the status chosen.
+        showMoneyTotals();
+        const done = await saved;
         if (openedId() !== id) return;
         if (done) statusSaved.textContent = `Set to ${status}`;
         const stored = inquiryById(id);
         if (stored) showStatus(stored);
+        showMoneyTotals();
       });
 
       /** The Inquiry whose notes are in the notes box. */
@@ -697,6 +773,189 @@ const eventTypes = await getEventTypes();
         notesSaved.textContent = "";
         const done = await saveNotes();
         if (done && openedId() === id) notesSaved.textContent = "Notes saved";
+      });
+
+      // Money: the amounts and Costs as entered are checked and saved with Save money, and also on leaving
+      // the Inquiry, so none are lost. Owed and the Costs total follow them as they're typed.
+
+      /** The Inquiry whose money is in the Money section. */
+      let moneyFor: string | undefined;
+
+      /** A Cost as written in its row, its amount as entered. */
+      type CostAsWritten = { description: string; amount: string };
+
+      /** Shows an Inquiry's money in the Money section, each amount as the owner would enter it. */
+      function showMoney(inquiry: Inquiry) {
+        moneyFor = inquiry.id;
+        for (const input of amountInputs) {
+          const cents = inquiry[input.name as AmountField];
+          input.value = cents === undefined ? "" : asEntered(cents);
+          showFieldError(input, "");
+        }
+        showCosts((inquiry.costs ?? []).map(({ description, amount }) => ({ description, amount: asEntered(amount) })));
+        moneySaved.textContent = "";
+        showMoneyTotals();
+      }
+
+      /** Each Cost's row, as written so far. */
+      const costsAsWritten = (): CostAsWritten[] =>
+        [...costList.children].map((row) => ({
+          description: row.querySelector<HTMLInputElement>("[data-cost=description]")!.value,
+          amount: row.querySelector<HTMLInputElement>("[data-cost=amount]")!.value,
+        }));
+
+      /** Shows Costs as written, a row each, numbered in order. */
+      function showCosts(costs: CostAsWritten[]) {
+        costList.replaceChildren(...costs.map((cost, index) => costRow(cost, index + 1)));
+        noCosts.hidden = costs.length > 0;
+      }
+
+      /** One Cost's row: what it was for and its amount, and a button that removes it. */
+      function costRow({ description, amount }: CostAsWritten, number: number) {
+        const group = element("fieldset", "inquiry-cost");
+        group.append(
+          element("legend", "visually-hidden", `Cost ${number}`),
+          costField(`inquiry-cost-${number}-description`, "What for", description, "description"),
+          costField(`inquiry-cost-${number}-amount`, "Amount", amount, "amount"),
+        );
+        const remove = element("button", "link-line inquiry-cost-remove", "Remove");
+        remove.type = "button";
+        remove.dataset.removeCost = String(number - 1);
+        remove.append(element("span", "visually-hidden", ` Cost ${number}`));
+        group.append(remove);
+        const item = element("li");
+        item.append(group);
+        return item;
+      }
+
+      /** A Cost's field, labelled above with its message line below, as the other fields are. An amount takes a dollar sign. */
+      function costField(id: string, label: string, value: string, kind: "description" | "amount") {
+        const field = element("div", `field inquiry-cost-${kind}`);
+        const labelled = element("label", undefined, label);
+        labelled.htmlFor = id;
+        const input = element("input");
+        input.id = id;
+        input.value = value;
+        input.autocomplete = "off";
+        input.dataset.cost = kind;
+        input.setAttribute("aria-describedby", `${id}-error`);
+        const error = element("p", "error");
+        error.id = `${id}-error`;
+        if (kind === "amount") {
+          input.inputMode = "decimal";
+          const box = element("span", "inquiry-amount");
+          box.append(input);
+          field.append(labelled, box, error);
+        } else {
+          field.append(labelled, input, error);
+        }
+        return field;
+      }
+
+      addCostButton.addEventListener("click", () => {
+        showCosts([...costsAsWritten(), { description: "", amount: "" }]);
+        costList.querySelector<HTMLInputElement>("li:last-child [data-cost=description]")!.focus();
+        showMoneyTotals();
+      });
+
+      // Removing a Cost moves to the one that takes its place, or to Add a Cost when it was the last.
+      costList.addEventListener("click", (event) => {
+        const remove = (event.target as Element).closest<HTMLButtonElement>("[data-remove-cost]");
+        if (!remove) return;
+        const index = Number(remove.dataset.removeCost);
+        const costs = costsAsWritten();
+        costs.splice(index, 1);
+        showCosts(costs);
+        showMoneyTotals();
+        (costList.querySelectorAll<HTMLInputElement>("[data-cost=description]")[index] ?? addCostButton).focus();
+      });
+
+      /** Every field in the Money section: the amounts, and each Cost's description and amount. */
+      const moneyInputs = () => [...moneyForm.querySelectorAll<HTMLInputElement>("input")];
+
+      /** The message a money field's value needs, or empty if it's fine. A Cost needs both its description and amount. */
+      function moneyProblem(input: HTMLInputElement): string {
+        const entered = input.value.trim();
+        const kind = input.dataset.cost;
+        if (kind) {
+          const other = input.closest("li")!.querySelector<HTMLInputElement>(`[data-cost=${kind === "amount" ? "description" : "amount"}]`)!;
+          if (!entered) return !other.value.trim() ? "" : kind === "amount" ? "Enter what it cost." : "Say what it was for.";
+          if (kind === "description") return "";
+        }
+        return entered && centsIn(entered) === undefined ? "Enter an amount in dollars, like 650 or 650.50." : "";
+      }
+
+      /** The amounts entered, in whole cents. One left empty, or that isn't an amount, is left out. */
+      function amountsEntered(): Partial<Record<AmountField, number>> {
+        const entered: Partial<Record<AmountField, number>> = {};
+        for (const input of amountInputs) {
+          const cents = centsIn(input.value);
+          if (typeof cents === "number") entered[input.name as AmountField] = cents;
+        }
+        return entered;
+      }
+
+      /** The Costs entered, their descriptions trimmed. One whose amount is left empty, or isn't an amount, is left out. */
+      const costsEntered = (): Cost[] =>
+        costsAsWritten().flatMap(({ description, amount }) => {
+          const cents = centsIn(amount);
+          return typeof cents === "number" ? [{ description: description.trim(), amount: cents }] : [];
+        });
+
+      /** The money as entered, as the Inquiries module takes it, or undefined while any of it needs fixing. A Cost left empty is left out. */
+      function moneyInForm(): InquiryChanges | undefined {
+        if (moneyInputs().some((input) => moneyProblem(input))) return undefined;
+        return moneyAs(amountsEntered(), costsEntered());
+      }
+
+      /** Amounts and Costs as the Inquiries module takes them, always in the same order, so two can be compared. */
+      const moneyAs = (given: Partial<Record<AmountField, number | null>>, costs: Cost[]): InquiryChanges => ({
+        ...Object.fromEntries(amounts.map((amount) => [amount, given[amount] ?? null])),
+        costs,
+      });
+
+      /** Saves the money as entered for the Inquiry it's for, unless it's saved already or needs fixing. */
+      function saveMoney(): Promise<boolean> {
+        const stored = inquiryById(moneyFor);
+        const entered = moneyInForm();
+        if (!stored || !entered || JSON.stringify(entered) === JSON.stringify(moneyAs(stored, stored.costs ?? []))) return saving;
+        return save(stored.id, entered);
+      }
+
+      /** Shows what's Owed and the Costs total, from the money as entered. */
+      function showMoneyTotals() {
+        const inquiry = inquiryById(moneyFor);
+        if (!inquiry) return;
+        const owing = owed({ status: inquiry.status, ...amountsEntered() });
+        if (!owedStatuses.includes(inquiry.status)) owedLine.replaceChildren("Owed is counted once it's Booked.");
+        else if (owing === undefined) owedLine.replaceChildren("Enter the Agreed price to see what's Owed.");
+        else owedLine.replaceChildren(element("span", undefined, "Owed"), " ", element("span", "inquiry-figure", dollars(owing)));
+        owedLine.classList.toggle("is-counted", owing !== undefined);
+
+        costsTotalLine.textContent = costList.children.length ? `Costs total ${dollars(costsTotal({ costs: costsEntered() }))}` : "";
+      }
+
+      // A field with a message is checked again as the owner fixes it, and the totals follow each change.
+      moneyForm.addEventListener("input", () => {
+        for (const input of moneyInputs()) if (input.hasAttribute("aria-invalid")) showFieldError(input, moneyProblem(input));
+        moneySaved.textContent = "";
+        showMoneyTotals();
+      });
+
+      moneyForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const id = moneyFor;
+        showProblem();
+        moneySaved.textContent = "";
+        let first: HTMLInputElement | undefined;
+        for (const input of moneyInputs()) {
+          const message = moneyProblem(input);
+          showFieldError(input, message);
+          if (message) first ??= input;
+        }
+        if (first) return first.focus();
+        const done = await saveMoney();
+        if (done && openedId() === id) moneySaved.textContent = "Money saved";
       });
 
       /** That an Inquiry was deleted, shown on the list it returns to. */
@@ -737,12 +996,13 @@ const eventTypes = await getEventTypes();
           deleting = busy;
           for (const control of [deleteConfirmed, declineInstead, deleteCancel, statusChoice]) control.disabled = busy;
           notes.readOnly = busy;
+          moneyForm.inert = busy;
         };
         whileDeleting(true);
         deleteConfirmed.textContent = "Deleting…";
         showProblem();
         try {
-          // A status or notes change still being saved goes first, so it isn't sent for an Inquiry that's gone.
+          // A change still being saved goes first, so it isn't sent for an Inquiry that's gone.
           await saving;
           let response: Response | undefined;
           try {
@@ -757,6 +1017,7 @@ const eventTypes = await getEventTypes();
           inquiries = inquiries?.filter(({ id }) => id !== inquiry.id);
           lastSaved.delete(inquiry.id);
           notesFor = undefined;
+          moneyFor = undefined;
           for (const photo of inquiry.photos) {
             if (!("id" in photo)) continue;
             photoUrls.get(photo.id)?.then((loaded) => loaded && URL.revokeObjectURL(loaded));
@@ -836,7 +1097,9 @@ const eventTypes = await getEventTypes();
       /** Shows what the address asks for: the list, one Inquiry, or the form. */
       function showPage() {
         saveNotes();
+        saveMoney();
         notesFor = undefined;
+        moneyFor = undefined;
         const opened = openedId();
         const asked = formAsked();
         back.hidden = (!opened && !asked) || !token;
@@ -1575,6 +1838,177 @@ const eventTypes = await getEventTypes();
     }
   }
 
+  /* Money: the amounts, what's Owed, then the Costs, its fields set like the contact form's. */
+  .inquiry-money {
+    display: grid;
+    gap: var(--space-md);
+  }
+
+  .inquiry .inquiry-money h2 {
+    margin-block-end: 0;
+  }
+
+  .inquiry-money-hint {
+    margin: 0;
+    font-size: var(--text-sm);
+  }
+
+  /* An amount takes a dollar sign before it, and is only as wide as an amount needs. */
+  .inquiry-amount {
+    position: relative;
+    display: block;
+    max-width: 12rem;
+  }
+
+  .inquiry-amount::before {
+    content: "$";
+    position: absolute;
+    inset-block: 0;
+    inset-inline-start: var(--space-sm);
+    display: flex;
+    align-items: center;
+    color: var(--color-text-muted);
+    pointer-events: none;
+  }
+
+  /* As specific as the field rule further down, which sets the padding all round. */
+  .inquiry-money .field .inquiry-amount input {
+    padding-inline-start: calc(var(--space-sm) + 1ch);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .inquiry-owed {
+    margin: 0;
+    padding-block: var(--space-sm);
+    border-block: 1px solid var(--color-line);
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  /* Once it's counted, Owed reads as a price: its figure in the serif. */
+  .inquiry-owed.is-counted {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    color: var(--color-text);
+    font-size: var(--text-base);
+    font-weight: 500;
+  }
+
+  .inquiry-figure {
+    font-family: var(--font-heading);
+    font-size: var(--text-lg);
+    font-variant-numeric: lining-nums;
+  }
+
+  .inquiry-costs {
+    display: grid;
+    gap: var(--space-sm);
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .inquiry-costs legend {
+    margin-block-end: var(--space-xs);
+    padding: 0;
+    font-weight: 500;
+  }
+
+  .inquiry-costs > p {
+    margin: 0;
+  }
+
+  .inquiry-costs [data-no-costs][hidden] {
+    display: none;
+  }
+
+  .inquiry-costs .pill {
+    justify-self: start;
+  }
+
+  .inquiry-cost-list {
+    display: grid;
+    gap: var(--space-sm);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .inquiry-cost-list:empty {
+    display: none;
+  }
+
+  /* One Cost to a row: what for, its amount and Remove. On a phone, what for takes the whole first line. */
+  .inquiry-cost {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 9rem auto;
+    align-items: start;
+    gap: var(--space-xs) var(--space-sm);
+    min-width: 0;
+    margin: 0;
+    padding: 0 0 var(--space-sm);
+    border: 0;
+    border-bottom: 1px solid var(--color-line);
+  }
+
+  @media (max-width: 35.99rem) {
+    .inquiry-cost {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .inquiry-cost-description {
+      grid-column: 1 / -1;
+    }
+
+    .inquiry-cost .inquiry-amount {
+      max-width: 9rem;
+    }
+  }
+
+  /* Remove sits level with the fields, below their labels. */
+  .inquiry-cost-remove {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    margin-block-start: calc(1lh + 0.375rem);
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--color-action);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .inquiry-costs-total {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .inquiry-costs-total:empty {
+    display: none;
+  }
+
+  .inquiry-money .inquiry-notes-save {
+    margin-block-start: 0;
+  }
+
+  /* In the list, what's still Owed sits under the Inquiry status. */
+  .inquiry-standing {
+    display: grid;
+    justify-items: end;
+    gap: 0.125rem;
+  }
+
+  .inquiry-owing {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
   /* Add Inquiry, above the list, and Edit details, under an added Inquiry's details. */
   .inquiry-add {
     margin-block-end: var(--space-lg);
@@ -1662,7 +2096,7 @@ const eventTypes = await getEventTypes();
     display: none;
   }
 
-  .inquiry-form .field {
+  :is(.inquiry-form, .inquiry-money) .field {
     display: grid;
     gap: 0.375rem;
   }
@@ -1671,7 +2105,7 @@ const eventTypes = await getEventTypes();
     display: none;
   }
 
-  .inquiry-form label:not(.pill) {
+  :is(.inquiry-form, .inquiry-money) label:not(.pill) {
     font-weight: 500;
   }
 
@@ -1680,8 +2114,8 @@ const eventTypes = await getEventTypes();
     font-weight: 400;
   }
 
-  .inquiry-form .hint,
-  .inquiry-form .error {
+  :is(.inquiry-form, .inquiry-money) .hint,
+  :is(.inquiry-form, .inquiry-money) .error {
     margin: 0;
     font-size: var(--text-sm);
   }
@@ -1690,15 +2124,15 @@ const eventTypes = await getEventTypes();
     color: var(--color-text-muted);
   }
 
-  .inquiry-form .error {
+  :is(.inquiry-form, .inquiry-money) .error {
     color: var(--color-error);
   }
 
-  .inquiry-form .error:empty {
+  :is(.inquiry-form, .inquiry-money) .error:empty {
     display: none;
   }
 
-  .inquiry-form .field :is(input, select, textarea) {
+  :is(.inquiry-form, .inquiry-money) .field :is(input, select, textarea) {
     width: 100%;
     min-height: 2.75rem;
     padding: var(--space-xs) var(--space-sm);
@@ -1710,11 +2144,11 @@ const eventTypes = await getEventTypes();
     caret-color: var(--color-action);
   }
 
-  .inquiry-form .field :is(input, select, textarea):is(:hover, :focus) {
+  :is(.inquiry-form, .inquiry-money) .field :is(input, select, textarea):is(:hover, :focus) {
     border-color: var(--color-action);
   }
 
-  .inquiry-form [aria-invalid="true"] {
+  :is(.inquiry-form, .inquiry-money) [aria-invalid="true"] {
     border-color: var(--color-error);
   }
 

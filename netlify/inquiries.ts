@@ -2,6 +2,7 @@ import { getStore, type Store } from "@netlify/blobs";
 import { randomUUID } from "node:crypto";
 import { inListOrder, torontoToday } from "../src/inquiry-dates";
 import { customerAnswers, maxPhotos, photoFields } from "../src/inquiry-form";
+import { amounts, costsTotal, owed, type AmountField, type Cost } from "../src/inquiry-money";
 import { handAddedSources, type HandAddedSource, type InquirySource } from "../src/inquiry-sources";
 import { inquiryStatuses, type InquiryStatus } from "../src/inquiry-statuses";
 
@@ -9,7 +10,9 @@ import { inquiryStatuses, type InquiryStatus } from "../src/inquiry-statuses";
 // record in Netlify Blobs, keyed by its id, and its inspiration photos are blobs in a store of their
 // own, referenced from the record. Functions are thin layers over it.
 
-export type { HandAddedSource, InquirySource, InquiryStatus };
+export type { Cost, HandAddedSource, InquirySource, InquiryStatus };
+// Owed and the Costs total are worked out the same way here and on the dashboard.
+export { costsTotal, owed };
 
 export interface Inquiry {
   id: string;
@@ -33,6 +36,15 @@ export interface Inquiry {
   // Kept by the owner.
   /** The owner's notes, left out when there are none. */
   notes?: string;
+  // Money, in whole cents, each left out until the owner enters it.
+  /** What the customer agreed to pay. */
+  agreedPrice?: number;
+  /** The Down payment received. */
+  downPayment?: number;
+  /** The Balance received. */
+  balance?: number;
+  /** What the owner spent on the event, left out when there are none. */
+  costs?: Cost[];
 }
 
 /** An inspiration photo, or one that couldn't be saved. A saved one is served by its id. */
@@ -102,6 +114,11 @@ export type InquiryChanges = Partial<Pick<Inquiry, CustomerAnswer>> & {
   status?: InquiryStatus;
   /** The Inquiry's notes, in place of those it had. Notes of only spaces clear them. */
   notes?: string;
+  /** The Inquiry's Costs, in place of those it had. Descriptions are trimmed, and an empty list clears them. */
+  costs?: Cost[];
+} & {
+  /** An amount in whole cents, or null to clear it. */
+  [amount in AmountField]?: number | null;
 };
 
 /** An Inquiry the owner adds by hand: where it came from, and what they know of the customer so far. */
@@ -202,9 +219,15 @@ export function inquiriesIn(records: Store, photoStore: Store, fetchFile: FetchF
       const inquiry = (await records.get(id, { type: "json" })) as Inquiry | null;
       if (!inquiry) return undefined;
       refuseChangesItCantTake(changes, inquiry);
-      const { status, notes, source, ...details } = changes;
+      const { status, notes, source, agreedPrice, downPayment, balance, costs, ...details } = changes;
       const changed = { ...inquiry, ...(status && { status }), ...(source && { source }), ...(notes !== undefined && { notes }) };
       if (!changed.notes?.trim()) delete changed.notes;
+      for (const [amount, cents] of Object.entries({ agreedPrice, downPayment, balance }) as [AmountField, number | null | undefined][]) {
+        if (cents === null) delete changed[amount];
+        else if (cents !== undefined) changed[amount] = cents;
+      }
+      if (costs) changed.costs = costs.map(({ description, amount }) => ({ description: description.trim(), amount }));
+      if (!changed.costs?.length) delete changed.costs;
       withDetails(changed, details);
       await records.setJSON(id, changed);
       return changed;
@@ -232,6 +255,10 @@ function refuseChangesItCantTake(changes: unknown, inquiry: Inquiry): asserts ch
       if (!inquiryStatuses.includes(value)) throw new Refused(`An Inquiry status is one of ${inquiryStatuses.join(", ")}.`);
     } else if (field === "notes") {
       if (typeof value !== "string") throw new Refused("Notes are text.");
+    } else if (isAmount(field)) {
+      if (value !== null && !isCents(value)) throw new Refused(`An Inquiry's ${field} is an amount in whole cents, or null to clear it.`);
+    } else if (field === "costs") {
+      if (!Array.isArray(value) || !value.every(isCost)) throw new Refused("Costs are a list, each with a description and an amount in whole cents.");
     } else if (inquiry.source === "Contact form" && (isCustomerAnswer(field) || field === "source")) {
       throw new Refused("A contact-form Inquiry keeps the customer's answers exactly as they sent them.");
     } else if (field === "source") {
@@ -285,6 +312,18 @@ function withDetails(inquiry: Inquiry, details: Partial<Pick<Inquiry, CustomerAn
 }
 
 const isCustomerAnswer = (field: string): field is CustomerAnswer => (customerAnswers as readonly string[]).includes(field);
+
+const isAmount = (field: string): field is AmountField => (amounts as readonly string[]).includes(field);
+
+/** Whether a value is an amount of money as the Inquiries module keeps it: whole cents, not below zero. */
+const isCents = (value: unknown): value is number => Number.isSafeInteger(value) && (value as number) >= 0;
+
+/** Whether a value is a Cost: a description that isn't empty and an amount in whole cents, and nothing else. */
+function isCost(value: unknown): value is Cost {
+  if (typeof value !== "object" || value === null) return false;
+  const { description, amount, ...rest } = value as Record<string, unknown>;
+  return typeof description === "string" && description.trim() !== "" && isCents(amount) && !Object.keys(rest).length;
+}
 
 /** A file in a submission: Netlify's link to it, its name and the media type the browser gave it. */
 interface Upload {
