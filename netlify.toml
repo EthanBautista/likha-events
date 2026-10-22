@@ -13,3 +13,11 @@
 
 # The Inquiry dashboard's functions live in netlify/functions (ADR 0004), Netlify's standard folder.
 # `npm run dev:functions` runs them locally beside `astro dev`, with a local Blobs store in .netlify/.
+
+# Astro listens on IPv6 localhost (::1) by default on Windows, where Netlify Dev can't find it,
+# so it's started on 127.0.0.1 instead.
+[dev]
+  framework = "#custom"
+  command = "astro dev --host 127.0.0.1"
+  targetPort = 4321
+  port = 8888
