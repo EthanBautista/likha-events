@@ -3,6 +3,7 @@ import "@fontsource-variable/cormorant-garamond";
 import "@fontsource-variable/jost";
 import "../../styles/tokens.css";
 import "../../styles/global.css";
+import { inquiryStatuses } from "../../inquiry-statuses";
 import { siteName } from "../../site-settings";
 
 // The Inquiry dashboard (ADR 0004): a static page whose script signs the owner in with GitHub through
@@ -52,11 +53,49 @@ import { siteName } from "../../site-settings";
           <p class="dashboard-empty-title">No Inquiries yet</p>
           <p class="dashboard-quiet">Each Inquiry sent through the contact form will appear here.</p>
         </div>
+        <div data-overview class="inquiry-overview">
+          <p class="inquiry-new-count" data-new-count></p>
+          <div class="inquiry-filter" role="group" aria-label="Filter by Inquiry status">
+            <button type="button" class="pill" aria-pressed="true">All</button>
+            {
+              inquiryStatuses.map((status) => (
+                <button type="button" class="pill" aria-pressed="false" data-status={status}>
+                  {status}
+                </button>
+              ))
+            }
+          </div>
+          <p class="visually-hidden" role="status" data-filter-status></p>
+          <p class="dashboard-quiet" data-none-shown hidden></p>
+        </div>
         <div data-groups></div>
       </section>
 
       <article data-view="detail" class="inquiry" hidden>
         <p class="inquiry-received" data-received></p>
+        <fieldset class="inquiry-status-choice" data-status-choice>
+          <legend>Inquiry status</legend>
+          <div class="inquiry-status-options">
+            {
+              inquiryStatuses.map((status) => (
+                <label class="pill">
+                  <input type="radio" name="status" value={status} />
+                  {status}
+                </label>
+              ))
+            }
+          </div>
+        </fieldset>
+        <p role="status" class="inquiry-saved" data-status-saved></p>
+        <div class="inquiry-notes">
+          <label for="inquiry-notes">Notes</label>
+          <textarea id="inquiry-notes" rows="4" data-notes></textarea>
+          <div class="inquiry-notes-save">
+            <button type="button" class="pill" data-save-notes>Save notes</button>
+            <p role="status" class="inquiry-saved" data-notes-saved></p>
+          </div>
+        </div>
+        <h2>What they sent</h2>
         <dl class="inquiry-answers" data-answers></dl>
         <h2>Inspiration photos</h2>
         <div class="inquiry-photos" data-photos></div>
@@ -64,8 +103,9 @@ import { siteName } from "../../site-settings";
     </main>
 
     <script>
-      import type { Inquiry, InquiryPhoto } from "../../../netlify/inquiries";
+      import type { Inquiry, InquiryChanges, InquiryPhoto } from "../../../netlify/inquiries";
       import { eventTiming, torontoToday, type EventTiming } from "../../inquiry-dates";
+      import { inquiryStatuses } from "../../inquiry-statuses";
 
       /** Netlify's OAuth provider, which the editor signs in through too. */
       const netlify = "https://api.netlify.com";
@@ -83,6 +123,17 @@ import { siteName } from "../../site-settings";
       const received = document.querySelector<HTMLElement>("[data-received]")!;
       const answers = document.querySelector<HTMLElement>("[data-answers]")!;
       const photos = document.querySelector<HTMLElement>("[data-photos]")!;
+      const overview = document.querySelector<HTMLElement>("[data-overview]")!;
+      const newCount = document.querySelector<HTMLElement>("[data-new-count]")!;
+      const filterRow = document.querySelector<HTMLElement>(".inquiry-filter")!;
+      const filterButtons = [...filterRow.querySelectorAll("button")];
+      const filterStatus = document.querySelector<HTMLElement>("[data-filter-status]")!;
+      const noneShown = document.querySelector<HTMLElement>("[data-none-shown]")!;
+      const statusChoice = document.querySelector<HTMLFieldSetElement>("[data-status-choice]")!;
+      const statusSaved = document.querySelector<HTMLElement>("[data-status-saved]")!;
+      const notes = document.querySelector<HTMLTextAreaElement>("[data-notes]")!;
+      const saveNotesButton = document.querySelector<HTMLButtonElement>("[data-save-notes]")!;
+      const notesSaved = document.querySelector<HTMLElement>("[data-notes-saved]")!;
 
       // The sign-in is kept in this browser so the owner stays signed in on their phone. Storage can be
       // blocked, as in a private window, and then the owner signs in each visit.
@@ -180,10 +231,10 @@ import { siteName } from "../../site-settings";
       }
 
       /** Asks a function for something with the sign-in, signing out if the function refuses it. */
-      async function ask(path: string): Promise<Response | undefined> {
+      async function ask(path: string, init: RequestInit = {}): Promise<Response | undefined> {
         let response: Response;
         try {
-          response = await fetch(path, { headers: { Authorization: `Bearer ${token}` } });
+          response = await fetch(path, { ...init, headers: { ...init.headers, Authorization: `Bearer ${token}` } });
         } catch {
           return undefined;
         }
@@ -216,6 +267,7 @@ import { siteName } from "../../site-settings";
           return;
         }
         inquiries = await response.json();
+        lastSaved.clear();
         showPage();
       }
 
@@ -269,11 +321,33 @@ import { siteName } from "../../site-settings";
         return item;
       }
 
-      /** The list, in the order the function sends it: upcoming events, then past ones, then those with no date. */
+      /** The Inquiry status the list is filtered to, kept in the address. Unknown or missing, it shows All. */
+      const filteredTo = () => {
+        const status = new URLSearchParams(location.search).get("status");
+        return inquiryStatuses.find((known) => known === status);
+      };
+
+      /**
+       * The list, in the order the function sends it: upcoming events, then past ones, then those with no
+       * date. Above it, how many are New, whatever the filter shows.
+       */
       function showList(list: Inquiry[]) {
         const today = torontoToday();
+        const status = filteredTo();
+        const shown = status ? list.filter((inquiry) => inquiry.status === status) : list;
+        const newInquiries = list.filter((inquiry) => inquiry.status === "New").length;
+        newCount.textContent = !newInquiries
+          ? "No New Inquiries"
+          : newInquiries === 1
+            ? "1 New Inquiry"
+            : `${newInquiries} New Inquiries`;
+        newCount.classList.toggle("has-new", newInquiries > 0);
+        for (const button of filterButtons) button.setAttribute("aria-pressed", String(button.dataset.status === status));
+        noneShown.hidden = shown.length > 0;
+        noneShown.textContent = `No ${status} Inquiries`;
+
         const sections = new Map<EventTiming, HTMLUListElement>();
-        for (const inquiry of list) {
+        for (const inquiry of shown) {
           const name = eventTiming(inquiry.eventDate, today);
           if (!sections.has(name)) sections.set(name, element("ul", "inquiry-list"));
           sections.get(name)!.append(rowFor(inquiry, today));
@@ -290,7 +364,11 @@ import { siteName } from "../../site-settings";
           }),
         );
         empty.hidden = list.length > 0;
+        overview.hidden = list.length === 0;
         show("list");
+        // On a phone the chips are one row that swipes sideways, so the chosen one is brought to its middle.
+        const pressed = filterButtons.find((button) => button.getAttribute("aria-pressed") === "true")!;
+        filterRow.scrollTo({ left: pressed.offsetLeft - (filterRow.clientWidth - pressed.offsetWidth) / 2 });
       }
 
       /** A way to reach the customer, as a link to call or email them when it is a phone number or an email. */
@@ -310,7 +388,12 @@ import { siteName } from "../../site-settings";
         heading.textContent = inquiry.name;
         document.title = `${inquiry.name} · ${pageTitle}`;
 
-        received.replaceChildren(statusOf(inquiry), ` Received ${receivedTime(inquiry.receivedAt)} · ${inquiry.source}`);
+        received.textContent = `Received ${receivedTime(inquiry.receivedAt)} · ${inquiry.source}`;
+        showStatus(inquiry);
+        notes.value = inquiry.notes ?? "";
+        notesFor = inquiry.id;
+        statusSaved.textContent = "";
+        notesSaved.textContent = "";
 
         const rows: [string, string | Node | undefined][] = [
           ["Phone number or email", contactFor(inquiry.contact)],
@@ -337,6 +420,102 @@ import { siteName } from "../../site-settings";
         );
         show("detail");
       }
+
+      // Changes are sent one at a time, in the order the owner makes them, so the last one made is the one kept.
+      let saving = Promise.resolve(true);
+
+      /** Each changed Inquiry as last saved, for going back to when a later change can't be saved. */
+      const lastSaved = new Map<string, Inquiry>();
+
+      /** Puts an Inquiry, as it now is, in place of the one the page had. */
+      function replaceInquiry(changed: Inquiry) {
+        inquiries = inquiries?.map((inquiry) => (inquiry.id === changed.id ? changed : inquiry));
+      }
+
+      const inquiryById = (id: string | null | undefined) => inquiries?.find((inquiry) => inquiry.id === id);
+
+      /**
+       * Saves a change to an Inquiry. The page shows it straight away, so going back to the list or opening
+       * the Inquiry again shows it too, and goes back to what was saved if it can't be saved. True once saved.
+       */
+      function save(id: string, changes: InquiryChanges): Promise<boolean> {
+        const shown = inquiryById(id);
+        if (!shown) return Promise.resolve(false);
+        // The first change to an Inquiry starts from it as loaded, which is as saved.
+        if (!lastSaved.has(id)) lastSaved.set(id, shown);
+        replaceInquiry({ ...shown, ...changes });
+        saving = saving.then(async () => {
+          const saved = await send(id, changes);
+          if (saved) lastSaved.set(id, saved);
+          replaceInquiry(lastSaved.get(id)!);
+          return saved !== undefined;
+        });
+        return saving;
+      }
+
+      /** Sends a change to an Inquiry, and gives it back as it now is, or undefined if it wasn't saved. */
+      async function send(id: string, changes: InquiryChanges): Promise<Inquiry | undefined> {
+        let response: Response | undefined;
+        try {
+          response = await ask(`/api/inquiries/${encodeURIComponent(id)}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(changes),
+          });
+        } catch {
+          return undefined;
+        }
+        if (!response) {
+          showProblem("Couldn't reach the dashboard. Check your connection, then try again.");
+          return undefined;
+        }
+        if (!response.ok) {
+          const { message } = await response.json().catch(() => ({ message: "Try again." }));
+          showProblem(`Couldn't save that. ${message}`);
+          return undefined;
+        }
+        return response.json();
+      }
+
+      const statusInputs = [...statusChoice.querySelectorAll<HTMLInputElement>("input")];
+
+      /** Ticks the Inquiry status an Inquiry is set to. */
+      function showStatus(inquiry: Inquiry) {
+        for (const input of statusInputs) input.checked = input.value === inquiry.status;
+      }
+
+      // A status is saved as soon as it's chosen. One that isn't saved goes back to the one that is.
+      statusChoice.addEventListener("change", async (event) => {
+        const id = openedId()!;
+        const status = (event.target as HTMLInputElement).value as Inquiry["status"];
+        showProblem();
+        statusSaved.textContent = "";
+        const done = await save(id, { status });
+        if (openedId() !== id) return;
+        if (done) statusSaved.textContent = `Set to ${status}`;
+        const stored = inquiryById(id);
+        if (stored) showStatus(stored);
+      });
+
+      /** The Inquiry whose notes are in the notes box. */
+      let notesFor: string | undefined;
+
+      /** Saves the notes as written for the Inquiry they're for, unless they're saved already. */
+      function saveNotes(): Promise<boolean> {
+        const stored = inquiryById(notesFor);
+        if (!stored || notes.value === (stored.notes ?? "")) return saving;
+        return save(stored.id, { notes: notes.value });
+      }
+
+      // Notes are saved with the button, and also on leaving the box or the Inquiry, so none are lost.
+      notes.addEventListener("change", () => saveNotes());
+      saveNotesButton.addEventListener("click", async () => {
+        const id = notesFor;
+        showProblem();
+        notesSaved.textContent = "";
+        const done = await saveNotes();
+        if (done && openedId() === id) notesSaved.textContent = "Notes saved";
+      });
 
       // Photos are served only with the sign-in, which an image element can't send, so the page fetches each one
       // and shows it from memory. They're kept until signing out, so going back and forth doesn't refetch.
@@ -383,9 +562,14 @@ import { siteName } from "../../site-settings";
         return figure;
       }
 
+      /** The id of the Inquiry the address opens, if it opens one. */
+      const openedId = () => new URLSearchParams(location.search).get("inquiry");
+
       /** Shows what the address asks for: the list, or one Inquiry. */
       function showPage() {
-        const opened = new URLSearchParams(location.search).get("inquiry");
+        saveNotes();
+        notesFor = undefined;
+        const opened = openedId();
         back.hidden = !opened || !token;
         heading.textContent = "Inquiries";
         document.title = pageTitle;
@@ -393,7 +577,7 @@ import { siteName } from "../../site-settings";
         if (!inquiries) return;
 
         if (!opened) return showList(inquiries);
-        const inquiry = inquiries.find(({ id }) => id === opened);
+        const inquiry = inquiryById(opened);
         if (inquiry) return showDetail(inquiry);
         show("nothing");
         showProblem("This Inquiry isn't here any more.");
@@ -445,6 +629,20 @@ import { siteName } from "../../site-settings";
       });
 
       signOutButton.addEventListener("click", () => signOut());
+
+      // The filter is kept in the address, so a reload, or coming back from an Inquiry, keeps it.
+      for (const button of filterButtons) {
+        button.addEventListener("click", () => {
+          const url = new URL(location.href);
+          if (button.dataset.status) url.searchParams.set("status", button.dataset.status);
+          else url.searchParams.delete("status");
+          history.replaceState(history.state, "", url);
+          showList(inquiries ?? []);
+          // Announced only when the owner chooses, not on load.
+          const shown = groups.querySelectorAll(".inquiry-row").length;
+          filterStatus.textContent = `Showing ${shown} ${shown === 1 ? "Inquiry" : "Inquiries"}`;
+        });
+      }
 
       heading.tabIndex = -1;
       token = savedToken.read();
@@ -566,6 +764,63 @@ import { siteName } from "../../site-settings";
     margin-block-end: 0;
   }
 
+  /* Above the list: how many Inquiries are New, then the filter by Inquiry status, its pills like the gallery's. */
+  .inquiry-overview {
+    max-width: 44rem;
+    margin-block-end: var(--space-lg);
+  }
+
+  .inquiry-overview[hidden] {
+    display: none;
+  }
+
+  .inquiry-new-count {
+    margin-block: 0 var(--space-sm);
+    color: var(--color-text-muted);
+    font-family: var(--font-heading);
+    font-size: var(--text-lg);
+  }
+
+  /* While anyone is waiting on a reply, the count is set in full ink rather than muted. */
+  .inquiry-new-count.has-new {
+    color: var(--color-text);
+    font-weight: 500;
+  }
+
+  .inquiry-filter {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+  }
+
+  /* On a phone the chips stay on one row that swipes sideways, as in the gallery, running out to the
+     screen's edges so the last chip in view is cut off there. Its block padding keeps focus rings whole. */
+  @media (max-width: 47.99rem) {
+    .inquiry-filter {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      scroll-snap-type: x proximity;
+      scrollbar-width: none;
+      margin: calc(-1 * var(--space-xs)) calc(-1 * var(--gutter));
+      padding: var(--space-xs) var(--gutter);
+      scroll-padding-inline: var(--gutter);
+    }
+
+    .inquiry-filter::-webkit-scrollbar {
+      display: none;
+    }
+
+    .inquiry-filter .pill {
+      flex: none;
+      scroll-snap-align: start;
+    }
+  }
+
+  .inquiry-overview [data-none-shown] {
+    margin-block: var(--space-md) 0;
+  }
+
   /* The list: a group for upcoming events, past ones and those with no date, each a run of hairline rows. */
   .inquiry-group {
     max-width: 44rem;
@@ -678,9 +933,101 @@ import { siteName } from "../../site-settings";
     flex-wrap: wrap;
     align-items: center;
     gap: var(--space-xs);
-    margin-block: 0 var(--space-lg);
+    margin-block: 0 var(--space-md);
     color: var(--color-text-muted);
     font-size: var(--text-sm);
+  }
+
+  /* The Inquiry status, one pill for each, as in the gallery's filter: the one it's set to is solid. */
+  .inquiry-status-choice {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .inquiry-status-choice legend {
+    margin-block-end: var(--space-xs);
+    padding: 0;
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .inquiry-status-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+  }
+
+  .inquiry-status-options .pill {
+    position: relative;
+  }
+
+  /* Each radio is unseen but covers its whole pill, so a tap anywhere on the pill chooses it. */
+  .inquiry-status-options input {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .inquiry-status-options .pill:has(:checked) {
+    background: var(--color-action);
+    color: var(--color-on-action);
+  }
+
+  .inquiry-status-options .pill:has(:focus-visible) {
+    outline: 2px solid var(--color-action);
+    outline-offset: 3px;
+  }
+
+  /* Says each change is saved, keeping its line so the page doesn't jump when it does. */
+  .inquiry-saved {
+    min-height: 1lh;
+    margin-block: var(--space-xs) var(--space-md);
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  /* The owner's notes, in a box like the contact form's. */
+  .inquiry-notes {
+    display: grid;
+    gap: 0.375rem;
+  }
+
+  .inquiry-notes label {
+    font-weight: 500;
+  }
+
+  .inquiry-notes textarea {
+    width: 100%;
+    min-height: 2.75rem;
+    padding: var(--space-xs) var(--space-sm);
+    border: 1px solid var(--color-text-muted);
+    border-radius: var(--radius);
+    background: #fff;
+    color: var(--color-text);
+    font: inherit;
+    caret-color: var(--color-action);
+    resize: vertical;
+  }
+
+  .inquiry-notes textarea:hover,
+  .inquiry-notes textarea:focus {
+    border-color: var(--color-action);
+  }
+
+  .inquiry-notes-save {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-sm);
+    margin-block-start: var(--space-xs);
+  }
+
+  .inquiry-notes-save .inquiry-saved {
+    margin: 0;
   }
 
   .inquiry-answers {

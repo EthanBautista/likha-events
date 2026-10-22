@@ -1,8 +1,9 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
+import { changeInquiry } from "../../netlify/functions/inquiry";
 import { listInquiries } from "../../netlify/functions/inquiries";
 import { inquiryPhoto } from "../../netlify/functions/inquiry-photo";
-import type { FormSubmission } from "../../netlify/inquiries";
+import type { FormSubmission, Inquiry } from "../../netlify/inquiries";
 import { gitHubStub } from "../functions/github";
 import { startLocalStore, type LocalStore } from "../functions/local-store";
 
@@ -28,11 +29,15 @@ test.afterEach(async () => {
 async function serveFunctions(context: BrowserContext) {
   const functions = {
     "**/api/inquiries": listInquiries(() => local.inquiries(), gitHubStub),
+    "**/api/inquiries/*": changeInquiry(() => local.inquiries(), gitHubStub),
     "**/api/inquiry-photos/*": inquiryPhoto(() => local.inquiries(), gitHubStub),
   };
   for (const [url, handler] of Object.entries(functions)) {
     await context.route(url, async (route) => {
-      const response = await handler(new Request(route.request().url(), { headers: route.request().headers() }));
+      const request = route.request();
+      const response = await handler(
+        new Request(request.url(), { method: request.method(), headers: request.headers(), body: request.postData() }),
+      );
       await route.fulfill({
         status: response.status,
         headers: Object.fromEntries(response.headers),
@@ -259,7 +264,8 @@ test("opening an Inquiry shows everything the customer sent, with its photos", a
   await expect(answers).toContainText("Number of guests40");
   await expect(answers).toContainText("Theme or coloursSage and gold");
   await expect(answers).toContainText("A balloon arch\nand a backdrop with her name");
-  await expect(page.getByText(/^New Received .+ · Contact form$/)).toBeVisible();
+  await expect(page.getByText(/^Received .+ · Contact form$/)).toBeVisible();
+  await expect(statusChoice(page, "New")).toBeChecked();
 
   const photo = page.getByRole("img", { name: "Inspiration photo 1 from Maria Santos" });
   await expect(photo).toBeVisible();
@@ -325,4 +331,139 @@ test("the list and an opened Inquiry don't scroll sideways, and meet WCAG AA", a
   await expect(page.getByRole("img", { name: "Inspiration photo 1 from Maria Santos" })).toBeVisible();
   expect(await overflow()).toBeLessThanOrEqual(0);
   expect((await axe()).violations).toEqual([]);
+});
+
+// Working through Inquiries: the owner sets an Inquiry status, filters the list by it and writes notes.
+
+const statusChoice = (page: Page, status: string) =>
+  page.getByRole("group", { name: "Inquiry status" }).getByRole("radio", { name: status, exact: true });
+
+const notes = (page: Page) => page.getByRole("textbox", { name: "Notes" });
+
+/** The dashboard saying a change was saved. */
+const says = (page: Page, message: string) => page.getByRole("status").filter({ hasText: message });
+
+test("an opened Inquiry can be set to any Inquiry status, and keeps it", async ({ page, context }) => {
+  await inquiriesArrive();
+  await signIn(page, context, "push-token");
+  await rows(page).filter({ hasText: "Maria Santos" }).click();
+  await expect(statusChoice(page, "New")).toBeChecked();
+
+  for (const status of ["Booked", "Quoted", "Declined", "Done", "New", "Booked"]) {
+    await statusChoice(page, status).check();
+    await expect(says(page, `Set to ${status}`)).toBeVisible();
+  }
+
+  await page.reload();
+  await expect(statusChoice(page, "Booked")).toBeChecked();
+  await page.getByRole("link", { name: "All Inquiries" }).click();
+  await expect(rows(page).filter({ hasText: "Maria Santos" })).toContainText("Booked");
+});
+
+const filterButton = (page: Page, name: string) =>
+  page.getByRole("group", { name: "Filter by Inquiry status" }).getByRole("button", { name, exact: true });
+
+/** Sets the Inquiry status of the Inquiry from this customer, as the owner would have. */
+async function setStatus(name: string, status: Inquiry["status"]) {
+  const inquiries = local.inquiries();
+  const { id } = (await inquiries.list()).find((inquiry) => inquiry.name === name)!;
+  await inquiries.change(id, { status });
+}
+
+test("the list can be filtered by Inquiry status, showing All at first, and the filter is kept in the address", async ({
+  page,
+  context,
+}) => {
+  await inquiriesArrive();
+  await setStatus("Later Customer", "Quoted");
+  await setStatus("Past Customer", "Quoted");
+  await setStatus("Undated Customer", "Booked");
+  await signIn(page, context, "push-token");
+
+  await expect(filterButton(page, "All")).toHaveAttribute("aria-pressed", "true");
+  await expect(rows(page)).toHaveCount(4);
+
+  await filterButton(page, "Quoted").click();
+  await expect(filterButton(page, "Quoted")).toHaveAttribute("aria-pressed", "true");
+  await expect(rows(page)).toHaveCount(2);
+  await expect(rows(page).nth(0)).toContainText("Later Customer");
+  await expect(rows(page).nth(1)).toContainText("Past Customer");
+  await expect(page).toHaveURL(/\?status=Quoted$/);
+
+  await page.reload();
+  await expect(rows(page)).toHaveCount(2);
+  await rows(page).first().click();
+  await page.goBack();
+  await expect(rows(page)).toHaveCount(2);
+
+  await filterButton(page, "Declined").click();
+  await expect(rows(page)).toHaveCount(0);
+  await expect(page.getByText("No Declined Inquiries")).toBeVisible();
+
+  await filterButton(page, "All").click();
+  await expect(rows(page)).toHaveCount(4);
+  await expect(page).toHaveURL(/\/admin\/inquiries\/$/);
+});
+
+test("the number of New Inquiries is always shown, whatever the filter, and follows each change of status", async ({
+  page,
+  context,
+}) => {
+  await inquiriesArrive();
+  await setStatus("Past Customer", "Done");
+  await signIn(page, context, "push-token");
+  await expect(page.getByText("3 New Inquiries", { exact: true })).toBeVisible();
+
+  await filterButton(page, "Done").click();
+  await expect(page.getByText("3 New Inquiries", { exact: true })).toBeVisible();
+
+  await filterButton(page, "All").click();
+  await rows(page).filter({ hasText: "Maria Santos" }).click();
+  await statusChoice(page, "Quoted").check();
+  await expect(says(page, "Set to Quoted")).toBeVisible();
+  await page.getByRole("link", { name: "All Inquiries" }).click();
+  await expect(page.getByText("2 New Inquiries", { exact: true })).toBeVisible();
+
+  await setStatus("Later Customer", "Quoted");
+  await page.reload();
+  await expect(page.getByText("1 New Inquiry", { exact: true })).toBeVisible();
+
+  await setStatus("Undated Customer", "Declined");
+  await page.reload();
+  await expect(page.getByText("No New Inquiries", { exact: true })).toBeVisible();
+});
+
+test("notes written on an opened Inquiry are saved with it, and can be rewritten", async ({ page, context }) => {
+  await inquiriesArrive();
+  await signIn(page, context, "push-token");
+  await rows(page).filter({ hasText: "Maria Santos" }).click();
+  await expect(notes(page)).toHaveValue("");
+
+  await notes(page).fill("Wants gold balloons.\nCall after 6pm.");
+  await page.getByRole("button", { name: "Save notes" }).click();
+  await expect(says(page, "Notes saved")).toBeVisible();
+
+  await page.reload();
+  await expect(notes(page)).toHaveValue("Wants gold balloons.\nCall after 6pm.");
+
+  // Leaving the Inquiry saves notes not yet saved.
+  await notes(page).fill("Quoted $650 by text.");
+  await page.getByRole("link", { name: "All Inquiries" }).click();
+  await rows(page).filter({ hasText: "Maria Santos" }).click();
+  await expect(notes(page)).toHaveValue("Quoted $650 by text.");
+  await page.reload();
+  await expect(notes(page)).toHaveValue("Quoted $650 by text.");
+});
+
+test("a change that can't be saved says so, and the Inquiry shows what is saved", async ({ page, context }) => {
+  await inquiriesArrive();
+  await signIn(page, context, "push-token");
+  await rows(page).filter({ hasText: "Maria Santos" }).click();
+  await context.route("**/api/inquiries/*", (route) => route.abort());
+
+  // Chosen, it goes straight back to the status that's saved.
+  await statusChoice(page, "Booked").click();
+
+  await expect(page.getByRole("alert")).toContainText("Couldn't reach the dashboard");
+  await expect(statusChoice(page, "New")).toBeChecked();
 });

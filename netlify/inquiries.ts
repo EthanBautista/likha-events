@@ -1,12 +1,13 @@
 import { getStore, type Store } from "@netlify/blobs";
 import { eventTiming, eventTimings, torontoToday } from "../src/inquiry-dates";
 import { photoFields } from "../src/inquiry-form";
+import { inquiryStatuses, type InquiryStatus } from "../src/inquiry-statuses";
 
 // The Inquiries module (ADR 0004) owns reading and writing Inquiries. Each Inquiry is one JSON
 // record in Netlify Blobs, keyed by its id, and its inspiration photos are blobs in a store of their
 // own, referenced from the record. Functions are thin layers over it.
 
-export type InquiryStatus = "New" | "Quoted" | "Booked" | "Done" | "Declined";
+export type { InquiryStatus };
 
 export type InquirySource = "Contact form" | "Instagram" | "Facebook";
 
@@ -29,6 +30,9 @@ export interface Inquiry {
   theme?: string;
   decor?: string;
   photos: InquiryPhoto[];
+  // Kept by the owner.
+  /** The owner's notes, left out when there are none. */
+  notes?: string;
 }
 
 /** An inspiration photo, or one that couldn't be saved. A saved one is served by its id. */
@@ -64,18 +68,38 @@ export interface Inquiries {
   receive(submission: FormSubmission): Promise<void>;
   /** A saved inspiration photo, by its id. */
   photo(id: string): Promise<PhotoFile | undefined>;
+  /** Changes an Inquiry, and gives it back as it now is, or undefined if it isn't there. */
+  change(id: string, changes: InquiryChanges): Promise<Inquiry | undefined>;
 }
+
+/**
+ * A change to an Inquiry. Any Inquiry status can be set from any other. A contact-form Inquiry's
+ * customer answers are kept exactly as sent, so a change to one of them is refused.
+ */
+export type InquiryChanges = Partial<Pick<Inquiry, CustomerAnswer>> & {
+  status?: InquiryStatus;
+  /** The Inquiry's notes, in place of those it had. Notes of only spaces clear them. */
+  notes?: string;
+};
+
+/** An Inquiry's fields that hold what the customer sent, apart from their photos. */
+const customerAnswers = ["name", "contact", "eventDate", "venue", "eventType", "guests", "theme", "decor"] as const;
+
+type CustomerAnswer = (typeof customerAnswers)[number];
+
+/** A change the Inquiries module won't make, saying why. Nothing about the Inquiry is changed. */
+export class ChangeRefused extends Error {}
 
 /** The contact form's name, and its fields for each customer answer. */
 const contactForm = "inquiry";
-const answerFields = {
+const answerFields: Record<Exclude<CustomerAnswer, "name" | "contact">, string> = {
   eventDate: "event-date",
   venue: "venue",
   eventType: "event-type",
   guests: "guests",
   theme: "theme",
   decor: "decor",
-} as const;
+};
 
 export function inquiriesIn(records: Store, photoStore: Store, fetchFile: FetchFile = fetch): Inquiries {
   /** Copies a photo into the store. One that can't be copied is noted as missing, and the Inquiry is still saved. */
@@ -127,7 +151,36 @@ export function inquiriesIn(records: Store, photoStore: Store, fetchFile: FetchF
       if (!found) return undefined;
       return { body: found.data, type: String(found.metadata.type) };
     },
+
+    async change(id, changes) {
+      const inquiry = (await records.get(id, { type: "json" })) as Inquiry | null;
+      if (!inquiry) return undefined;
+      refuseChangesItCantTake(changes, inquiry);
+      const changed = { ...inquiry, ...changes };
+      if (!changed.notes?.trim()) delete changed.notes;
+      await records.setJSON(id, changed);
+      return changed;
+    },
   };
+}
+
+/**
+ * Refuses changes the owner can't make to this Inquiry. They come from the dashboard as they were sent,
+ * so each one is checked here.
+ */
+function refuseChangesItCantTake(changes: unknown, inquiry: Inquiry): asserts changes is InquiryChanges {
+  if (typeof changes !== "object" || changes === null || Array.isArray(changes)) throw new ChangeRefused("Send the changes to make.");
+  for (const [field, value] of Object.entries(changes)) {
+    if (field === "status") {
+      if (!inquiryStatuses.includes(value)) throw new ChangeRefused(`An Inquiry status is one of ${inquiryStatuses.join(", ")}.`);
+    } else if (field === "notes") {
+      if (typeof value !== "string") throw new ChangeRefused("Notes are text.");
+    } else if (inquiry.source === "Contact form" && (customerAnswers as readonly string[]).includes(field)) {
+      throw new ChangeRefused("A contact-form Inquiry keeps the customer's answers exactly as they sent them.");
+    } else {
+      throw new ChangeRefused(`An Inquiry's ${field} can't be changed.`);
+    }
+  }
 }
 
 /** Orders Inquiries for the list, given today's date. Ties go to the one received most recently. */

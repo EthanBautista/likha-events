@@ -4,11 +4,11 @@
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Any status can be set from any status. Nothing changes status automatically
-- [ ] A status filter with All the default
-- [ ] A count of New Inquiries always visible
-- [ ] Notes, editable and saved on the Inquiry
-- [ ] A contact-form Inquiry's customer answers can't be edited (enforced by the Inquiries module, not just hidden)
-- [ ] Tests: any-to-any status, filtering, the New count, notes, the refused edit
+- [x] Any status can be set from any status. Nothing changes status automatically
+- [x] A status filter with All the default
+- [x] A count of New Inquiries always visible
+- [x] Notes, editable and saved on the Inquiry
+- [x] A contact-form Inquiry's customer answers can't be edited (enforced by the Inquiries module, not just hidden)
+- [x] Tests: any-to-any status, filtering, the New count, notes, the refused edit

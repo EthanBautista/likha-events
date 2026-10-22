@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import type { FormSubmission, Inquiry } from "../../netlify/inquiries";
+import { ChangeRefused, type FormSubmission, type Inquiry, type InquiryChanges } from "../../netlify/inquiries";
 import { startLocalStore, type LocalStore } from "./local-store";
 
 // The Inquiries module, against a local Blobs store.
@@ -176,4 +176,81 @@ test("a photo sent as just Netlify's link is copied too, named after its file", 
   const arch = await inquiries.photo("id" in photos[0] ? photos[0].id : "");
   expect(new TextDecoder().decode(arch!.body)).toBe("photo bytes of arch.jpg");
   expect(arch!.type).toBe("image/jpeg");
+});
+
+test("an Inquiry can be set to any Inquiry status from any other, and nothing else about it changes", async () => {
+  const store = local.store("inquiries");
+  const inquiries = local.inquiries();
+  const moves: [Inquiry["status"], Inquiry["status"]][] = [
+    ["New", "Booked"],
+    ["Booked", "Quoted"],
+    ["Quoted", "Done"],
+    ["Done", "New"],
+    ["New", "Declined"],
+    ["Declined", "Booked"],
+  ];
+
+  for (const [from, to] of moves) {
+    await store.setJSON(maria.id, { ...maria, status: from });
+
+    const changed = await inquiries.change(maria.id, { status: to });
+
+    expect(changed).toEqual({ ...maria, status: to });
+    expect(await inquiries.list()).toEqual([{ ...maria, status: to }]);
+  }
+});
+
+test("notes are saved on an Inquiry, can be rewritten, and cleared", async () => {
+  await local.store("inquiries").setJSON(maria.id, maria);
+  const inquiries = local.inquiries();
+
+  await inquiries.change(maria.id, { notes: "Wants gold balloons.\nCall after 6pm." });
+  expect(await inquiries.list()).toEqual([{ ...maria, notes: "Wants gold balloons.\nCall after 6pm." }]);
+
+  await inquiries.change(maria.id, { notes: "Quoted $650 by text." });
+  expect(await inquiries.list()).toEqual([{ ...maria, notes: "Quoted $650 by text." }]);
+
+  await inquiries.change(maria.id, { notes: "  " });
+  expect(await inquiries.list()).toEqual([maria]);
+});
+
+test("changing an Inquiry that isn't there changes nothing", async () => {
+  const inquiries = local.inquiries();
+
+  expect(await inquiries.change("no-such-inquiry", { status: "Booked" })).toBeUndefined();
+  expect(await inquiries.list()).toEqual([]);
+});
+
+test("a contact-form Inquiry's customer answers can't be changed, and a refused change changes nothing", async () => {
+  const inquiries = local.inquiries();
+  await inquiries.receive(submission({}));
+  const [received] = await inquiries.list();
+  const answers: InquiryChanges[] = [
+    { name: "Mary Santos" },
+    { contact: "mary@example.com" },
+    { eventDate: "2026-12-01" },
+    { venue: "Toronto" },
+    { eventType: "Birthday" },
+    { guests: "60" },
+    { theme: "Pink" },
+    { decor: "Just balloons" },
+  ];
+
+  for (const answer of answers) {
+    await expect(inquiries.change(received.id, { status: "Quoted", notes: "Called her", ...answer }), JSON.stringify(answer)).rejects.toThrow(
+      ChangeRefused,
+    );
+  }
+  expect(await inquiries.list()).toEqual([received]);
+});
+
+test("a change that isn't one the owner can make is refused", async () => {
+  await local.store("inquiries").setJSON(maria.id, maria);
+  const inquiries = local.inquiries();
+  const notChanges = [{ status: "Archived" }, { notes: 42 }, { receivedAt: "2020-01-01T00:00:00.000Z" }, { photos: [] }, null, "Booked"];
+
+  for (const changes of notChanges) {
+    await expect(inquiries.change(maria.id, changes as InquiryChanges), JSON.stringify(changes)).rejects.toThrow(ChangeRefused);
+  }
+  expect(await inquiries.list()).toEqual([maria]);
 });
