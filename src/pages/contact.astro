@@ -3,12 +3,10 @@ import SocialIcon from "../components/SocialIcon.astro";
 import { eventTypeSlug } from "../event-types";
 import { getEventTypes } from "../event-types-list";
 import BaseLayout from "../layouts/BaseLayout.astro";
+import { maxPhotos, photoFields } from "../inquiry-form";
 import { social } from "../site-settings";
 
 const eventTypes = await getEventTypes();
-const maxPhotos = 3;
-// Netlify Forms takes one file per field, so each photo is sent in its own field.
-const photoFields = Array.from({ length: maxPhotos }, (_, index) => `inspiration-photo-${index + 1}`);
 ---
 
 <BaseLayout

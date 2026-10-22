@@ -1,4 +1,6 @@
 import { getStore, type Store } from "@netlify/blobs";
+import { eventTiming, eventTimings, torontoToday } from "../src/inquiry-dates";
+import { photoFields } from "../src/inquiry-form";
 
 // The Inquiries module (ADR 0004) owns reading and writing Inquiries. Each Inquiry is one JSON
 // record in Netlify Blobs, keyed by its id, and its inspiration photos are blobs in a store of their
@@ -74,8 +76,6 @@ const answerFields = {
   theme: "theme",
   decor: "decor",
 } as const;
-/** The contact form sends each photo in a field of its own. */
-const photoFields = ["inspiration-photo-1", "inspiration-photo-2", "inspiration-photo-3"];
 
 export function inquiriesIn(records: Store, photoStore: Store, fetchFile: FetchFile = fetch): Inquiries {
   /** Copies a photo into the store. One that can't be copied is noted as missing, and the Inquiry is still saved. */
@@ -132,18 +132,15 @@ export function inquiriesIn(records: Store, photoStore: Store, fetchFile: FetchF
 
 /** Orders Inquiries for the list, given today's date. Ties go to the one received most recently. */
 function inListOrder(today: string) {
-  const group = ({ eventDate }: Inquiry) => (!eventDate ? 2 : eventDate >= today ? 0 : 1);
+  const group = ({ eventDate }: Inquiry) => eventTimings.indexOf(eventTiming(eventDate, today));
   return (a: Inquiry, b: Inquiry) => {
     const byGroup = group(a) - group(b);
     if (byGroup) return byGroup;
-    const [first, second] = group(a) === 0 ? [a, b] : [b, a];
+    const [first, second] = eventTiming(a.eventDate, today) === "Upcoming" ? [a, b] : [b, a];
     const byDate = (first.eventDate ?? "").localeCompare(second.eventDate ?? "");
     return byDate || b.receivedAt.localeCompare(a.receivedAt);
   };
 }
-
-/** Today's date in Toronto, as YYYY-MM-DD. */
-const torontoToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Toronto" }).format(new Date());
 
 /** A file in a submission: Netlify's link to it, its name and the media type the browser gave it. */
 interface Upload {

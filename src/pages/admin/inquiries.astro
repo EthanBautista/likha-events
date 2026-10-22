@@ -65,6 +65,7 @@ import { siteName } from "../../site-settings";
 
     <script>
       import type { Inquiry, InquiryPhoto } from "../../../netlify/inquiries";
+      import { eventTiming, torontoToday, type EventTiming } from "../../inquiry-dates";
 
       /** Netlify's OAuth provider, which the editor signs in through too. */
       const netlify = "https://api.netlify.com";
@@ -219,7 +220,6 @@ import { siteName } from "../../site-settings";
       }
 
       // Dates. An event date is a day with no time zone; the time an Inquiry arrived is shown in Toronto's.
-      const torontoToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Toronto" }).format(new Date());
       const day = (date: string, options: Intl.DateTimeFormatOptions) =>
         new Intl.DateTimeFormat("en-CA", { ...options, timeZone: "UTC" }).format(new Date(`${date}T00:00:00Z`));
       const receivedTime = (iso: string) =>
@@ -272,10 +272,9 @@ import { siteName } from "../../site-settings";
       /** The list, in the order the function sends it: upcoming events, then past ones, then those with no date. */
       function showList(list: Inquiry[]) {
         const today = torontoToday();
-        const groupOf = ({ eventDate }: Inquiry) => (!eventDate ? "No date yet" : eventDate >= today ? "Upcoming" : "Past");
-        const sections = new Map<string, HTMLUListElement>();
+        const sections = new Map<EventTiming, HTMLUListElement>();
         for (const inquiry of list) {
-          const name = groupOf(inquiry);
+          const name = eventTiming(inquiry.eventDate, today);
           if (!sections.has(name)) sections.set(name, element("ul", "inquiry-list"));
           sections.get(name)!.append(rowFor(inquiry, today));
         }
