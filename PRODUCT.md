@@ -9,7 +9,7 @@ web
 ## Users
 
 - **Visitors**: people in the GTA planning a personal occasion, mostly a baby shower or a birthday. They usually find Likha Events through Instagram or Facebook, often on a phone, and want three things: to see the quality of past Setups, a rough budget, and an easy way to ask for a quote.
-- **The owner**: runs Likha Events and isn't technical. They add new Setups and edit Packages and Rentals from a phone through the editor page at `/admin`. Inquiries are emailed to them at likhaproductions25@gmail.com (the email notification is set up in the Netlify dashboard at launch).
+- **The owner**: runs Likha Events and isn't technical. They add new Setups and edit Packages and Rentals from a phone through the editor page at `/admin`. Inquiries are emailed to them at likhaproductions25@gmail.com (the email notification is set up in the Netlify dashboard at launch), and they track each one through its Inquiry status on the Inquiry dashboard at `/admin/inquiries`.
 - **The developer**: maintains the code and hosting (ADR 0003).
 
 Corporate clients are a later audience. This version doesn't target them (see GLOSSARY.md).
@@ -41,9 +41,9 @@ The owner counts it a success if it brings more bookings, makes the business loo
 
 ## Capabilities and Constraints
 
-- Four pages (Home, Gallery, Packages & Rentals, Contact), plus a thank-you page after an Inquiry and the editor page at `/admin`.
-- Static Astro site on Netlify's free tier, with no server code (ADR 0001). Photos are stored on Cloudinary and served in responsive sizes (ADR 0002).
-- Content is limited to three collections, Setups, Packages and Rentals, each checked by a schema at build time. The owner can't change page text, headings or layout.
+- Four pages (Home, Gallery, Packages & Rentals, Contact), plus a thank-you page after an Inquiry, the editor page at `/admin` and the Inquiry dashboard at `/admin/inquiries`.
+- Static Astro site on Netlify's free tier (ADR 0001). The only server code is the Inquiry dashboard's Netlify Functions, which store Inquiries in Netlify Blobs (ADR 0004). Photos are stored on Cloudinary and served in responsive sizes (ADR 0002).
+- Content is limited to Setups, the Event types list, Packages, Wedding Packages and Rentals, each checked by a schema at build time. The owner can't change page text, headings or layout.
 - Event types: Baby shower, Birthday, Other, defined once in `src/event-types.ts`.
 - **No phone number anywhere on the site.**
 - A Setup has a cover photo plus up to 8 more. An Inquiry can attach up to 3 inspiration photos.

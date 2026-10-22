@@ -20,13 +20,49 @@ _Avoid_: Lightbox, modal, popup
 A priced bundle of décor that Likha Events designs and sets up, starting at $450.
 _Avoid_: Plan, bundle, tier
 
+**Wedding Package**:
+A Package made for weddings, listed apart from the other Packages because it is priced for a wedding.
+_Avoid_: Bridal package, wedding tier
+
 **Rental**:
 A décor item a customer hires on its own, without Likha Events designing or setting it up.
 _Avoid_: Hire, item, add-on
 
 **Inquiry**:
-A customer's request for a quote, sent through the site's contact form.
+A customer's request for a quote, sent through the site's contact form or added by the owner from an Instagram or Facebook message.
 _Avoid_: Booking, lead, request
+
+**Inquiry status**:
+Where an Inquiry stands: New, Quoted, Booked (the Down payment is paid), Done, or Declined.
+_Avoid_: Stage, state, pipeline step
+
+**Inquiry dashboard**:
+Where the owner keeps track of every Inquiry and moves it through its Inquiry status.
+_Avoid_: CRM, admin panel, inbox
+
+**Agreed price**:
+What a customer agreed to pay for their event, set once their Inquiry is quoted. Not the same as a Package's price, which is what the site lists.
+_Avoid_: Quote, total, price (on its own)
+
+**Balance**:
+The part of the Agreed price left after the Down payment.
+_Avoid_: Remainder, final payment
+
+**Cost**:
+One thing the owner spent money on for a single Inquiry's event, such as balloons or a printed sign.
+_Avoid_: Expense, spend
+
+**Earned**:
+Money actually received: Down payments plus Balances paid, counted in the month of the event.
+_Avoid_: Revenue, income, sales
+
+**Owed**:
+Balances still to be paid on Booked or Done Inquiries.
+_Avoid_: Outstanding, receivable
+
+**Profit on events**:
+Earned minus Costs. It leaves out spending that isn't tied to one event, so it isn't the business's overall profit.
+_Avoid_: Profit (on its own), net income
 
 **Corporate client**:
 A business, such as a mall, office or brand, that books Likha Events, as opposed to someone booking for a personal occasion. Not an Event type.
