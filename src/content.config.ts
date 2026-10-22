@@ -15,6 +15,12 @@ const packages = defineCollection({
   schema: packageSchema,
 });
 
+// Wedding Packages are Packages listed apart, so they're checked by the same schema.
+const weddingPackages = defineCollection({
+  loader: glob({ pattern: "*.json", base: "./src/content/wedding-packages" }),
+  schema: packageSchema,
+});
+
 const rentals = defineCollection({
   loader: glob({ pattern: "*.json", base: "./src/content/rentals" }),
   schema: rentalSchema,
@@ -26,4 +32,4 @@ const eventTypes = defineCollection({
   schema: eventTypesSchema,
 });
 
-export const collections = { setups, packages, rentals, eventTypes };
+export const collections = { setups, packages, weddingPackages, rentals, eventTypes };

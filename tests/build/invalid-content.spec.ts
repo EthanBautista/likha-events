@@ -44,6 +44,12 @@ test("a valid Package builds", () => {
   expect(exitCode, output).toBe(0);
 });
 
+test("a valid Wedding Package builds", () => {
+  const { exitCode, output } = buildWithOnly("wedding-packages", join(repoRoot, "src/content/wedding-packages/sample-ceremony.json"));
+
+  expect(exitCode, output).toBe(0);
+});
+
 test("a valid Rental builds", () => {
   const { exitCode, output } = buildWithOnly("rentals", join(repoRoot, "src/content/rentals/sample-round-backdrop-stand.json"));
 

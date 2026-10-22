@@ -1,0 +1,12 @@
+{
+  "name": "Ceremony",
+  "price": 2500,
+  "included": [
+    "Ceremony arch with faux florals",
+    "Aisle styling with florals and candles",
+    "Welcome sign on an easel",
+    "Delivery, setup and takedown"
+  ],
+  "order": 1,
+  "sample": true
+}

@@ -1,0 +1,13 @@
+{
+  "name": "Ceremony & Reception",
+  "price": 4800,
+  "included": [
+    "Everything in Ceremony",
+    "Head table backdrop with draping and florals",
+    "Cake and dessert table styling",
+    "Centrepieces for every guest table",
+    "Balloon installation for the entrance"
+  ],
+  "order": 2,
+  "sample": true
+}

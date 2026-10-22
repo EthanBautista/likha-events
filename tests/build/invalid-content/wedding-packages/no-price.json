@@ -1,0 +1,5 @@
+{
+  "name": "Ceremony",
+  "included": ["Ceremony arch"],
+  "order": 1
+}

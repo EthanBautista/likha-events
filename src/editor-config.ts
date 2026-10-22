@@ -1,11 +1,11 @@
-import type { CmsConfig, Field } from "@sveltia/cms";
+import type { CmsConfig, EntryCollection, Field } from "@sveltia/cms";
 import { otherEventType, type EventTypes } from "./event-types";
 import { editorPhotosPattern } from "./photos";
 
 // The editor page's configuration (Sveltia CMS, ADR 0001). The owner edits Setups, Packages,
-// Rentals and the Event types list only, never page layout or headings. Each field mirrors the
-// content schemas in content-schemas.ts, and a test checks they match, so the editor won't save an
-// entry the build would reject. Fields are required unless `required: false`.
+// Wedding Packages, Rentals and the Event types list only, never page layout or headings. Each
+// field mirrors the content schemas in content-schemas.ts, and a test checks they match, so the
+// editor won't save an entry the build would reject. Fields are required unless `required: false`.
 
 /**
  * The business's Cloudinary account (ADR 0003). The API key is public, used by Cloudinary's Media
@@ -13,9 +13,13 @@ import { editorPhotosPattern } from "./photos";
  */
 const cloudinaryAccount = { cloudName: "set-at-launch", apiKey: "set-at-launch" };
 
-/** The display order a new Package or Rental starts with, so the owner never has to type one. */
+/**
+ * The display order a new Package, Wedding Package or Rental starts with, so the owner never has to
+ * type one.
+ */
 export interface NextDisplayOrders {
   packages: number;
+  weddingPackages: number;
   rentals: number;
 }
 
@@ -51,6 +55,35 @@ const displayOrder = (next: number, things: string): Field => ({
   min: 1,
   default: next,
   hint: `Where this appears on the page: 1 first, then 2, and so on. Change it to move ${things} around.`,
+});
+
+/** Packages and Wedding Packages are edited the same way, each in its own list so neither ends up in the other. */
+const packageCollection = (name: string, label: string, labelSingular: string, folder: string, nextOrder: number): EntryCollection => ({
+  name,
+  label,
+  label_singular: labelSingular,
+  folder,
+  extension: "json",
+  format: "json",
+  create: true,
+  identifier_field: "name",
+  summary: "{{order}}. {{name}}",
+  sortable_fields: { fields: ["order", "name", "price"], default: { field: "order", direction: "ascending" } },
+  fields: [
+    { name: "name", label: "Name", widget: "string", pattern: notBlank },
+    price("In Canadian dollars, whole dollars only."),
+    {
+      name: "included",
+      label: "What's included",
+      label_singular: "line",
+      widget: "list",
+      field: { name: "line", label: "Line", widget: "string", pattern: notBlank },
+      min: 1,
+      hint: "One short line each.",
+    },
+    displayOrder(nextOrder, label),
+    sample,
+  ],
 });
 
 export function editorConfig(nextOrders: NextDisplayOrders, eventTypes: EventTypes): CmsConfig {
@@ -152,33 +185,14 @@ export function editorConfig(nextOrders: NextDisplayOrders, eventTypes: EventTyp
           },
         ],
       },
-      {
-        name: "packages",
-        label: "Packages",
-        label_singular: "Package",
-        folder: "src/content/packages",
-        extension: "json",
-        format: "json",
-        create: true,
-        identifier_field: "name",
-        summary: "{{order}}. {{name}}",
-        sortable_fields: { fields: ["order", "name", "price"], default: { field: "order", direction: "ascending" } },
-        fields: [
-          { name: "name", label: "Name", widget: "string", pattern: notBlank },
-          price("In Canadian dollars, whole dollars only."),
-          {
-            name: "included",
-            label: "What's included",
-            label_singular: "line",
-            widget: "list",
-            field: { name: "line", label: "Line", widget: "string", pattern: notBlank },
-            min: 1,
-            hint: "One short line each.",
-          },
-          displayOrder(nextOrders.packages, "Packages"),
-          sample,
-        ],
-      },
+      packageCollection("packages", "Packages", "Package", "src/content/packages", nextOrders.packages),
+      packageCollection(
+        "weddingPackages",
+        "Wedding Packages",
+        "Wedding Package",
+        "src/content/wedding-packages",
+        nextOrders.weddingPackages,
+      ),
       {
         name: "rentals",
         label: "Rentals",

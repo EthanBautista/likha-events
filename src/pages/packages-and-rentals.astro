@@ -2,11 +2,19 @@
 import PackageCard from "../components/PackageCard.astro";
 import RentalCard from "../components/RentalCard.astro";
 import BaseLayout from "../layouts/BaseLayout.astro";
-import { formatPrice, getLowestPackagePrice, getPackagesInOrder } from "../packages";
+import {
+  formatPrice,
+  getLowestPackagePrice,
+  getLowestWeddingPackagePrice,
+  getPackagesInOrder,
+  getWeddingPackagesInOrder,
+} from "../packages";
 import { getRentalsInOrder } from "../rentals";
 
 const packages = await getPackagesInOrder();
 const lowestPrice = await getLowestPackagePrice();
+const weddingPackages = await getWeddingPackagesInOrder();
+const lowestWeddingPrice = await getLowestWeddingPackagePrice();
 const rentals = await getRentalsInOrder();
 ---
 
@@ -42,6 +50,25 @@ const rentals = await getRentalsInOrder();
       )
     }
   </section>
+
+  {
+    lowestWeddingPrice !== undefined && (
+      <section class="container wedding-packages" aria-labelledby="wedding-packages-heading">
+        <h2 id="wedding-packages-heading">Wedding Packages from {formatPrice(lowestWeddingPrice)}</h2>
+        <p class="lead">
+          Décor for your ceremony and reception, designed and set up for the day.{" "}
+          <a href="/contact/?type=wedding">Ask about a Wedding Package</a>.
+        </p>
+        <ul class="grid" aria-label="Wedding Packages">
+          {weddingPackages.map((pkg) => (
+            <li>
+              <PackageCard pkg={pkg} />
+            </li>
+          ))}
+        </ul>
+      </section>
+    )
+  }
 
   {
     rentals.length > 0 && (
@@ -89,9 +116,9 @@ const rentals = await getRentalsInOrder();
 <script>
   import { revealOnScroll, rise, riseWithPhoto } from "../motion";
 
-  // Each Package, Rental and booking step rises softly into view the first time it is scrolled to, those
-  // arriving together one after another. Rentals arrive like the Gallery's cards, their photos settling
-  // into the arch.
+  // Each Package, Wedding Package, Rental and booking step rises softly into view the first time it is
+  // scrolled to, those arriving together one after another. Rentals arrive like the Gallery's cards,
+  // their photos settling into the arch.
   const main = document.querySelector("main")!;
   const elements = (selector: string) => [...main.querySelectorAll<HTMLElement>(selector)];
   revealOnScroll(elements(".grid > li"), rise);
@@ -121,10 +148,12 @@ const rentals = await getRentalsInOrder();
     gap: var(--space-lg);
   }
 
+  .wedding-packages,
   .rentals {
     padding-block: 0 var(--space-2xl);
   }
 
+  .wedding-packages h2,
   .rentals h2 {
     margin-top: 0;
   }

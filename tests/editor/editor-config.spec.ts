@@ -3,7 +3,7 @@ import { z } from "astro/zod";
 import { eventTypesSchema, packageSchema, rentalSchema, setupSchema } from "../../src/content-schemas";
 import { eventTypesFrom } from "../../src/event-types";
 import { eventTypesForForms } from "../e2e/event-types";
-import { readPackagesInOrder } from "../e2e/packages";
+import { readPackagesInOrder, readWeddingPackagesInOrder } from "../e2e/packages";
 import { readRentalsInOrder } from "../e2e/rentals";
 
 // The editor page at /admin and the build both judge content: the editor by its field definitions,
@@ -52,7 +52,7 @@ interface SchemaProperty {
   default?: unknown;
 }
 
-const schemas = { setups: setupSchema, packages: packageSchema, rentals: rentalSchema };
+const schemas = { setups: setupSchema, packages: packageSchema, weddingPackages: packageSchema, rentals: rentalSchema };
 
 const cloudinaryPhoto = "https://res.cloudinary.com/likha-events/image/upload/v1760000000/cake-table.jpg";
 const samplePhoto = "/samples/placeholder-1.svg";
@@ -87,8 +87,8 @@ test.beforeAll(async ({ request }) => {
   collections = config.collections;
 });
 
-test("the editor has collections for Setups, Packages, Rentals and the Event types list only", () => {
-  expect(collections.map((collection) => collection.name).toSorted()).toEqual(["eventTypes", "packages", "rentals", "setups"]);
+test("the editor has collections for Setups, Packages, Wedding Packages, Rentals and the Event types list only", () => {
+  expect(collections.map((collection) => collection.name).toSorted()).toEqual(["eventTypes", "packages", "rentals", "setups", "weddingPackages"]);
 });
 
 test.describe("the Event types list", () => {
@@ -132,11 +132,12 @@ test("a Setup's Event type is picked from the Event types list plus Other, with 
   expect(field?.default, "default").toBeUndefined();
 });
 
-test("a new Package or Rental starts after the last one in display order, so the owner never types one", () => {
+test("a new Package, Wedding Package or Rental starts after the last one in display order, so the owner never types one", () => {
   const orderField = (collectionName: string) =>
     collections.find((collection) => collection.name === collectionName)?.fields?.find((field) => field.name === "order");
 
   expect(orderField("packages")?.default).toBe(readPackagesInOrder().at(-1)!.order + 1);
+  expect(orderField("weddingPackages")?.default).toBe(readWeddingPackagesInOrder().at(-1)!.order + 1);
   expect(orderField("rentals")?.default).toBe(readRentalsInOrder().at(-1)!.order + 1);
 });
 

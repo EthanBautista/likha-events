@@ -1,19 +1,17 @@
-import { expect, test } from "@playwright/test";
-import { dollars, readPackagesInOrder } from "./packages";
+import { expect, test, type Locator } from "@playwright/test";
+import { dollars, readPackagesInOrder, readWeddingPackagesInOrder, type PackageFile } from "./packages";
 import { readRentalsInOrder } from "./rentals";
 
 const packages = readPackagesInOrder();
+const weddingPackages = readWeddingPackagesInOrder();
 const rentals = readRentalsInOrder();
 
-test.beforeEach(async ({ page }) => {
-  await page.goto("/packages-and-rentals/");
-});
+/** Checks the list's cards show each Package's name, price and what's included, in display order. */
+async function expectPackageCards(list: Locator, expected: PackageFile[]) {
+  const cards = list.getByRole("listitem").filter({ has: list.page().getByRole("heading") });
 
-test("each Package shows its name, price and what's included, in display order", async ({ page }) => {
-  const cards = page.getByRole("list", { name: "Packages" }).getByRole("listitem").filter({ has: page.getByRole("heading") });
-
-  await expect(cards).toHaveCount(packages.length);
-  for (const [index, pkg] of packages.entries()) {
+  await expect(cards).toHaveCount(expected.length);
+  for (const [index, pkg] of expected.entries()) {
     const card = cards.nth(index);
 
     await expect(card.getByRole("heading")).toHaveText(pkg.name);
@@ -25,6 +23,19 @@ test("each Package shows its name, price and what's included, in display order",
       await expect(card.getByText("Sample", { exact: true })).toBeVisible();
     }
   }
+}
+
+test.beforeEach(async ({ page }) => {
+  await page.goto("/packages-and-rentals/");
+});
+
+test("each Package shows its name, price and what's included, in display order", async ({ page }) => {
+  await expectPackageCards(page.getByRole("list", { name: "Packages", exact: true }), packages);
+});
+
+test("each Wedding Package shows its name, price and what's included, in display order", async ({ page }) => {
+  expect(weddingPackages.length, "sample Wedding Packages").toBeGreaterThan(0);
+  await expectPackageCards(page.getByRole("list", { name: "Wedding Packages", exact: true }), weddingPackages);
 });
 
 test("each Rental shows its name, photo, price per event and description, in display order", async ({ page }) => {
@@ -46,27 +57,57 @@ test("each Rental shows its name, photo, price per event and description, in dis
   }
 });
 
+/** Whether the first element comes before the second on the page. */
+async function comesBefore(first: Locator, second: Locator): Promise<boolean> {
+  return first.evaluate(
+    (element, other) => !!(element.compareDocumentPosition(other!) & Node.DOCUMENT_POSITION_FOLLOWING),
+    await second.elementHandle(),
+  );
+}
+
 test("Rentals have their own section, after the Packages and holding none of them", async ({ page }) => {
   const rentalsSection = page.getByRole("region", { name: "Rentals" });
-  const packagesList = page.getByRole("list", { name: "Packages" });
+  const packagesList = page.getByRole("list", { name: "Packages", exact: true });
 
   await expect(rentalsSection).toBeVisible();
-  await expect(rentalsSection.getByRole("list", { name: "Packages" })).toHaveCount(0);
+  await expect(rentalsSection.getByRole("list", { name: /Packages/ })).toHaveCount(0);
   await expect(packagesList.getByRole("list", { name: "Rentals" })).toHaveCount(0);
   for (const pkg of packages) {
     await expect(rentalsSection.getByRole("heading", { name: pkg.name })).toHaveCount(0);
   }
-  const packagesComeFirst = await packagesList.evaluate(
-    (list, section) => !!(list.compareDocumentPosition(section!) & Node.DOCUMENT_POSITION_FOLLOWING),
-    await rentalsSection.elementHandle(),
-  );
-  expect(packagesComeFirst).toBe(true);
+  expect(await comesBefore(packagesList, rentalsSection)).toBe(true);
 });
 
-test('"Packages from $X" shows the cheapest Package\'s price', async ({ page }) => {
+test("Wedding Packages have their own section, between the Packages and the Rentals", async ({ page }) => {
+  const weddingSection = page.getByRole("region", { name: /^Wedding Packages/ });
+  const packagesList = page.getByRole("list", { name: "Packages", exact: true });
+  const rentalsSection = page.getByRole("region", { name: "Rentals" });
+
+  await expect(weddingSection.getByRole("list", { name: "Wedding Packages", exact: true })).toBeVisible();
+  await expect(weddingSection.getByRole("list", { name: "Packages", exact: true })).toHaveCount(0);
+  for (const pkg of packages) {
+    await expect(weddingSection.getByRole("heading", { name: pkg.name, exact: true })).toHaveCount(0);
+  }
+  expect(await comesBefore(packagesList, weddingSection), "after the Packages").toBe(true);
+  expect(await comesBefore(weddingSection, rentalsSection), "before the Rentals").toBe(true);
+});
+
+test('"Packages from $X" shows the cheapest Package\'s price, leaving out Wedding Packages', async ({ page }) => {
   const cheapest = Math.min(...packages.map((pkg) => pkg.price));
 
-  await expect(page.getByRole("heading", { name: `Packages from ${dollars(cheapest)}` })).toBeVisible();
+  await expect(page.getByRole("heading", { name: `Packages from ${dollars(cheapest)}`, exact: true })).toBeVisible();
+});
+
+test('"Wedding Packages from $Y" shows the cheapest Wedding Package\'s price', async ({ page }) => {
+  const cheapest = Math.min(...weddingPackages.map((pkg) => pkg.price));
+
+  await expect(page.getByRole("heading", { name: `Wedding Packages from ${dollars(cheapest)}`, exact: true })).toBeVisible();
+});
+
+test("the Wedding Packages section links to Contact with Wedding chosen", async ({ page }) => {
+  await page.getByRole("region", { name: /^Wedding Packages/ }).getByRole("link", { name: "Ask about a Wedding Package" }).click();
+
+  await expect(page).toHaveURL("/contact/?type=wedding");
 });
 
 test("a custom quote link leads to Contact", async ({ page }) => {

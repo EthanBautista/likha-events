@@ -6,7 +6,9 @@ import { homepageCaptions, readSetups } from "../e2e/setups";
 
 // Some behaviour only shows with content the site doesn't ship, such as only one featured Setup.
 // These tests build a copy of the whole site with a fixture in place of its content, and open it in a browser.
-// A fixture is a folder holding a setups/ folder of Setup files, and optionally an event-types.json list.
+// A fixture is a folder holding any of a setups/ folder of Setup files, a wedding-packages/ folder of
+// Wedding Package files and an event-types.json list, each used in place of the site's own. An empty
+// folder, kept in git by a .gitkeep, means the site has none.
 
 const repoRoot = join(import.meta.dirname, "../..");
 const workDir = join(import.meta.dirname, ".tmp");
@@ -32,8 +34,11 @@ function buildWithFixture(fixture: string): string {
   for (const path of ["src", "public", "astro.config.mjs", "tsconfig.json"]) {
     cpSync(join(repoRoot, path), join(root, path), { recursive: true });
   }
-  rmSync(join(root, "src/content/setups"), { recursive: true });
-  cpSync(join(fixtureDir, "setups"), join(root, "src/content/setups"), { recursive: true });
+  for (const folder of ["setups", "wedding-packages"]) {
+    if (!existsSync(join(fixtureDir, folder))) continue;
+    rmSync(join(root, "src/content", folder), { recursive: true });
+    cpSync(join(fixtureDir, folder), join(root, "src/content", folder), { recursive: true });
+  }
   if (existsSync(join(fixtureDir, "event-types.json"))) {
     cpSync(join(fixtureDir, "event-types.json"), join(root, "src/content/event-types.json"));
   }
@@ -66,6 +71,17 @@ test("with only one featured Setup, the newest unfeatured Setups fill the homepa
   for (const [index, caption] of expected.entries()) {
     await expect(cards.nth(index)).toContainText(caption);
   }
+});
+
+test("with no Wedding Packages, the Packages & Rentals page leaves their section out", async ({ page }) => {
+  await serve(page, buildWithFixture("no-wedding-packages"));
+
+  await page.goto(`${fixtureOrigin}/packages-and-rentals/`);
+
+  await expect(page.getByRole("heading", { name: /^Packages from/ })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Rentals" })).toBeVisible();
+  await expect(page.getByRole("region", { name: /Wedding Packages/ })).toHaveCount(0);
+  await expect(page.getByText(/Wedding Package/)).toHaveCount(0);
 });
 
 // The list holds Wedding, Birthday and " wedding ", and one Setup is for "Corporate", which isn't on it.
