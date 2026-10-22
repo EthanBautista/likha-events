@@ -8,6 +8,9 @@ export const social = {
   facebook: "https://www.facebook.com/p/LIKHA-Events-61581441256098/",
 } as const;
 
+/** The site's GitHub repo. The editor saves to it, and only those who can push to it may see Inquiries. */
+export const siteRepo = "EthanBautista/likha-events";
+
 /** How soon the owner replies to an Inquiry, promised on the thank-you page. */
 export const inquiryReplyTime = "within 2 days";
 

@@ -1,6 +1,7 @@
 import type { CmsConfig, EntryCollection, Field } from "@sveltia/cms";
 import { otherEventType, type EventTypes } from "./event-types";
 import { editorPhotosPattern } from "./photos";
+import { siteRepo } from "./site-settings";
 
 // The editor page's configuration (Sveltia CMS, ADR 0001). The owner edits Setups, Packages,
 // Wedding Packages, Rentals and the Event types list only, never page layout or headings. Each
@@ -92,7 +93,7 @@ export function editorConfig(nextOrders: NextDisplayOrders, eventTypes: EventTyp
     app_title: "Likha Events editor",
     backend: {
       name: "github",
-      repo: "EthanBautista/likha-events",
+      repo: siteRepo,
       branch: "main",
       // Login goes through Netlify's OAuth provider, the default for the GitHub backend.
       base_url: "https://api.netlify.com",

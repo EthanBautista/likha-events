@@ -1,0 +1,312 @@
+---
+import "@fontsource-variable/cormorant-garamond";
+import "@fontsource-variable/jost";
+import "../../styles/tokens.css";
+import "../../styles/global.css";
+import { siteName } from "../../site-settings";
+
+// The Inquiry dashboard (ADR 0004): a static page whose script signs the owner in with GitHub through
+// Netlify's OAuth provider, the same login as the editor, and asks the Inquiry functions for Inquiries.
+// The functions decide who may see them; this page only keeps the sign-in and shows what they send.
+---
+
+<!doctype html>
+<html lang="en-CA">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Inquiries · {siteName}</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <header class="dashboard-bar">
+      <div class="container dashboard-bar-inner">
+        <span class="dashboard-name">{siteName}</span>
+        <nav aria-label="Owner pages" class="dashboard-nav">
+          <a class="link-line" href="/admin/">Editor</a>
+          <button type="button" class="pill" data-sign-out hidden>Sign out</button>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main" class="container dashboard">
+      <h1>Inquiries</h1>
+      <p role="alert" class="dashboard-problem" data-problem></p>
+
+      <section data-view="signed-out" class="dashboard-sign-in">
+        <p>Sign in with the GitHub account you use for the editor.</p>
+        <button type="button" class="pill pill-solid" data-sign-in>Sign in with GitHub</button>
+      </section>
+
+      <p data-view="loading" class="dashboard-quiet" hidden>Loading Inquiries…</p>
+
+      <section data-view="list" hidden>
+        <div data-empty class="dashboard-empty" hidden>
+          <p class="dashboard-empty-title">No Inquiries yet</p>
+          <p class="dashboard-quiet">Each Inquiry sent through the contact form will appear here.</p>
+        </div>
+        <ul data-inquiries class="inquiry-list"></ul>
+      </section>
+    </main>
+
+    <script>
+      import type { Inquiry } from "../../../netlify/inquiries";
+
+      /** Netlify's OAuth provider, which the editor signs in through too. */
+      const netlify = "https://api.netlify.com";
+      const tokenKey = "likha-inquiry-dashboard.github-token";
+
+      const views = document.querySelectorAll<HTMLElement>("[data-view]");
+      const problem = document.querySelector<HTMLElement>("[data-problem]")!;
+      const signInButton = document.querySelector<HTMLButtonElement>("[data-sign-in]")!;
+      const signOutButton = document.querySelector<HTMLButtonElement>("[data-sign-out]")!;
+      const empty = document.querySelector<HTMLElement>("[data-empty]")!;
+      const list = document.querySelector<HTMLUListElement>("[data-inquiries]")!;
+
+      // The sign-in is kept in this browser so the owner stays signed in on their phone. Storage can be
+      // blocked, as in a private window, and then the owner signs in each visit.
+      const savedToken = {
+        read: () => {
+          try {
+            return localStorage.getItem(tokenKey) ?? undefined;
+          } catch {
+            return undefined;
+          }
+        },
+        save: (token: string) => {
+          try {
+            localStorage.setItem(tokenKey, token);
+          } catch {}
+        },
+        forget: () => {
+          try {
+            localStorage.removeItem(tokenKey);
+          } catch {}
+        },
+      };
+
+      function show(view: "signed-out" | "loading" | "list" | "nothing") {
+        for (const element of views) element.hidden = element.dataset.view !== view;
+        signOutButton.hidden = view === "signed-out";
+      }
+
+      function showProblem(message = "") {
+        problem.textContent = message;
+      }
+
+      /** The GitHub token in the details Netlify's sign-in window hands back, if they hold one. */
+      function tokenFrom(details: string): string | undefined {
+        try {
+          const { token } = JSON.parse(details);
+          return typeof token === "string" && token ? token : undefined;
+        } catch {
+          return undefined;
+        }
+      }
+
+      /**
+       * Opens Netlify's GitHub sign-in window and waits for the GitHub token it hands back, after the
+       * handshake Netlify's window expects. Undefined if the window is closed first.
+       */
+      function signInWithGitHub(): Promise<string | undefined> {
+        // Netlify finds the site's GitHub settings by its domain, which a local copy of the site doesn't have.
+        const local = ["localhost", "127.0.0.1"].includes(location.hostname);
+        const siteId = local ? new URL(import.meta.env.SITE).host : location.host;
+        const url = `${netlify}/auth?provider=github&site_id=${encodeURIComponent(siteId)}&scope=repo`;
+        const popup = open(url, "github-sign-in", "width=960,height=640");
+        if (!popup) return Promise.reject(new Error("Allow pop-ups for this site, then sign in again."));
+
+        return new Promise((resolve, reject) => {
+          const finish = () => {
+            removeEventListener("message", onMessage);
+            clearInterval(closedCheck);
+            popup.close();
+          };
+          const onMessage = (event: MessageEvent) => {
+            if (event.origin !== netlify || event.source !== popup || typeof event.data !== "string") return;
+            if (event.data === "authorizing:github") {
+              popup.postMessage(event.data, event.origin);
+              return;
+            }
+            const success = event.data.match(/^authorization:github:success:(.+)$/s);
+            if (!success && !event.data.startsWith("authorization:github:error:")) return;
+            finish();
+            const token = success && tokenFrom(success[1]);
+            if (token) resolve(token);
+            else reject(new Error("GitHub didn't sign you in. Try again."));
+          };
+          const closedCheck = setInterval(() => {
+            if (!popup.closed) return;
+            finish();
+            resolve(undefined);
+          }, 500);
+          addEventListener("message", onMessage);
+        });
+      }
+
+      function signOut(message?: string) {
+        savedToken.forget();
+        list.replaceChildren();
+        showProblem(message);
+        show("signed-out");
+      }
+
+      async function showInquiries(token: string) {
+        show("loading");
+        showProblem();
+        let response: Response;
+        try {
+          response = await fetch("/api/inquiries", { headers: { Authorization: `Bearer ${token}` } });
+        } catch {
+          show("nothing");
+          showProblem("Couldn't reach the dashboard. Check your connection, then reload the page.");
+          return;
+        }
+
+        if (response.status === 401 || response.status === 403) {
+          const { message } = await response.json();
+          const hint = response.status === 403 ? " Sign out of GitHub, then sign in with the account you use for the editor." : "";
+          signOut(message + hint);
+          return;
+        }
+        if (!response.ok) {
+          show("nothing");
+          showProblem("Couldn't load Inquiries. Reload the page to try again.");
+          return;
+        }
+
+        const inquiries: Inquiry[] = await response.json();
+        list.replaceChildren(
+          ...inquiries.map((inquiry) => {
+            const item = document.createElement("li");
+            const name = document.createElement("span");
+            const status = document.createElement("span");
+            name.textContent = inquiry.name;
+            status.textContent = inquiry.status;
+            status.className = "inquiry-status";
+            item.append(name, status);
+            return item;
+          }),
+        );
+        empty.hidden = inquiries.length > 0;
+        show("list");
+      }
+
+      signInButton.addEventListener("click", async () => {
+        showProblem();
+        try {
+          const token = await signInWithGitHub();
+          if (!token) return;
+          savedToken.save(token);
+          await showInquiries(token);
+        } catch (error) {
+          showProblem((error as Error).message);
+        }
+      });
+
+      signOutButton.addEventListener("click", () => signOut());
+
+      const token = savedToken.read();
+      if (token) showInquiries(token);
+    </script>
+  </body>
+</html>
+
+<style>
+  .dashboard-bar {
+    border-bottom: 1px solid var(--color-line);
+  }
+
+  .dashboard-bar-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-md);
+    min-height: 4rem;
+  }
+
+  .dashboard-name {
+    font-family: var(--font-heading);
+    font-size: var(--text-lg);
+    font-weight: 500;
+  }
+
+  .dashboard-nav {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    font-size: var(--text-sm);
+  }
+
+  /* A pill sets its own display, which would otherwise show the Sign out button while signed out. */
+  .dashboard-nav .pill[hidden] {
+    display: none;
+  }
+
+  .dashboard-nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    color: var(--color-text);
+  }
+
+  .dashboard {
+    padding-block: var(--space-lg) var(--space-xl);
+  }
+
+  .dashboard h1 {
+    font-size: var(--text-xl);
+  }
+
+  .dashboard-problem {
+    color: var(--color-error);
+  }
+
+  .dashboard-problem:empty {
+    display: none;
+  }
+
+  .dashboard-quiet {
+    color: var(--color-text-muted);
+  }
+
+  .dashboard-empty {
+    padding: var(--space-lg) var(--space-md);
+    border-radius: var(--radius);
+    background: var(--color-sage-band);
+    text-align: center;
+  }
+
+  .dashboard-empty p {
+    margin-inline: auto;
+  }
+
+  .dashboard-empty-title {
+    margin-block: 0 var(--space-xs);
+    font-family: var(--font-heading);
+    font-size: var(--text-lg);
+  }
+
+  .dashboard-empty .dashboard-quiet {
+    margin-block-end: 0;
+  }
+
+  .inquiry-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .inquiry-list li {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--space-md);
+    padding-block: var(--space-sm);
+    border-bottom: 1px solid var(--color-line);
+  }
+
+  .inquiry-status {
+    color: var(--color-text-muted);
+  }
+</style>

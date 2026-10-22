@@ -4,12 +4,12 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Netlify Functions set up alongside the static Astro build, with a local way to run them and a local Blobs store for tests
-- [ ] The access-check module: lets a request through only if its GitHub token's user can push to `EthanBautista/likha-events`. Tests can substitute GitHub's answer
-- [ ] The Inquiries module's first piece, listing records, tested against a local store
-- [ ] A list function that refuses without access
-- [ ] The dashboard page: not indexed, signs in with GitHub, stays signed in, shows an empty list with an empty-state message
-- [ ] Links between the editor and the dashboard
-- [ ] Tests: access granted for a push-access user, refused for read-only, unknown or missing tokens
+- [x] Netlify Functions set up alongside the static Astro build, with a local way to run them and a local Blobs store for tests
+- [x] The access-check module: lets a request through only if its GitHub token's user can push to `EthanBautista/likha-events`. Tests can substitute GitHub's answer
+- [x] The Inquiries module's first piece, listing records, tested against a local store
+- [x] A list function that refuses without access
+- [x] The dashboard page: not indexed, signs in with GitHub, stays signed in, shows an empty list with an empty-state message
+- [x] Links between the editor and the dashboard
+- [x] Tests: access granted for a push-access user, refused for read-only, unknown or missing tokens

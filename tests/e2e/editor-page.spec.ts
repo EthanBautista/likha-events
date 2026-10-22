@@ -16,6 +16,13 @@ test("the editor page offers to sign in with GitHub", async ({ page }) => {
   await expect(signInButton(page)).toBeEnabled();
 });
 
+test("the editor page links to the Inquiry dashboard", async ({ page }) => {
+  const link = page.getByRole("link", { name: "Inquiries" });
+
+  await expect(link).toBeVisible();
+  await expect(link).toHaveAttribute("href", "/admin/inquiries/");
+});
+
 test("the editor page does not scroll sideways", async ({ page }) => {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
 

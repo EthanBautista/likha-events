@@ -1,8 +1,10 @@
 ---
+import "../../styles/tokens.css";
 import { siteName } from "../../site-settings";
 
 // The owner's editor page (ADR 0001): Sveltia CMS, bundled from npm so its version is pinned in
-// package-lock.json. It loads its configuration from /admin/config.json.
+// package-lock.json. It loads its configuration from /admin/config.json. The editor has no place for
+// a link of our own, so the link to the Inquiry dashboard floats in a corner its screens leave empty.
 ---
 
 <!doctype html>
@@ -15,6 +17,7 @@ import { siteName } from "../../site-settings";
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   </head>
   <body>
+    <a class="inquiries-link" href="/admin/inquiries/">Inquiries</a>
     <script>
       import CMS from "@sveltia/cms";
 
@@ -23,3 +26,38 @@ import { siteName } from "../../site-settings";
     </script>
   </body>
 </html>
+
+<style>
+  .inquiries-link {
+    position: fixed;
+    left: 1rem;
+    bottom: 1rem;
+    z-index: 1000;
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    padding: 0 1.25rem;
+    border-radius: 100vmax;
+    background: var(--color-action);
+    color: var(--color-on-action);
+    border: 1px solid var(--color-on-action);
+    /* The editor page loads no brand fonts, so the link takes the system's, like the editor around it. */
+    font: 500 var(--text-sm) / 1 system-ui, sans-serif;
+    text-decoration: none;
+  }
+
+  .inquiries-link:hover {
+    background: var(--color-action-hover);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .inquiries-link {
+      transition: background-color var(--duration-exit) ease-out;
+    }
+  }
+
+  .inquiries-link:focus-visible {
+    outline: 2px solid var(--color-action);
+    outline-offset: 3px;
+  }
+</style>

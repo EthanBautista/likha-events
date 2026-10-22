@@ -20,3 +20,6 @@ tests/build/.tmp/
 
 # copies of the site built with fixture content by the fixture-site tests
 tests/fixture-sites/.tmp/
+
+# Netlify CLI's local state, including the local Blobs store `npm run dev:functions` uses
+.netlify/

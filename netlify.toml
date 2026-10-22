@@ -10,3 +10,6 @@
   for = "/_astro/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
+
+# The Inquiry dashboard's functions live in netlify/functions (ADR 0004), Netlify's standard folder.
+# `npm run dev:functions` runs them locally beside `astro dev`, with a local Blobs store in .netlify/.
