@@ -97,3 +97,130 @@ test.describe("after the owner edits the Event types list", () => {
     await expect(page.getByLabel("Event type").locator("option:not([value=''])")).toHaveText(["Birthday", "Wedding", "Other"]);
   });
 });
+
+// Ten Event types on the list. Birthday has 3 Setups, Baby shower and Wedding 2 each, and Anniversary,
+// Bridal shower, Gender reveal and Graduation 1 each. Christening, Corporate and Proposal have none. Four
+// Setups are under Other: two stored as Other and two as "Retirement", which isn't on the list.
+test.describe("with many Event types, some without Setups", () => {
+  test.describe.configure({ mode: "serial" });
+  let dist: string;
+  const filter = (page: Page) => page.getByRole("group", { name: "Filter by Event type" });
+  const pills = (page: Page) => filter(page).getByRole("button");
+
+  test.beforeAll(() => {
+    dist = buildWithFixture("many-event-types");
+  });
+
+  test("only Event types with Setups get a pill: All first, the most Setups first, then Other", async ({ page }) => {
+    await serve(page, dist);
+    await page.goto(`${fixtureOrigin}/gallery/`);
+
+    await expect(pills(page)).toHaveText([
+      "All",
+      "Birthday",
+      "Baby shower",
+      "Wedding",
+      "Anniversary",
+      "Bridal shower",
+      "Gender reveal",
+      "Graduation",
+      "Other",
+    ]);
+  });
+
+  test("a link to an Event type without Setups shows every Setup, with All chosen", async ({ page }) => {
+    await serve(page, dist);
+    await page.goto(`${fixtureOrigin}/gallery/?type=proposal`);
+
+    await expect(page.getByRole("list", { name: "Setups" }).getByRole("listitem").filter({ visible: true })).toHaveCount(15);
+    await expect(filter(page).getByRole("button", { name: "All", exact: true })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  test("the contact form still lists every Event type", async ({ page }) => {
+    await serve(page, dist);
+    await page.goto(`${fixtureOrigin}/contact/`);
+
+    await expect(page.getByLabel("Event type").locator("option:not([value=''])")).toHaveText([
+      "Anniversary",
+      "Baby shower",
+      "Birthday",
+      "Bridal shower",
+      "Christening",
+      "Corporate",
+      "Gender reveal",
+      "Graduation",
+      "Proposal",
+      "Wedding",
+      "Other",
+    ]);
+  });
+
+  test.describe("on a phone", () => {
+    test.use({ viewport: { width: 375, height: 812 } });
+
+    test("the pills are one row that scrolls sideways, cut off at the screen's edge, with no scrollbar", async ({
+      page,
+    }) => {
+      await serve(page, dist);
+      await page.goto(`${fixtureOrigin}/gallery/`);
+      const boxes = await pills(page).evaluateAll((buttons) => buttons.map((button) => button.getBoundingClientRect()));
+      const row = filter(page);
+      const screen = await page.evaluate(() => ({
+        width: document.documentElement.clientWidth,
+        overflow: document.documentElement.scrollWidth - innerWidth,
+      }));
+
+      expect(new Set(boxes.map((box) => box.top)).size, "one row").toBe(1);
+      expect(await row.evaluate((row) => row.scrollWidth > row.clientWidth), "scrolls sideways").toBe(true);
+      expect(
+        boxes.some((box) => box.left < screen.width && box.right > screen.width),
+        "a pill is cut off at the screen's edge",
+      ).toBe(true);
+      expect(await row.evaluate((row: HTMLElement) => row.offsetHeight - row.clientHeight), "no scrollbar").toBe(0);
+      expect(screen.overflow, "the page itself doesn't scroll sideways").toBeLessThanOrEqual(0);
+    });
+
+    test("scrolling the row settles with a pill lined up at its start", async ({ page }) => {
+      await serve(page, dist);
+      await page.goto(`${fixtureOrigin}/gallery/`);
+      const start = await pills(page).first().evaluate((all) => all.getBoundingClientRect().left);
+
+      await filter(page).evaluate((row) => (row.scrollLeft = 30));
+
+      await expect
+        .poll(() =>
+          pills(page).evaluateAll((buttons, start) =>
+            buttons.some((button) => Math.abs(button.getBoundingClientRect().left - start) < 1),
+            start,
+          ),
+        )
+        .toBe(true);
+    });
+
+    test("a filtered link scrolls its pill into view", async ({ page }) => {
+      await serve(page, dist);
+      await page.goto(`${fixtureOrigin}/gallery/?type=other`);
+      const other = filter(page).getByRole("button", { name: "Other", exact: true });
+
+      await expect(other).toHaveAttribute("aria-pressed", "true");
+      const box = (await other.boundingBox())!;
+      expect(box.x, "starts on screen").toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width, "ends on screen").toBeLessThanOrEqual(
+        await page.evaluate(() => document.documentElement.clientWidth),
+      );
+    });
+  });
+
+  test.describe("on a wide screen", () => {
+    test.use({ viewport: { width: 1024, height: 800 } });
+
+    test("the pills wrap onto more rows, all of them in view", async ({ page }) => {
+      await serve(page, dist);
+      await page.goto(`${fixtureOrigin}/gallery/`);
+      const tops = await pills(page).evaluateAll((buttons) => buttons.map((button) => button.getBoundingClientRect().top));
+
+      expect(new Set(tops).size, "more than one row").toBeGreaterThan(1);
+      expect(await filter(page).evaluate((row) => row.scrollWidth > row.clientWidth), "doesn't scroll").toBe(false);
+    });
+  });
+});

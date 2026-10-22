@@ -251,7 +251,10 @@ Soft and assured: pill-shaped, at least 44px tall, in the sans at body size.
 
 ### Chips (Event type filter)
 - **Style:** the outline pill.
-- **State:** the selected Event type (`aria-pressed="true"`) is solid forest. "All" is always first.
+- **State:** the selected Event type (`aria-pressed="true"`) is solid forest. Only one is selected at a time.
+- **Which and in what order:** only Event types with at least one Setup get a chip. "All" is always first, then the Event types with the most Setups, ties alphabetically, and "Other" is always last.
+- **Phone (under 48rem):** the chips stay on one row that swipes sideways, snapping softly to a chip's start, with no scrollbar. The row runs out to the screen's edges, past the page gutter, so the last chip in view is cut off there and shows there's more. Opening a filtered link brings its chip to the middle of the row.
+- **Desktop (48rem and up):** the chips wrap onto as many rows as they need, so every Event type is in view.
 
 ### Cards / Containers
 - **Setup card:** an arch with the cover photo over a `sage-band` fill, then the caption centred below it in serif Title. No border and no background. The whole arch is the button that opens the Photo viewer.
@@ -294,7 +297,7 @@ The durations are tokens in `tokens.css`: `--duration-press` (150ms), `--duratio
 - **Scroll reveals:** the first time it scrolls into view, content rises 1.5rem and fades in over 800ms: the homepage's "See the gallery", Packages teaser, Service area line and closing call to action. Setup cards (Gallery and homepage) do the same while their photo settles from 1.06 to full size inside the arch over 1.4s. Things arriving together are staggered 90ms apart, capped at four steps. Content stays visible by default, so no page depends on the script to be seen.
 - **Hover and press:** on hover or keyboard focus a Gallery card's photo eases to 1.04 inside the arch over 900ms, and a press settles the card to 0.98. Pills settle to 0.98 on press too. Links and pills ease between colours over 200ms. Menu and footer links draw a 1px line out from the centre on hover or keyboard focus.
 - **Phone menu:** the panel slides down 0.75rem and fades in over 380ms, and lifts away faster (200ms). The menu icon's three lines fold into an × at the same pace.
-- **Event type filter:** a View Transition over 550ms. Cards that stay glide to their new places, leaving cards fade out in 200ms, and arriving cards fade and rise 1rem. The rest of the page swaps without a cross-fade.
+- **Event type filter:** the gallery's script animates the cards itself, over 550ms. Cards that stay glide to their new places, leaving cards fade out in 200ms, and arriving cards fade and rise 1rem, 120ms behind. The solid forest highlight glides from the old chip to the new one over 380ms. On a phone the row scrolls the chosen chip to its middle; under "reduce motion" it jumps there.
 - **Packages & Rentals:** Package cards and booking steps rise into view like the homepage sections, staggered as rows. Rental cards arrive like Setup cards, their photos settling into the arch.
 - **Contact:** field borders ease to forest over 200ms. An error message eases in just under its field over 380ms, dropping 0.375rem into place. While sending, the arc in the Send pill fades in and turns once a second. Under "reduce motion" the arc is hidden and the label alone says it is sending.
 - **Thank-you page:** arrives like the homepage hero, CSS only: the arch motif, the heading and the words rise in one stagger apart. Both pages use the shared `rise-in` keyframes in `global.css`.

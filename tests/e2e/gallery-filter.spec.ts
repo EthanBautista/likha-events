@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { eventTypesInGallery, eventTypesWithoutSetups } from "./event-types";
 import { readSetups } from "./setups";
 
 const setups = readSetups();
@@ -29,6 +30,41 @@ async function expectChosen(page: Page, name: string) {
   await expect(filterButton(page, name)).toHaveAttribute("aria-pressed", "true");
   await expect(filter(page).locator('[aria-pressed="true"]')).toHaveCount(1);
 }
+
+test("the pills are All, then the Event types with Setups, the most Setups first, then Other", async ({ page }) => {
+  await page.goto("/gallery/");
+
+  await expect(filter(page).getByRole("button")).toHaveText(["All", ...eventTypesInGallery(setups)]);
+});
+
+test("a link to an Event type without Setups, or one that doesn't exist, shows every Setup with All chosen", async ({
+  page,
+}) => {
+  const withoutSetups = eventTypesWithoutSetups(setups);
+  expect(withoutSetups.length, "the list has an Event type without sample Setups").toBeGreaterThan(0);
+
+  for (const eventType of [...withoutSetups, "no-such-event"]) {
+    await page.goto(`/gallery/?type=${eventType.toLowerCase().replaceAll(" ", "-")}`);
+
+    await expect(cards(page)).toHaveCount(setups.length);
+    await expectChosen(page, "All");
+    await expect(filterButton(page, eventType)).toHaveCount(0);
+  }
+});
+
+test.describe("on a phone", () => {
+  test.skip(({ isMobile }) => !isMobile, "the pills only stay on one row on a narrow screen");
+
+  test("the pills stay on one row, and a filtered link shows its pill", async ({ page }) => {
+    await page.goto("/gallery/?type=other");
+    const tops = await filter(page)
+      .getByRole("button")
+      .evaluateAll((buttons) => buttons.map((button) => button.getBoundingClientRect().top));
+
+    expect(new Set(tops).size, "one row").toBe(1);
+    await expect(filterButton(page, "Other")).toBeInViewport({ ratio: 1 });
+  });
+});
 
 test("each Event type shows only its Setups and is marked as chosen", async ({ page }) => {
   await page.goto("/gallery/");

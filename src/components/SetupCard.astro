@@ -6,15 +6,19 @@ interface Props {
   setup: Setup;
   /** How wide the card is shown, passed on to the cover photo. */
   sizes: string;
+  /** "eager" for a card near the top of the page, so its cover doesn't wait. */
+  loading?: "eager" | "lazy";
+  /** "high" for the first card's cover, the page's largest image. */
+  fetchpriority?: "high";
 }
 
-const { setup, sizes } = Astro.props;
+const { setup, sizes, loading, fetchpriority } = Astro.props;
 const { caption, coverPhoto, sample } = setup.data;
 ---
 
 <figure class="setup-card">
   <div class="arch">
-    <Photo src={coverPhoto} alt={`${caption}, cover photo`} sizes={sizes} />
+    <Photo src={coverPhoto} alt={`${caption}, cover photo`} sizes={sizes} loading={loading} fetchpriority={fetchpriority} />
     {sample && <span class="sample">Sample</span>}
   </div>
   <figcaption>{caption}</figcaption>

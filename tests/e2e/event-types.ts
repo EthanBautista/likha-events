@@ -13,3 +13,20 @@ function readEventTypeNames(): string[] {
 export function eventTypesForForms(): string[] {
   return [...readEventTypeNames().toSorted((a, b) => a.localeCompare(b)), "Other"];
 }
+
+/**
+ * The Event types the spec says get a gallery pill, given the Setups: those with at least one Setup, the most
+ * Setups first, ties alphabetically, then Other. A Setup whose Event type isn't on the list counts as Other.
+ */
+export function eventTypesInGallery(setups: { eventType: string }[]): string[] {
+  const names = readEventTypeNames();
+  const count = (name: string) =>
+    setups.filter((setup) => (names.includes(setup.eventType) ? setup.eventType : "Other") === name).length;
+  const named = names.filter((name) => count(name) > 0).toSorted((a, b) => count(b) - count(a) || a.localeCompare(b));
+  return count("Other") > 0 ? [...named, "Other"] : named;
+}
+
+/** The Event types on the list that no Setup has. */
+export function eventTypesWithoutSetups(setups: { eventType: string }[]): string[] {
+  return readEventTypeNames().filter((name) => !setups.some((setup) => setup.eventType === name));
+}

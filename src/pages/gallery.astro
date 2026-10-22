@@ -9,6 +9,8 @@ import { getSetupsNewestFirst, type Setup } from "../setups";
 const setups = await getSetupsNewestFirst();
 const eventTypes = await getEventTypes();
 const viewerId = (setup: Setup) => `setup-${setup.id}`;
+// The first few covers are on screen as the page opens, so they load straight away, the first soonest.
+const eagerCoverCount = 3;
 ---
 
 <BaseLayout
@@ -38,9 +40,14 @@ const viewerId = (setup: Setup) => `setup-${setup.id}`;
 
     <ul class="grid" aria-label="Setups">
       {
-        setups.map((setup) => (
+        setups.map((setup, index) => (
           <li data-event-type={eventTypeSlug(eventTypes.of(setup))}>
-            <SetupCard setup={setup} sizes="(min-width: 72rem) 22rem, (min-width: 40rem) 45vw, 90vw" />
+            <SetupCard
+              setup={setup}
+              sizes="(min-width: 72rem) 22rem, (min-width: 40rem) 45vw, 90vw"
+              loading={index < eagerCoverCount ? "eager" : "lazy"}
+              fetchpriority={index === 0 ? "high" : undefined}
+            />
             {/* Covers the whole card. */}
             <button type="button" class="open-viewer" aria-haspopup="dialog" commandfor={viewerId(setup)} command="show-modal">
               <span class="visually-hidden">See all photos: {setup.data.caption}</span>
@@ -156,12 +163,20 @@ const viewerId = (setup: Setup) => `setup-${setup.id}`;
     return buttons.find((button) => button.dataset.eventType === slug)?.dataset.eventType;
   };
 
+  // On a phone the pills are one row that scrolls sideways, so the chosen one is brought to the middle of it.
+  // On a wide screen the pills wrap and this does nothing.
+  const bringIntoView = (behavior: ScrollBehavior) => {
+    const pressed = buttons.find((button) => button.getAttribute("aria-pressed") === "true")!;
+    filter.scrollTo({ left: pressed.offsetLeft - (filter.clientWidth - pressed.offsetWidth) / 2, behavior });
+  };
+
   const choose = (slug: string | undefined) => {
     const url = new URL(location.href);
     if (slug) url.searchParams.set("type", slug);
     else url.searchParams.delete("type");
     history.replaceState(history.state, "", url);
     showWithMotion(slug);
+    bringIntoView(reduceMotion.matches ? "instant" : "smooth");
     // Announced only when the visitor chooses, not on load.
     const shown = setups.filter((setup) => !setup.hidden && !setup.classList.contains("leaving")).length;
     status.textContent = `Showing ${shown} ${shown === 1 ? "Setup" : "Setups"}`;
@@ -169,6 +184,7 @@ const viewerId = (setup: Setup) => `setup-${setup.id}`;
 
   filter.hidden = false;
   show(fromUrl());
+  bringIntoView("instant");
   // Placed straight away on load, gliding only from then on. It follows its button as the buttons wrap
   // or the font loads.
   highlight.getBoundingClientRect();
@@ -188,7 +204,7 @@ const viewerId = (setup: Setup) => `setup-${setup.id}`;
   }
 
   .intro {
-    margin-bottom: var(--space-xl);
+    margin-bottom: var(--space-lg);
   }
 
   .intro p {
@@ -201,6 +217,30 @@ const viewerId = (setup: Setup) => `setup-${setup.id}`;
     flex-wrap: wrap;
     gap: var(--space-xs);
     margin-bottom: var(--space-lg);
+  }
+
+  /* On a phone the pills stay on one row the visitor swipes sideways, so a long list of Event types never
+     pushes the Setups down. The row runs to the screen's edges, so the last pill in view is cut off there,
+     showing there's more. Its block padding keeps the pills' focus rings from being clipped. */
+  @media (max-width: 47.99rem) {
+    .filter {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      scroll-snap-type: x proximity;
+      scrollbar-width: none;
+      margin: calc(-1 * var(--space-xs)) calc(-1 * var(--gutter)) calc(var(--space-lg) - var(--space-xs));
+      padding: var(--space-xs) var(--gutter);
+      scroll-padding-inline: var(--gutter);
+    }
+
+    .filter::-webkit-scrollbar {
+      display: none;
+    }
+
+    .filter .pill {
+      flex: none;
+      scroll-snap-align: start;
+    }
   }
 
   .filter[hidden] {
