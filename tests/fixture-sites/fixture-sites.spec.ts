@@ -73,15 +73,31 @@ test("with only one featured Setup, the newest unfeatured Setups fill the homepa
   }
 });
 
-test("with no Wedding Packages, the Packages & Rentals page leaves their section out", async ({ page }) => {
-  await serve(page, buildWithFixture("no-wedding-packages"));
+test.describe("with no Wedding Packages", () => {
+  test.describe.configure({ mode: "serial" });
+  let dist: string;
 
-  await page.goto(`${fixtureOrigin}/packages-and-rentals/`);
+  test.beforeAll(() => {
+    dist = buildWithFixture("no-wedding-packages");
+  });
 
-  await expect(page.getByRole("heading", { name: /^Packages from/ })).toBeVisible();
-  await expect(page.getByRole("region", { name: "Rentals" })).toBeVisible();
-  await expect(page.getByRole("region", { name: /Wedding Packages/ })).toHaveCount(0);
-  await expect(page.getByText(/Wedding Package/)).toHaveCount(0);
+  test("the Packages & Rentals page leaves their section out", async ({ page }) => {
+    await serve(page, dist);
+    await page.goto(`${fixtureOrigin}/packages-and-rentals/`);
+
+    await expect(page.getByRole("heading", { name: /^Packages from/ })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Rentals" })).toBeVisible();
+    await expect(page.getByRole("region", { name: /Wedding Packages/ })).toHaveCount(0);
+    await expect(page.getByText(/Wedding Package/)).toHaveCount(0);
+  });
+
+  test("the homepage leaves the Wedding Packages line out", async ({ page }) => {
+    await serve(page, dist);
+    await page.goto(`${fixtureOrigin}/`);
+
+    await expect(page.getByRole("region", { name: /^Packages from/ })).toBeVisible();
+    await expect(page.getByText(/Wedding Package/)).toHaveCount(0);
+  });
 });
 
 // The list holds Wedding, Birthday and " wedding ", and one Setup is for "Corporate", which isn't on it.

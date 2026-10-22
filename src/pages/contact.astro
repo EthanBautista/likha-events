@@ -1,5 +1,6 @@
 ---
 import SocialIcon from "../components/SocialIcon.astro";
+import { eventTypeSlug } from "../event-types";
 import { getEventTypes } from "../event-types-list";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { social } from "../site-settings";
@@ -106,7 +107,7 @@ const photoFields = Array.from({ length: maxPhotos }, (_, index) => `inspiration
           aria-describedby="event-type-error"
         >
           <option value="">Choose one</option>
-          {eventTypes.all.map((eventType) => <option>{eventType}</option>)}
+          {eventTypes.all.map((eventType) => <option data-event-type={eventTypeSlug(eventType)}>{eventType}</option>)}
         </select>
         <p class="error" id="event-type-error"></p>
       </div>
@@ -232,6 +233,14 @@ const photoFields = Array.from({ length: maxPhotos }, (_, index) => `inspiration
       if (field.validity.valid && field.hasAttribute("aria-invalid")) showError(field, "");
     });
   }
+  // A link can choose the Event type, written as in the gallery's filter, such as `?type=wedding`. An unknown
+  // one leaves "Choose one".
+  const linkedType = new URLSearchParams(location.search).get("type");
+  const linkedOption = [...form.querySelectorAll<HTMLOptionElement>("#event-type option")].find(
+    (option) => option.dataset.eventType === linkedType,
+  );
+  if (linkedOption) linkedOption.selected = true;
+
   const photoFields = [...form.querySelectorAll<HTMLInputElement>('input[type="file"]')].map((input) => input.name);
 
   // Some phones leave out the type of photos such as HEIC, so fall back to the file name.

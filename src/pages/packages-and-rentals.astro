@@ -53,7 +53,7 @@ const rentals = await getRentalsInOrder();
 
   {
     lowestWeddingPrice !== undefined && (
-      <section class="container wedding-packages" aria-labelledby="wedding-packages-heading">
+      <section id="wedding-packages" class="container wedding-packages" aria-labelledby="wedding-packages-heading">
         <h2 id="wedding-packages-heading">Wedding Packages from {formatPrice(lowestWeddingPrice)}</h2>
         <p class="lead">
           Décor for your ceremony and reception, designed and set up for the day.{" "}

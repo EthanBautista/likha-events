@@ -1,9 +1,10 @@
 import { expect, test, type Locator } from "@playwright/test";
-import { dollars, readPackagesInOrder } from "./packages";
+import { dollars, readPackagesInOrder, readWeddingPackagesInOrder } from "./packages";
 import { homepageCaptions, readSetups } from "./setups";
 
 const featuredCaptions = homepageCaptions(readSetups());
 const cheapest = Math.min(...readPackagesInOrder().map((pkg) => pkg.price));
+const cheapestWedding = Math.min(...readWeddingPackagesInOrder().map((pkg) => pkg.price));
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
@@ -53,6 +54,17 @@ test('"Packages from $X" shows the cheapest Package\'s price and mentions Rental
 
   await expect(teaser).toBeVisible();
   await expect(teaser).toContainText("Rentals");
+});
+
+test('"Wedding Packages from $Y" shows the cheapest Wedding Package\'s price and leads to their section', async ({
+  page,
+}) => {
+  const teaser = page.getByRole("region", { name: `Packages from ${dollars(cheapest)}` });
+
+  await teaser.getByRole("link", { name: `Wedding Packages from ${dollars(cheapestWedding)}` }).click();
+
+  await expect(page).toHaveURL("/packages-and-rentals/#wedding-packages");
+  await expect(page.getByRole("region", { name: `Wedding Packages from ${dollars(cheapestWedding)}` })).toBeInViewport();
 });
 
 test("the closing section links to Instagram", async ({ page }) => {

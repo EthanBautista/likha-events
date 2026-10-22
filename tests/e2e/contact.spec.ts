@@ -81,6 +81,18 @@ test("the Event type options are every Event type, alphabetically, with Other la
   await expect(eventType).toHaveValue("");
 });
 
+test("a link with ?type=wedding opens the form with Wedding chosen", async ({ page }) => {
+  await page.goto("/contact/?type=wedding");
+
+  await expect(page.getByLabel("Event type")).toHaveValue("Wedding");
+});
+
+test("a link with an unknown type leaves the Event type to choose", async ({ page }) => {
+  await page.goto("/contact/?type=garden-party");
+
+  await expect(page.getByLabel("Event type")).toHaveValue("");
+});
+
 for (const missing of requiredFields) {
   test(`an Inquiry without "${missing.label}" is not sent, and says what is missing`, async ({ page }) => {
     const posts = watchPosts(page);

@@ -4,10 +4,10 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] The homepage line shows the lowest Wedding Package price and links to the Wedding Packages section
-- [ ] The line is left out when there are no Wedding Packages (fixture site)
-- [ ] `/contact/?type=<slug>` chooses that Event type in the dropdown, using the gallery filter's slugs from the Event types module
-- [ ] An unknown slug, or none, leaves "Choose one"
-- [ ] Playwright tests for the homepage line, `?type=wedding` and an unknown type
+- [x] The homepage line shows the lowest Wedding Package price and links to the Wedding Packages section
+- [x] The line is left out when there are no Wedding Packages (fixture site)
+- [x] `/contact/?type=<slug>` chooses that Event type in the dropdown, using the gallery filter's slugs from the Event types module
+- [x] An unknown slug, or none, leaves "Choose one"
+- [x] Playwright tests for the homepage line, `?type=wedding` and an unknown type

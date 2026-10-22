@@ -3,12 +3,13 @@ import Wordmark from "../assets/brand/logo-wordmark.svg";
 import Photo from "../components/Photo.astro";
 import SetupCard from "../components/SetupCard.astro";
 import BaseLayout from "../layouts/BaseLayout.astro";
-import { formatPrice, getLowestPackagePrice } from "../packages";
+import { formatPrice, getLowestPackagePrice, getLowestWeddingPackagePrice } from "../packages";
 import { getHomepageSetups } from "../setups";
 import { social } from "../site-settings";
 
 const setups = await getHomepageSetups();
 const lowestPrice = await getLowestPackagePrice();
+const lowestWeddingPrice = await getLowestWeddingPackagePrice();
 // The hero shows the first homepage Setup's cover, so the owner controls it by choosing what to feature.
 const heroSetup = setups[0];
 ---
@@ -63,6 +64,13 @@ const heroSetup = setups[0];
         are available too.
       </p>
       <a href="/packages-and-rentals/">See Packages & Rentals</a>
+      {
+        lowestWeddingPrice !== undefined && (
+          <p class="wedding">
+            <a href="/packages-and-rentals/#wedding-packages">Wedding Packages from {formatPrice(lowestWeddingPrice)}</a>
+          </p>
+        )
+      }
     </div>
   </section>
 
@@ -168,6 +176,10 @@ const heroSetup = setups[0];
 
   .packages p {
     margin: 0 auto var(--space-md);
+  }
+
+  .packages .wedding {
+    margin: var(--space-sm) auto 0;
   }
 
   .area {
