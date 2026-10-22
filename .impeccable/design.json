@@ -26,7 +26,8 @@
     },
     "shadows": [],
     "motion": [
-      { "name": "ease-settle", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "The settling ease-out every arrival uses: reveals, the menu panel, the Photo viewer opening, the link line drawing out." },
+      { "name": "ease-settle", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "The settling ease-out every arrival uses: reveals, the menu panel, the link line drawing out." },
+      { "name": "ease-carry", "value": "cubic-bezier(0.2, 0, 0, 1)", "purpose": "A photo carried a long way: a Gallery card's photo growing into the Photo viewer and shrinking back. Starts gently so its first frames don't leap." },
       { "name": "duration-press", "value": "150ms", "purpose": "A pill or Setup card settling to 0.98 as it is pressed." },
       { "name": "duration-exit", "value": "200ms", "purpose": "Something leaving or closing (menu panel, Photo viewer, filtered-out cards), and hover colour fades on links and pills." },
       { "name": "duration-open", "value": "380ms", "purpose": "An overlay or menu opening, the menu icon folding into an ×, the link line drawing out, and the Photo viewer's photo shrinking back into its card." },

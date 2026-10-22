@@ -43,6 +43,7 @@
 
   /* Motion: the settling ease-out every arrival uses, and the shared durations. Exits are quicker than arrivals. */
   --ease-settle: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-carry: cubic-bezier(0.2, 0, 0, 1); /* a photo carried a long way: starts gently, so its first frames don't leap */
   --duration-press: 150ms; /* a press settling back */
   --duration-exit: 200ms; /* something leaving or closing */
   --duration-open: 380ms; /* an overlay or menu opening */

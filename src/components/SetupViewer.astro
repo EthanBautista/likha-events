@@ -222,7 +222,7 @@ const total = allPhotos.length;
     moving = transition;
 
     const pseudo = (part: string) => `::view-transition-${part}(${photoName})`;
-    const timing = { duration: milliseconds(duration), easing: token("--ease-settle"), fill: "both" } as const;
+    const timing = { duration: milliseconds(duration), easing: token("--ease-carry"), fill: "both" } as const;
     // Held at their end until the transition is over, then let go.
     const animations: Animation[] = [];
     transition.ready
@@ -505,16 +505,29 @@ const total = allPhotos.length;
     view-transition-name: none;
   }
 
-  :global(html.viewer-opening::view-transition-old(root)),
-  :global(html.viewer-opening::view-transition-new(root)) {
-    animation-duration: var(--duration-grow);
-    animation-timing-function: var(--ease-settle);
+  /*
+   * The page and the wall are both opaque, so fading the new one in over the old is the same cross-fade the
+   * browser would draw, with one layer moving and no blending. The browser's own animations here (a size it
+   * never changes, and the blend mode) would run on the main thread every frame, and stutter on a slower machine.
+   */
+  :global(html:is(.viewer-opening, .viewer-closing)::view-transition-group(root)),
+  :global(html:is(.viewer-opening, .viewer-closing)::view-transition-old(root)) {
+    animation: none;
   }
 
-  :global(html.viewer-closing::view-transition-old(root)),
+  :global(html:is(.viewer-opening, .viewer-closing)::view-transition-new(root)) {
+    animation: viewer-wall-fade var(--duration-grow) var(--ease-carry) both;
+    mix-blend-mode: normal;
+  }
+
   :global(html.viewer-closing::view-transition-new(root)) {
     animation-duration: var(--duration-open);
-    animation-timing-function: var(--ease-settle);
+  }
+
+  @keyframes viewer-wall-fade {
+    from {
+      opacity: 0;
+    }
   }
 
   /* The photo is moved by the script alone, with transform and opacity: none of the browser's own resizing. */
@@ -617,6 +630,11 @@ const total = allPhotos.length;
     scrollbar-width: none;
   }
 
+  /* Drawn inside the track, where it can't run off the screen's edge or over the caption beside it. */
+  .track:focus-visible {
+    outline-offset: -2px;
+  }
+
   .track::-webkit-scrollbar {
     display: none;
   }
@@ -693,6 +711,7 @@ const total = allPhotos.length;
         "track counter"
         "track steps"
         "track thumbs";
+      column-gap: var(--space-lg);
       padding-right: var(--space-lg);
     }
 
