@@ -82,7 +82,7 @@ const total = allPhotos.length;
 </dialog>
 
 <script>
-  import { reduceMotion } from "../motion";
+  import { milliseconds, reduceMotion, token } from "../motion";
 
   // An open viewer has its own history entry at the same URL, recording which viewer is open. So the
   // browser or phone back gesture closes it instead of leaving the page, and forward or a reload opens it again.
@@ -94,8 +94,9 @@ const total = allPhotos.length;
   const viewers = [...document.querySelectorAll<HTMLDialogElement>(".setup-viewer")];
 
   // The extras on top of the swipeable track: the counter, and on desktop the buttons, keys and thumbnails.
-  // A viewer always opens on its cover.
+  // A viewer always opens on its cover, and closes back into its card only from there.
   const toCover = new Map<HTMLDialogElement, () => void>();
+  const onCover = new Map<HTMLDialogElement, () => boolean>();
   for (const viewer of viewers) {
     const track = viewer.querySelector<HTMLElement>(".track")!;
     const slides = [...track.children];
@@ -120,6 +121,7 @@ const total = allPhotos.length;
       show(photo);
     };
     toCover.set(viewer, () => goTo(0, false));
+    onCover.set(viewer, () => current === 0);
 
     previous.addEventListener("click", () => goTo(current - 1));
     next.addEventListener("click", () => goTo(current + 1));
@@ -156,17 +158,195 @@ const total = allPhotos.length;
     toCover.get(viewer)!();
   };
 
+  // The tapped card's photo grows into the viewer's cover photo, and shrinks back into the card on close:
+  // a View Transition in which the photo's content stays lined up, the card's crop easing out to the whole
+  // photo while the arch cross-fades into the paper mat. Only transform and opacity move. Under "reduce
+  // motion", or without View Transitions, the viewer simply fades or appears.
+  const canMove = () => "startViewTransition" in document && !reduceMotion.matches;
+  const photoName = "setup-photo";
+
+  /** A photo as the transition sees it: the element that moves, and the photo shown inside it. */
+  interface Framed {
+    frame: HTMLElement;
+    photo: HTMLImageElement;
+  }
+
+  /** Where the frame is, and how large the photo is shown in it, in screen pixels per photo pixel. */
+  const measure = ({ frame, photo }: Framed) => {
+    const shown = photo.getBoundingClientRect();
+    const style = getComputedStyle(photo);
+    const width = shown.width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+    const height = shown.height - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+    // Covering its frame, as the card's photo does, or fitting it whole, as the viewer's does.
+    return { box: frame.getBoundingClientRect(), scale: Math.max(width / photo.naturalWidth, height / photo.naturalHeight) };
+  };
+
+  const onScreen = ({ frame, photo }: Framed) => frame.getClientRects().length > 0 && photo.naturalWidth > 0;
+
+  let moving: ViewTransition | undefined;
+  const unname = () => {
+    for (const named of document.querySelectorAll<HTMLElement>(".setup-photo-moving")) {
+      named.style.removeProperty("view-transition-name");
+      named.classList.remove("setup-photo-moving");
+    }
+  };
+  const name = (element: HTMLElement) => {
+    element.style.setProperty("view-transition-name", photoName);
+    element.classList.add("setup-photo-moving");
+  };
+
+  /**
+   * Runs `update` as a View Transition in which `from` moves to where the photo it returns is shown, over
+   * the `duration` token. If it returns none, `from` just fades with the rest. The direction is marked on
+   * the page while it runs.
+   */
+  const move = (
+    from: Framed,
+    update: () => Promise<Framed | undefined>,
+    duration: string,
+    direction: "opening" | "closing",
+  ) => {
+    moving?.skipTransition();
+    unname();
+    const before = measure(from);
+    const root = document.documentElement;
+    root.classList.add(`viewer-${direction}`);
+    name(from.frame);
+    let to: Framed | undefined;
+    const transition = document.startViewTransition(async () => {
+      unname();
+      to = await update();
+      if (to && moving === transition) name(to.frame);
+      else to = undefined;
+    });
+    moving = transition;
+
+    const pseudo = (part: string) => `::view-transition-${part}(${photoName})`;
+    const timing = { duration: milliseconds(duration), easing: token("--ease-settle"), fill: "both" } as const;
+    // Held at their end until the transition is over, then let go.
+    const animations: Animation[] = [];
+    transition.ready
+      .then(() => {
+        if (!to) {
+          animations.push(root.animate({ opacity: [1, 0] }, { ...timing, pseudoElement: pseudo("old") }));
+          return;
+        }
+        // Both photos are drawn from their top left corner, the width of where the photo ends up. Each is
+        // placed so the photo's centre and size match the other's at the start or end.
+        const after = measure(to);
+        const [a, b] = [before.box, after.box];
+        const grow = after.scale / before.scale;
+        const drawn = b.width / a.width;
+        animations.push(root.animate(
+          {
+            transform: [
+              `translate(${a.x - b.x}px, ${a.y - b.y}px) scale(${1 / drawn})`,
+              `translate(${(b.width - grow * a.width) / 2}px, ${(b.height - grow * a.height) / 2}px) scale(${grow / drawn})`,
+            ],
+            opacity: [1, 0],
+          },
+          { ...timing, pseudoElement: pseudo("old") },
+        ));
+        animations.push(root.animate(
+          {
+            transform: [
+              `translate(${a.x + a.width / 2 - b.x - b.width / grow / 2}px, ${a.y + a.height / 2 - b.y - b.height / grow / 2}px) scale(${1 / grow})`,
+              "none",
+            ],
+            opacity: [0, 1],
+          },
+          { ...timing, pseudoElement: pseudo("new") },
+        ));
+      })
+      .catch(() => {});
+    transition.finished.finally(() => {
+      for (const animation of animations) animation.cancel();
+      root.classList.remove(`viewer-${direction}`);
+      if (moving !== transition) return;
+      unname();
+      moving = undefined;
+    });
+  };
+
+  const coverOf = (viewer: HTMLDialogElement) => viewer.querySelector<HTMLImageElement>(".track img")!;
+  /** The viewer's cover photo moves as itself, in its mat. */
+  const framed = (cover: HTMLImageElement): Framed => ({ frame: cover, photo: cover });
+  /** The card's photo in its arch, beside the button that opens the viewer. */
+  const cardOf = (opener: HTMLElement): Framed | undefined => {
+    const frame = opener.closest("li")?.querySelector<HTMLElement>(".arch");
+    const photo = frame?.querySelector("img");
+    return frame && photo ? { frame, photo } : undefined;
+  };
+
+  // A cover still loading has nothing to grow into, so it's fetched as soon as the visitor reaches for the card.
+  const fetchCover = (viewer: HTMLDialogElement) => {
+    coverOf(viewer).loading = "eager";
+  };
+  // How long the page may hold still for a cover that's still on its way, before opening without it.
+  const coverWait = 300;
+
+  const cards = new Map<HTMLDialogElement, Framed>();
+  // Viewers shrinking back into their card, which close once the transition has captured them open. They
+  // count as closed already, and history can call one back before it goes.
+  const closing = new Set<HTMLDialogElement>();
+  const isOpen = (viewer: HTMLDialogElement) => viewer.open && !closing.has(viewer);
+
+  /** Closes the viewer, shrinking its cover photo back into the card if that's the photo showing. */
+  const closeViewer = (viewer: HTMLDialogElement) => {
+    const card = cards.get(viewer);
+    const cover = coverOf(viewer);
+    if (!isOpen(viewer)) return;
+    if (!card || !canMove() || !onCover.get(viewer)!() || !onScreen(framed(cover))) {
+      viewer.close();
+      return;
+    }
+    closing.add(viewer);
+    move(
+      framed(cover),
+      async () => {
+        if (!closing.delete(viewer)) return undefined;
+        viewer.close();
+        return onScreen(card) ? card : undefined;
+      },
+      "--duration-open",
+      "closing",
+    );
+  };
+
+  const growInto = (viewer: HTMLDialogElement, card: Framed) => {
+    fetchCover(viewer);
+    move(
+      card,
+      async () => {
+        showViewer(viewer);
+        const cover = coverOf(viewer);
+        if (!cover.complete) {
+          await Promise.race([cover.decode().catch(() => {}), new Promise((settled) => setTimeout(settled, coverWait))]);
+        }
+        if (!onScreen(framed(cover))) return undefined;
+        cover.classList.remove("loading");
+        return framed(cover);
+      },
+      "--duration-grow",
+      "opening",
+    );
+  };
+
   const showViewerFromHistory = () => {
     const id = viewerIn(history.state);
     for (const viewer of viewers) {
-      if (viewer.id === id && !viewer.open) showViewer(viewer);
-      if (viewer.id !== id && viewer.open) viewer.close();
+      if (viewer.id === id && closing.delete(viewer)) moving?.skipTransition();
+      else if (viewer.id === id && !viewer.open) showViewer(viewer);
+      if (viewer.id !== id && isOpen(viewer)) closeViewer(viewer);
     }
   };
 
+  /** Opens the viewer from its card, growing it from the card's photo. */
   const open = (viewer: HTMLDialogElement) => {
     history.pushState({ setupViewer: viewer.id } satisfies ViewerEntry, "");
-    showViewer(viewer);
+    const card = cards.get(viewer);
+    if (card && canMove() && onScreen(card)) growInto(viewer, card);
+    else showViewer(viewer);
   };
 
   // Going back takes a moment on a slow phone. A tap in that moment opens its viewer once the back is
@@ -176,13 +356,29 @@ const total = allPhotos.length;
 
   for (const viewer of viewers) {
     const opener = document.querySelector<HTMLButtonElement>(`[commandfor="${viewer.id}"]`)!;
+    const card = cardOf(opener);
+    if (card) cards.set(viewer, card);
+    for (const reaching of ["pointerenter", "focus"]) opener.addEventListener(reaching, () => fetchCover(viewer));
     opener.addEventListener("click", (event) => {
       // Opened here instead of by the button's command, so opening adds the history entry.
       event.preventDefault();
       if (goingBack) openWhenBack = viewer;
       else open(viewer);
     });
+    // Close and Escape close the viewer here instead of by themselves, so it can shrink back into the card.
+    viewer.querySelector(".close")!.addEventListener("click", (event) => {
+      event.preventDefault();
+      closeViewer(viewer);
+    });
+    viewer.addEventListener("cancel", (event) => {
+      // Some Escapes can't be held back, and close the viewer at once by themselves.
+      if (!event.cancelable) return;
+      event.preventDefault();
+      closeViewer(viewer);
+    });
     viewer.addEventListener("close", () => {
+      // Heard late, after forward has already opened it again: that close is undone.
+      if (viewer.open) return;
       // Closed with the Close button or Escape, still on its entry: go back off it, so back then leaves the page.
       if (viewerIn(history.state) === viewer.id) {
         goingBack = true;
@@ -291,6 +487,52 @@ const total = allPhotos.length;
     .track img.loading {
       opacity: 0;
     }
+  }
+
+  /*
+   * While the card's photo grows into the viewer or shrinks back (see the script), the View Transition
+   * fades the wall in or out, so the viewer's own fades hold still and the header stays under the wall.
+   */
+  :global(html.viewer-opening) .setup-viewer,
+  :global(html.viewer-opening) .setup-viewer::backdrop,
+  :global(html.viewer-opening) .track img,
+  :global(html.viewer-closing) .setup-viewer,
+  :global(html.viewer-closing) .setup-viewer::backdrop {
+    transition: none;
+  }
+
+  :global(html:is(.viewer-opening, .viewer-closing) .site-header) {
+    view-transition-name: none;
+  }
+
+  :global(html.viewer-opening::view-transition-old(root)),
+  :global(html.viewer-opening::view-transition-new(root)) {
+    animation-duration: var(--duration-grow);
+    animation-timing-function: var(--ease-settle);
+  }
+
+  :global(html.viewer-closing::view-transition-old(root)),
+  :global(html.viewer-closing::view-transition-new(root)) {
+    animation-duration: var(--duration-open);
+    animation-timing-function: var(--ease-settle);
+  }
+
+  /* The photo is moved by the script alone, with transform and opacity: none of the browser's own resizing. */
+  :global(::view-transition-group(setup-photo)),
+  :global(::view-transition-image-pair(setup-photo)),
+  :global(::view-transition-old(setup-photo)),
+  :global(::view-transition-new(setup-photo)) {
+    animation: none;
+  }
+
+  :global(::view-transition-image-pair(setup-photo)) {
+    isolation: isolate;
+  }
+
+  :global(::view-transition-old(setup-photo)),
+  :global(::view-transition-new(setup-photo)) {
+    transform-origin: 0 0;
+    mix-blend-mode: plus-lighter;
   }
 
   .label {

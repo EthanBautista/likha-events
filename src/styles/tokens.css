@@ -46,6 +46,7 @@
   --duration-press: 150ms; /* a press settling back */
   --duration-exit: 200ms; /* something leaving or closing */
   --duration-open: 380ms; /* an overlay or menu opening */
+  --duration-grow: 500ms; /* a card's photo growing into the Photo viewer */
   --duration-rise: 800ms; /* content rising into view */
   --duration-linger: 900ms; /* a photo easing closer on hover */
   --duration-settle: 1400ms; /* a photo settling into its arch */

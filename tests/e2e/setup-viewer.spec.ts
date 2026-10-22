@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { captionsNewestFirst, readSetups, type SetupFile } from "./setups";
 
 const setups = readSetups();
@@ -11,6 +11,15 @@ const setup = setups.toSorted((a, b) => photoCount(b) - photoCount(a))[0];
 const card = (page: Page, setup: SetupFile) =>
   page.getByRole("list", { name: "Setups" }).getByRole("listitem").filter({ hasText: setup.caption });
 const viewer = (page: Page) => page.getByRole("dialog");
+
+/**
+ * Waits for the viewer to finish closing, its photo back in the card, as a visitor sees it settle before moving
+ * on. While the photo is still shrinking, the page doesn't take taps, and back already leaves the viewer's entry.
+ */
+const closed = async (page: Page) => {
+  await expect(viewer(page)).toBeHidden();
+  await page.evaluate(() => Promise.all(document.getAnimations().map((animation) => animation.finished)));
+};
 
 async function open(page: Page, setup: SetupFile) {
   await card(page, setup).getByRole("button").click();
@@ -174,7 +183,7 @@ for (const { way, close } of closeWays.filter(({ way }) => way !== "the back ges
     await page.goto("/gallery/");
     await open(page, setup);
     await close(page);
-    await expect(viewer(page)).toBeHidden();
+    await closed(page);
 
     await page.goBack();
 
@@ -273,7 +282,7 @@ test("the gallery stays scrolled where it was after closing", async ({ page }) =
   for (const { close } of closeWays) {
     await open(page, last);
     await close(page);
-    await expect(viewer(page)).toBeHidden();
+    await closed(page);
 
     expect(await page.evaluate(() => scrollY)).toBe(scrolled);
   }
@@ -286,6 +295,208 @@ test("the open viewer meets WCAG AA", async ({ page }) => {
   const results = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
 
   expect(results.violations).toEqual([]);
+});
+
+// The tapped card's photo grows into the viewer, and shrinks back into the card on close. Each View
+// Transition is recorded once under way: for each part of the moving photo (not the page cross-fading
+// behind it), where its centre is on screen as it starts and as it ends, and which properties it animates.
+interface Point {
+  x: number;
+  y: number;
+}
+
+interface PhotoPart {
+  part: string;
+  from: Point;
+  to: Point;
+  animates: string[];
+}
+
+async function recordPhotoMoves(page: Page) {
+  await page.addInitScript(() => {
+    const moves: PhotoPart[][] = [];
+    Object.assign(window, { photoMoves: moves });
+    const start = Document.prototype.startViewTransition;
+    if (!start) return;
+
+    const matrix = (transform: unknown) => new DOMMatrix(transform && transform !== "none" ? String(transform) : undefined);
+    const centreAt = (effect: KeyframeEffect, keyframe: Keyframe) => {
+      const name = /\((.+)\)/.exec(effect.pseudoElement!)![1];
+      const corner = matrix(getComputedStyle(document.documentElement, `::view-transition-group(${name})`).transform);
+      const style = getComputedStyle(document.documentElement, effect.pseudoElement!);
+      const [originX, originY] = style.transformOrigin.split(" ").map(parseFloat);
+      const moved = matrix(keyframe.transform).transformPoint({
+        x: parseFloat(style.width) / 2 - originX,
+        y: parseFloat(style.height) / 2 - originY,
+      });
+      return { x: corner.e + originX + moved.x, y: corner.f + originY + moved.y };
+    };
+
+    Document.prototype.startViewTransition = function (this: Document, ...args: Parameters<typeof start>) {
+      const transition = start.apply(this, args);
+      transition.ready
+        .then(() => new Promise((settled) => setTimeout(settled)))
+        .then(() =>
+          moves.push(
+            document
+              .getAnimations()
+              .map((animation) => animation.effect as KeyframeEffect)
+              .filter((effect) => effect.pseudoElement?.startsWith("::view-transition") && !effect.pseudoElement.includes("(root)"))
+              .map((effect) => {
+                const keyframes = effect.getKeyframes();
+                const animates = [...new Set(keyframes.flatMap((keyframe) => Object.keys(keyframe)))].filter(
+                  (key) => !["offset", "computedOffset", "easing", "composite"].includes(key),
+                );
+                return {
+                  part: effect.pseudoElement!,
+                  from: centreAt(effect, keyframes[0]),
+                  to: centreAt(effect, keyframes.at(-1)!),
+                  animates,
+                };
+              }),
+          ),
+        )
+        .catch(() => {});
+      return transition;
+    };
+  });
+}
+
+const photoMoves = (page: Page) => page.evaluate(() => (window as unknown as { photoMoves: PhotoPart[][] }).photoMoves);
+
+/** The part arriving in a transition: the viewer's photo on opening, the card's photo on closing. */
+const arriving = (move: PhotoPart[]) => move.find(({ part }) => part.startsWith("::view-transition-new"))!;
+
+const centreOf = async (element: Locator): Promise<Point> => {
+  const box = (await element.boundingBox())!;
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+};
+
+function expectAt(point: Point, expected: Point, where: string) {
+  expect(Math.abs(point.x - expected.x), `${where}, across`).toBeLessThan(2);
+  expect(Math.abs(point.y - expected.y), `${where}, down`).toBeLessThan(2);
+}
+
+/** Where the card's photo is once on screen and settled, as the visitor sees it before tapping. */
+async function cardPhotoAt(page: Page, setup: SetupFile) {
+  await card(page, setup).scrollIntoViewIfNeeded();
+  await card(page, setup).evaluate((li) => Promise.all(li.getAnimations({ subtree: true }).map((each) => each.finished)));
+  return centreOf(card(page, setup).getByRole("img"));
+}
+
+test.describe("the card's photo and the viewer", () => {
+  test.beforeEach(async ({ page }) => recordPhotoMoves(page));
+
+  test("opening grows the tapped card's photo into the viewer's cover photo", async ({ page }) => {
+    await page.goto("/gallery/");
+    const cardAt = await cardPhotoAt(page, setup);
+
+    await open(page, setup);
+
+    await expect.poll(async () => (await photoMoves(page)).length).toBe(1);
+    const [opening] = await photoMoves(page);
+    expectAt(arriving(opening).from, cardAt, "starts on the card's photo");
+    expectAt(arriving(opening).to, await centreOf(photo(page, 1)), "ends on the viewer's photo");
+    await expectShowing(page, 1);
+  });
+
+  for (const { way, close } of closeWays) {
+    test(`closing with ${way} shrinks the cover photo back into its card`, async ({ page }) => {
+      await page.goto("/gallery/");
+      const cardAt = await cardPhotoAt(page, setup);
+      await open(page, setup);
+      await expect.poll(async () => (await photoMoves(page)).length).toBe(1);
+      await expectShowing(page, 1);
+      const viewerAt = await centreOf(photo(page, 1));
+
+      await close(page);
+
+      await expect.poll(async () => (await photoMoves(page)).length).toBe(2);
+      const closing = (await photoMoves(page))[1];
+      expectAt(arriving(closing).from, viewerAt, "starts on the viewer's photo");
+      expectAt(arriving(closing).to, cardAt, "ends on the card's photo");
+      await expect(viewer(page)).toBeHidden();
+      await expect(card(page, setup).getByRole("button")).toBeFocused();
+    });
+  }
+
+  test("the photo moves with transform and opacity only, both ways", async ({ page }) => {
+    await page.goto("/gallery/");
+    await open(page, setup);
+    await viewer(page).getByRole("button", { name: "Close" }).click();
+    await closed(page);
+
+    const moves = await photoMoves(page);
+    expect(moves).toHaveLength(2);
+    for (const { part, animates } of moves.flat()) {
+      expect(animates.length, `${part} moves`).toBeGreaterThan(0);
+      for (const property of animates) expect(["transform", "opacity"], `${part} animates ${property}`).toContain(property);
+    }
+  });
+
+  test("closing after moving to another photo fades the viewer, with no photo moving", async ({ page }) => {
+    await page.goto("/gallery/");
+    await open(page, setup);
+    await expect.poll(async () => (await photoMoves(page)).length).toBe(1);
+    await page.keyboard.press("ArrowRight");
+    await expectShowing(page, 2);
+
+    await viewer(page).getByRole("button", { name: "Close" }).click();
+    await closed(page);
+
+    expect(await photoMoves(page), "only the opening moved the photo").toHaveLength(1);
+    await expect(card(page, setup).getByRole("button")).toBeFocused();
+  });
+
+  test("from a filtered gallery, the photo grows from its card and returns to it", async ({ page }) => {
+    const birthday = setups.find((each) => each.eventType === "Birthday")!;
+    await page.goto("/gallery/?type=birthday");
+    const cardAt = await cardPhotoAt(page, birthday);
+
+    await open(page, birthday);
+    await expect.poll(async () => (await photoMoves(page)).length).toBe(1);
+    await viewer(page).getByRole("button", { name: "Close" }).click();
+    await closed(page);
+
+    const [opening, closing] = await photoMoves(page);
+    expectAt(arriving(opening).from, cardAt, "grows from the card's photo");
+    expectAt(arriving(closing).to, cardAt, "shrinks back into the card's photo");
+    await expect(page).toHaveURL("/gallery/?type=birthday");
+  });
+
+  test("a Setup tapped while the filter is still easing between results opens, grows and closes as usual", async ({ page }) => {
+    const birthdays = setups.filter((each) => each.eventType === "Birthday");
+    await page.goto("/gallery/");
+
+    await page.getByRole("button", { name: "Birthday", exact: true }).click();
+    await open(page, birthdays[0]);
+
+    await expect(viewer(page)).toHaveAccessibleName(birthdays[0].caption);
+    await expect.poll(async () => (await photoMoves(page)).length).toBe(1);
+    await viewer(page).getByRole("button", { name: "Close" }).click();
+    await closed(page);
+    await expect.poll(async () => (await photoMoves(page)).length).toBe(2);
+    await expect(card(page, birthdays[0]).getByRole("button")).toBeFocused();
+    await expect(page.getByRole("list", { name: "Setups" }).getByRole("listitem")).toHaveCount(birthdays.length);
+  });
+});
+
+test.describe("in a browser without View Transitions", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => delete (Document.prototype as Partial<Document>).startViewTransition);
+  });
+
+  test("the viewer opens on its cover and closes back to its card", async ({ page }) => {
+    await page.goto("/gallery/");
+
+    await open(page, setup);
+    await expectShowing(page, 1);
+    await viewer(page).getByRole("button", { name: "Close" }).click();
+
+    await expect(viewer(page)).toBeHidden();
+    await expect(page).toHaveURL("/gallery/");
+    await expect(card(page, setup).getByRole("button")).toBeFocused();
+  });
 });
 
 test.describe("without JavaScript", () => {

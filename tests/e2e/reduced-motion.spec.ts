@@ -85,6 +85,7 @@ test.describe("the Gallery", () => {
     await expectShownNow(page, viewer(page).getByRole("img"));
 
     await viewer(page).getByRole("button", { name: "Close" }).click();
+    expect(await page.evaluate(() => document.getAnimations().length), "animations running").toBe(0);
     expect(await viewer(page).isVisible(), "closed without a closing animation").toBe(false);
   });
 
