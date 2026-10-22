@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { listInquiries } from "../../netlify/functions/inquiries";
-import { inquiriesIn, type Inquiry } from "../../netlify/inquiries";
+import type { Inquiry } from "../../netlify/inquiries";
 import { gitHubStub } from "./github";
 import { startLocalStore, type LocalStore } from "./local-store";
 
@@ -16,10 +16,18 @@ test.afterEach(async () => {
   await local.stop();
 });
 
-const maria: Inquiry = { id: "inquiry-1", name: "Maria Santos", status: "New", receivedAt: "2026-10-01T14:30:00.000Z" };
+const maria: Inquiry = {
+  id: "inquiry-1",
+  status: "New",
+  source: "Contact form",
+  receivedAt: "2026-10-01T14:30:00.000Z",
+  name: "Maria Santos",
+  contact: "maria@example.com",
+  photos: [],
+};
 
 const list = (headers: Record<string, string>) => {
-  const handler = listInquiries(() => inquiriesIn(local.store("inquiries")), gitHubStub);
+  const handler = listInquiries(() => local.inquiries(), gitHubStub);
   return handler(new Request("http://localhost/api/inquiries", { headers }));
 };
 

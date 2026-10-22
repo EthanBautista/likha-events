@@ -8,6 +8,8 @@ import { siteName } from "../../site-settings";
 // The Inquiry dashboard (ADR 0004): a static page whose script signs the owner in with GitHub through
 // Netlify's OAuth provider, the same login as the editor, and asks the Inquiry functions for Inquiries.
 // The functions decide who may see them; this page only keeps the sign-in and shows what they send.
+// The list and an opened Inquiry are both this page: an opened one is `?inquiry=<id>`, so the phone's
+// back button and a reload both work.
 ---
 
 <!doctype html>
@@ -31,7 +33,11 @@ import { siteName } from "../../site-settings";
     </header>
 
     <main id="main" class="container dashboard">
-      <h1>Inquiries</h1>
+      <a class="dashboard-back link-line" href="/admin/inquiries/" data-back hidden>
+        <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M10 3 5 8l5 5" /></svg>
+        All Inquiries
+      </a>
+      <h1 data-heading>Inquiries</h1>
       <p role="alert" class="dashboard-problem" data-problem></p>
 
       <section data-view="signed-out" class="dashboard-sign-in">
@@ -46,23 +52,36 @@ import { siteName } from "../../site-settings";
           <p class="dashboard-empty-title">No Inquiries yet</p>
           <p class="dashboard-quiet">Each Inquiry sent through the contact form will appear here.</p>
         </div>
-        <ul data-inquiries class="inquiry-list"></ul>
+        <div data-groups></div>
       </section>
+
+      <article data-view="detail" class="inquiry" hidden>
+        <p class="inquiry-received" data-received></p>
+        <dl class="inquiry-answers" data-answers></dl>
+        <h2>Inspiration photos</h2>
+        <div class="inquiry-photos" data-photos></div>
+      </article>
     </main>
 
     <script>
-      import type { Inquiry } from "../../../netlify/inquiries";
+      import type { Inquiry, InquiryPhoto } from "../../../netlify/inquiries";
 
       /** Netlify's OAuth provider, which the editor signs in through too. */
       const netlify = "https://api.netlify.com";
       const tokenKey = "likha-inquiry-dashboard.github-token";
+      const pageTitle = document.title;
 
       const views = document.querySelectorAll<HTMLElement>("[data-view]");
+      const heading = document.querySelector<HTMLElement>("[data-heading]")!;
+      const back = document.querySelector<HTMLAnchorElement>("[data-back]")!;
       const problem = document.querySelector<HTMLElement>("[data-problem]")!;
       const signInButton = document.querySelector<HTMLButtonElement>("[data-sign-in]")!;
       const signOutButton = document.querySelector<HTMLButtonElement>("[data-sign-out]")!;
       const empty = document.querySelector<HTMLElement>("[data-empty]")!;
-      const list = document.querySelector<HTMLUListElement>("[data-inquiries]")!;
+      const groups = document.querySelector<HTMLElement>("[data-groups]")!;
+      const received = document.querySelector<HTMLElement>("[data-received]")!;
+      const answers = document.querySelector<HTMLElement>("[data-answers]")!;
+      const photos = document.querySelector<HTMLElement>("[data-photos]")!;
 
       // The sign-in is kept in this browser so the owner stays signed in on their phone. Storage can be
       // blocked, as in a private window, and then the owner signs in each visit.
@@ -86,7 +105,11 @@ import { siteName } from "../../site-settings";
         },
       };
 
-      function show(view: "signed-out" | "loading" | "list" | "nothing") {
+      /** The signed-in owner's GitHub token, and the Inquiries the list function last sent. */
+      let token: string | undefined;
+      let inquiries: Inquiry[] | undefined;
+
+      function show(view: "signed-out" | "loading" | "list" | "detail" | "nothing") {
         for (const element of views) element.hidden = element.dataset.view !== view;
         signOutButton.hidden = view === "signed-out";
       }
@@ -147,27 +170,43 @@ import { siteName } from "../../site-settings";
 
       function signOut(message?: string) {
         savedToken.forget();
-        list.replaceChildren();
+        token = undefined;
+        inquiries = undefined;
+        groups.replaceChildren();
+        forgetPhotos();
         showProblem(message);
-        show("signed-out");
+        showPage();
       }
 
-      async function showInquiries(token: string) {
-        show("loading");
-        showProblem();
+      /** Asks a function for something with the sign-in, signing out if the function refuses it. */
+      async function ask(path: string): Promise<Response | undefined> {
         let response: Response;
         try {
-          response = await fetch("/api/inquiries", { headers: { Authorization: `Bearer ${token}` } });
+          response = await fetch(path, { headers: { Authorization: `Bearer ${token}` } });
         } catch {
-          show("nothing");
-          showProblem("Couldn't reach the dashboard. Check your connection, then reload the page.");
-          return;
+          return undefined;
         }
-
         if (response.status === 401 || response.status === 403) {
           const { message } = await response.json();
           const hint = response.status === 403 ? " Sign out of GitHub, then sign in with the account you use for the editor." : "";
           signOut(message + hint);
+          throw new Error("signed out");
+        }
+        return response;
+      }
+
+      async function loadInquiries() {
+        show("loading");
+        showProblem();
+        let response: Response | undefined;
+        try {
+          response = await ask("/api/inquiries");
+        } catch {
+          return;
+        }
+        if (!response) {
+          show("nothing");
+          showProblem("Couldn't reach the dashboard. Check your connection, then reload the page.");
           return;
         }
         if (!response.ok) {
@@ -175,31 +214,232 @@ import { siteName } from "../../site-settings";
           showProblem("Couldn't load Inquiries. Reload the page to try again.");
           return;
         }
+        inquiries = await response.json();
+        showPage();
+      }
 
-        const inquiries: Inquiry[] = await response.json();
-        list.replaceChildren(
-          ...inquiries.map((inquiry) => {
-            const item = document.createElement("li");
-            const name = document.createElement("span");
-            const status = document.createElement("span");
-            name.textContent = inquiry.name;
-            status.textContent = inquiry.status;
-            status.className = "inquiry-status";
-            item.append(name, status);
-            return item;
+      // Dates. An event date is a day with no time zone; the time an Inquiry arrived is shown in Toronto's.
+      const torontoToday = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Toronto" }).format(new Date());
+      const day = (date: string, options: Intl.DateTimeFormatOptions) =>
+        new Intl.DateTimeFormat("en-CA", { ...options, timeZone: "UTC" }).format(new Date(`${date}T00:00:00Z`));
+      const receivedTime = (iso: string) =>
+        new Intl.DateTimeFormat("en-CA", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Toronto" }).format(new Date(iso));
+
+      function element<Tag extends keyof HTMLElementTagNameMap>(tag: Tag, className?: string, text?: string) {
+        const created = document.createElement(tag);
+        if (className) created.className = className;
+        if (text !== undefined) created.textContent = text;
+        return created;
+      }
+
+      /** An Inquiry status, as a tag when it's New and still needs a reply. */
+      function statusOf(inquiry: Inquiry) {
+        const status = element("span", "inquiry-status", inquiry.status);
+        if (inquiry.status === "New") status.classList.add("inquiry-status-new");
+        return status;
+      }
+
+      /** One row of the list: the event's date, who it's for and what it is, and its Inquiry status. */
+      function rowFor(inquiry: Inquiry, today: string) {
+        const link = element("a", "inquiry-row");
+        link.href = `?inquiry=${encodeURIComponent(inquiry.id)}`;
+        link.dataset.inquiry = inquiry.id;
+
+        const date = element("span", "inquiry-day");
+        const what = [inquiry.eventType];
+        if (inquiry.eventDate) {
+          date.append(
+            element("span", "inquiry-month", day(inquiry.eventDate, { month: "short" })),
+            element("span", "inquiry-date", day(inquiry.eventDate, { day: "numeric" })),
+          );
+          // The year only when it isn't this one, written after the weekday ("Sat, 2027").
+          const year = inquiry.eventDate.slice(0, 4);
+          const weekday = day(inquiry.eventDate, { weekday: "short" });
+          what.push(year === today.slice(0, 4) ? weekday : `${weekday}, ${year}`);
+        }
+
+        const who = element("span", "inquiry-who");
+        who.append(element("span", "inquiry-name", inquiry.name));
+        const summary = what.filter(Boolean).join(" · ");
+        if (summary) who.append(element("span", "inquiry-what", summary));
+
+        link.append(date, who, statusOf(inquiry));
+        const item = element("li");
+        item.append(link);
+        return item;
+      }
+
+      /** The list, in the order the function sends it: upcoming events, then past ones, then those with no date. */
+      function showList(list: Inquiry[]) {
+        const today = torontoToday();
+        const groupOf = ({ eventDate }: Inquiry) => (!eventDate ? "No date yet" : eventDate >= today ? "Upcoming" : "Past");
+        const sections = new Map<string, HTMLUListElement>();
+        for (const inquiry of list) {
+          const name = groupOf(inquiry);
+          if (!sections.has(name)) sections.set(name, element("ul", "inquiry-list"));
+          sections.get(name)!.append(rowFor(inquiry, today));
+        }
+        groups.replaceChildren(
+          ...[...sections].map(([name, rows]) => {
+            const section = element("section", "inquiry-group");
+            const id = `group-${name.toLowerCase().replaceAll(" ", "-")}`;
+            const title = element("h2", undefined, name);
+            title.id = id;
+            section.setAttribute("aria-labelledby", id);
+            section.append(title, rows);
+            return section;
           }),
         );
-        empty.hidden = inquiries.length > 0;
+        empty.hidden = list.length > 0;
         show("list");
       }
+
+      /** A way to reach the customer, as a link to call or email them when it is a phone number or an email. */
+      function contactFor(contact: string) {
+        const digits = contact.replace(/\D/g, "");
+        let href: string | undefined;
+        if (/^\S+@\S+\.\S+$/.test(contact.trim())) href = `mailto:${contact.trim()}`;
+        else if (/^[\d\s()+.-]+$/.test(contact) && digits.length >= 10) href = `tel:${contact.trim().startsWith("+") ? "+" : ""}${digits}`;
+        if (!href) return document.createTextNode(contact);
+        const link = element("a", undefined, contact);
+        link.href = href;
+        return link;
+      }
+
+      /** Everything the customer sent, under the contact form's own labels. */
+      function showDetail(inquiry: Inquiry) {
+        heading.textContent = inquiry.name;
+        document.title = `${inquiry.name} · ${pageTitle}`;
+
+        received.replaceChildren(statusOf(inquiry), ` Received ${receivedTime(inquiry.receivedAt)} · ${inquiry.source}`);
+
+        const rows: [string, string | Node | undefined][] = [
+          ["Phone number or email", contactFor(inquiry.contact)],
+          ["Event date", inquiry.eventDate && day(inquiry.eventDate, { dateStyle: "full" })],
+          ["Venue or city", inquiry.venue],
+          ["Event type", inquiry.eventType],
+          ["Number of guests", inquiry.guests],
+          ["Theme or colours", inquiry.theme],
+          ["Décor wanted", inquiry.decor],
+        ];
+        answers.replaceChildren(
+          ...rows.flatMap(([label, answer]) => {
+            const value = element("dd");
+            if (answer) value.append(answer);
+            else value.append(element("span", "dashboard-quiet", "Not given"));
+            return [element("dt", undefined, label), value];
+          }),
+        );
+
+        photos.replaceChildren(
+          ...(inquiry.photos.length
+            ? inquiry.photos.map((photo, index) => photoFor(photo, `Inspiration photo ${index + 1} from ${inquiry.name}`))
+            : [element("p", "dashboard-quiet", "No photos sent.")]),
+        );
+        show("detail");
+      }
+
+      // Photos are served only with the sign-in, which an image element can't send, so the page fetches each one
+      // and shows it from memory. They're kept until signing out, so going back and forth doesn't refetch.
+      const photoUrls = new Map<string, Promise<string | undefined>>();
+
+      function forgetPhotos() {
+        for (const url of photoUrls.values()) url.then((loaded) => loaded && URL.revokeObjectURL(loaded));
+        photoUrls.clear();
+      }
+
+      function photoUrl(id: string) {
+        if (!photoUrls.has(id)) {
+          const loading = ask(`/api/inquiry-photos/${encodeURIComponent(id)}`)
+            .then(async (response) => (response?.ok ? URL.createObjectURL(await response.blob()) : undefined))
+            .catch(() => undefined);
+          photoUrls.set(id, loading);
+          // One that didn't load is asked for again next time.
+          loading.then((loaded) => loaded || photoUrls.delete(id));
+        }
+        return photoUrls.get(id)!;
+      }
+
+      function photoFor(photo: InquiryPhoto, alt: string) {
+        const figure = element("figure", "inquiry-photo");
+        const caption = element("figcaption", undefined, photo.name);
+        if ("missing" in photo) {
+          figure.classList.add("inquiry-photo-missing");
+          figure.append(element("p", undefined, "This photo couldn't be saved. It's still in the email."), caption);
+          return figure;
+        }
+        const frame = element("div", "inquiry-photo-frame");
+        figure.append(frame, caption);
+        photoUrl(photo.id).then((url) => {
+          if (!url) {
+            frame.append(element("p", undefined, "This photo didn't load. Reload the page to try again."));
+            return;
+          }
+          const image = element("img");
+          image.alt = alt;
+          image.src = url;
+          frame.classList.add("is-loaded");
+          frame.append(image);
+        });
+        return figure;
+      }
+
+      /** Shows what the address asks for: the list, or one Inquiry. */
+      function showPage() {
+        const opened = new URLSearchParams(location.search).get("inquiry");
+        back.hidden = !opened || !token;
+        heading.textContent = "Inquiries";
+        document.title = pageTitle;
+        if (!token) return show("signed-out");
+        if (!inquiries) return;
+
+        if (!opened) return showList(inquiries);
+        const inquiry = inquiries.find(({ id }) => id === opened);
+        if (inquiry) return showDetail(inquiry);
+        show("nothing");
+        showProblem("This Inquiry isn't here any more.");
+      }
+
+      /** A click that opens a link here, rather than in a new tab or window. */
+      const opensHere = (event: MouseEvent) => !event.metaKey && !event.ctrlKey && !event.shiftKey && event.button === 0;
+
+      // Opening an Inquiry and coming back stay on this page, and the list keeps its place.
+      groups.addEventListener("click", (event) => {
+        const link = (event.target as Element).closest<HTMLAnchorElement>("a[data-inquiry]");
+        if (!link || !opensHere(event)) return;
+        event.preventDefault();
+        history.replaceState({ scroll: scrollY }, "");
+        history.pushState({ fromList: true }, "", link.href);
+        showProblem();
+        showPage();
+        scrollTo(0, 0);
+        heading.focus({ preventScroll: true });
+      });
+
+      // Coming from the list, going back returns to it where it was left. Opened straight from a link, it opens the list.
+      back.addEventListener("click", (event) => {
+        if (!opensHere(event)) return;
+        event.preventDefault();
+        if (history.state?.fromList) return history.back();
+        history.pushState({}, "", back.href);
+        showProblem();
+        showPage();
+      });
+
+      addEventListener("popstate", () => {
+        showProblem();
+        showPage();
+        scrollTo(0, history.state?.scroll ?? 0);
+      });
 
       signInButton.addEventListener("click", async () => {
         showProblem();
         try {
-          const token = await signInWithGitHub();
-          if (!token) return;
-          savedToken.save(token);
-          await showInquiries(token);
+          const signedIn = await signInWithGitHub();
+          if (!signedIn) return;
+          savedToken.save(signedIn);
+          token = signedIn;
+          await loadInquiries();
         } catch (error) {
           showProblem((error as Error).message);
         }
@@ -207,13 +447,17 @@ import { siteName } from "../../site-settings";
 
       signOutButton.addEventListener("click", () => signOut());
 
-      const token = savedToken.read();
-      if (token) showInquiries(token);
+      heading.tabIndex = -1;
+      token = savedToken.read();
+      if (token) loadInquiries();
+      else showPage();
     </script>
   </body>
 </html>
 
-<style>
+<style is:global>
+  /* Global, as the script builds the list and an opened Inquiry, which Astro's scoped styles wouldn't reach.
+     Only this page loads them. */
   .dashboard-bar {
     border-bottom: 1px solid var(--color-line);
   }
@@ -259,6 +503,37 @@ import { siteName } from "../../site-settings";
     font-size: var(--text-xl);
   }
 
+  .dashboard h1:focus {
+    outline: none;
+  }
+
+  .dashboard-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    min-height: 2.75rem;
+    margin-inline-start: -0.25rem;
+    font-size: var(--text-sm);
+  }
+
+  .dashboard-back[hidden] {
+    display: none;
+  }
+
+  .dashboard-back svg {
+    width: 1rem;
+    height: 1rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .dashboard-back + h1 {
+    margin-block-start: var(--space-xs);
+  }
+
   .dashboard-problem {
     color: var(--color-error);
   }
@@ -292,21 +567,214 @@ import { siteName } from "../../site-settings";
     margin-block-end: 0;
   }
 
+  /* The list: a group for upcoming events, past ones and those with no date, each a run of hairline rows. */
+  .inquiry-group {
+    max-width: 44rem;
+  }
+
+  .inquiry-group + .inquiry-group {
+    margin-block-start: var(--space-lg);
+  }
+
+  .inquiry-group h2 {
+    margin-block: 0 var(--space-xs);
+    font-size: var(--text-lg);
+  }
+
   .inquiry-list {
     margin: 0;
     padding: 0;
+    border-top: 1px solid var(--color-line);
     list-style: none;
   }
 
   .inquiry-list li {
-    display: flex;
-    justify-content: space-between;
-    gap: var(--space-md);
-    padding-block: var(--space-sm);
     border-bottom: 1px solid var(--color-line);
+  }
+
+  .inquiry-row {
+    display: grid;
+    grid-template-columns: 2.75rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-sm);
+    min-height: 4rem;
+    padding-block: var(--space-sm);
+    color: var(--color-text);
+    text-decoration: none;
+  }
+
+  .inquiry-row:hover {
+    color: var(--color-text);
+  }
+
+  @media (hover: hover) {
+    .inquiry-row:hover .inquiry-name {
+      text-decoration: underline;
+      text-decoration-thickness: 1px;
+    }
+  }
+
+  /* The event's day, set like a page in a diary: the month small above the date in the serif. */
+  .inquiry-day {
+    display: grid;
+    justify-items: center;
+    line-height: 1;
+  }
+
+  .inquiry-month {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .inquiry-date {
+    font-family: var(--font-heading);
+    font-size: var(--text-xl);
+    font-weight: 500;
+    font-variant-numeric: lining-nums;
+  }
+
+  .inquiry-who {
+    display: grid;
+    gap: 0.125rem;
+    min-width: 0;
+  }
+
+  .inquiry-name {
+    overflow: hidden;
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .inquiry-what {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
   }
 
   .inquiry-status {
     color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  /* New is the one that needs a reply, so it's the one that stands out. */
+  .inquiry-status-new {
+    padding: 0.125rem var(--space-xs);
+    border-radius: var(--radius);
+    background: var(--color-action);
+    color: var(--color-on-action);
+    font-size: var(--text-sm);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* An opened Inquiry: when it came in, then the customer's answers under the form's own labels. */
+  .inquiry {
+    max-width: 44rem;
+  }
+
+  .inquiry-received {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-xs);
+    margin-block: 0 var(--space-lg);
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .inquiry-answers {
+    display: grid;
+    margin: 0;
+    border-top: 1px solid var(--color-line);
+  }
+
+  .inquiry-answers dt {
+    padding-block-start: var(--space-sm);
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .inquiry-answers dd {
+    margin: 0;
+    padding-block: 0.125rem var(--space-sm);
+    border-bottom: 1px solid var(--color-line);
+    overflow-wrap: anywhere;
+    white-space: pre-line;
+  }
+
+  .inquiry h2 {
+    margin-block: var(--space-xl) var(--space-sm);
+    font-size: var(--text-lg);
+  }
+
+  /* Each photo whole and uncropped, like a print in a thin paper mat. They're the customer's references,
+     not Likha's work, so they don't take the arch. */
+  .inquiry-photos {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+    align-items: start;
+    gap: var(--space-lg) var(--space-md);
+  }
+
+  .inquiry-photo {
+    display: grid;
+    gap: var(--space-xs);
+    margin: 0;
+  }
+
+  .inquiry-photo figcaption {
+    overflow-wrap: anywhere;
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .inquiry-photo-frame {
+    display: grid;
+    place-items: center;
+    min-height: 12rem;
+    padding: 0.375rem;
+    border-radius: var(--radius);
+    background: var(--color-sage-band);
+  }
+
+  .inquiry-photo-frame.is-loaded {
+    min-height: 0;
+    border: 1px solid var(--color-line);
+    background: var(--color-bg);
+  }
+
+  .inquiry-photo-frame img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: calc(var(--radius) / 2);
+  }
+
+  .inquiry-photo-frame p,
+  .inquiry-photo-missing p {
+    margin: 0;
+    padding: var(--space-md);
+    font-size: var(--text-sm);
+    text-align: center;
+  }
+
+  .inquiry-photo-missing p {
+    border: 1px dashed var(--color-text-muted);
+    border-radius: var(--radius);
+  }
+
+  /* A photo fades in once it has loaded, as the Photo viewer's do. */
+  @media (prefers-reduced-motion: no-preference) {
+    .inquiry-photo-frame img {
+      animation: photo-in 500ms var(--ease-settle);
+    }
+  }
+
+  @keyframes photo-in {
+    from {
+      opacity: 0;
+    }
   }
 </style>
