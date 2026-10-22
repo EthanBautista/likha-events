@@ -4,10 +4,10 @@
 
 **Blocked by:** 03
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] An "Add Inquiry" form with the contact form's fields, a source (Instagram or Facebook) and optional photos. Only name and contact are required
-- [ ] Hand-added Inquiries start as New and stay editable, customer details included
-- [ ] The source shows on the list and the detail view, with Contact form for form Inquiries
-- [ ] Undated hand-added Inquiries sort last
-- [ ] Tests: adding with only name and contact, adding with photos, editing details later
+- [x] An "Add Inquiry" form with the contact form's fields, a source (Instagram or Facebook) and optional photos. Only name and contact are required
+- [x] Hand-added Inquiries start as New and stay editable, customer details included
+- [x] The source shows on the list and the detail view, with Contact form for form Inquiries
+- [x] Undated hand-added Inquiries sort last
+- [x] Tests: adding with only name and contact, adding with photos, editing details later

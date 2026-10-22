@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { ChangeRefused, type FormSubmission, type Inquiry, type InquiryChanges } from "../../netlify/inquiries";
+import { Refused, type FormSubmission, type Inquiry, type InquiryChanges, type NewInquiry } from "../../netlify/inquiries";
 import { startLocalStore, type LocalStore } from "./local-store";
 
 // The Inquiries module, against a local Blobs store.
@@ -238,7 +238,7 @@ test("a contact-form Inquiry's customer answers can't be changed, and a refused 
 
   for (const answer of answers) {
     await expect(inquiries.change(received.id, { status: "Quoted", notes: "Called her", ...answer }), JSON.stringify(answer)).rejects.toThrow(
-      ChangeRefused,
+      Refused,
     );
   }
   expect(await inquiries.list()).toEqual([received]);
@@ -250,7 +250,167 @@ test("a change that isn't one the owner can make is refused", async () => {
   const notChanges = [{ status: "Archived" }, { notes: 42 }, { receivedAt: "2020-01-01T00:00:00.000Z" }, { photos: [] }, null, "Booked"];
 
   for (const changes of notChanges) {
-    await expect(inquiries.change(maria.id, changes as InquiryChanges), JSON.stringify(changes)).rejects.toThrow(ChangeRefused);
+    await expect(inquiries.change(maria.id, changes as InquiryChanges), JSON.stringify(changes)).rejects.toThrow(Refused);
   }
   expect(await inquiries.list()).toEqual([maria]);
+});
+
+// Inquiries the owner adds by hand, from Instagram or Facebook messages.
+
+test("an Inquiry can be added by hand with only a name and a way to reach them, and starts as New", async () => {
+  const inquiries = local.inquiries();
+
+  const added = await inquiries.add({ source: "Instagram", name: "Joy Reyes", contact: "@joyreyes" });
+
+  expect(added).toEqual({
+    id: expect.any(String),
+    status: "New",
+    source: "Instagram",
+    receivedAt: expect.any(String),
+    name: "Joy Reyes",
+    contact: "@joyreyes",
+    photos: [],
+  });
+  expect(Date.now() - Date.parse(added.receivedAt)).toBeLessThan(60_000);
+  expect(await inquiries.list()).toEqual([added]);
+});
+
+test("an Inquiry added by hand keeps the details given, leaving out any left empty", async () => {
+  const inquiries = local.inquiries();
+
+  const added = await inquiries.add({
+    source: "Facebook",
+    name: " Joy Reyes ",
+    contact: "facebook.com/joy.reyes",
+    eventDate: "2026-12-05",
+    venue: "Brampton",
+    eventType: "Birthday",
+    guests: "",
+    theme: "  ",
+    decor: "A pink balloon garland",
+  });
+
+  expect(added).toEqual({
+    id: expect.any(String),
+    status: "New",
+    source: "Facebook",
+    receivedAt: expect.any(String),
+    name: "Joy Reyes",
+    contact: "facebook.com/joy.reyes",
+    eventDate: "2026-12-05",
+    venue: "Brampton",
+    eventType: "Birthday",
+    decor: "A pink balloon garland",
+    photos: [],
+  });
+});
+
+test("an Inquiry added by hand needs a name, a way to reach them, and where it came from", async () => {
+  const inquiries = local.inquiries();
+  const notInquiries = [
+    { source: "Instagram", name: "", contact: "@joyreyes" },
+    { source: "Instagram", name: "Joy Reyes", contact: "  " },
+    { source: "Instagram", name: "Joy Reyes" },
+    { name: "Joy Reyes", contact: "@joyreyes" },
+    { source: "Contact form", name: "Joy Reyes", contact: "@joyreyes" },
+    { source: "TikTok", name: "Joy Reyes", contact: "@joyreyes" },
+    { source: "Instagram", name: "Joy Reyes", contact: "@joyreyes", eventDate: "next Saturday" },
+    { source: "Instagram", name: "Joy Reyes", contact: "@joyreyes", eventDate: "2026-13-45" },
+    { source: "Instagram", name: "Joy Reyes", contact: "@joyreyes", eventDate: "2027-02-29" },
+    { source: "Instagram", name: "Joy Reyes", contact: "@joyreyes", guests: "lots" },
+    { source: "Instagram", name: "Joy Reyes", contact: "@joyreyes", guests: "0" },
+    { source: "Instagram", name: "Joy Reyes", contact: "@joyreyes", guests: 40 },
+    { source: "Instagram", name: "Joy Reyes", contact: "@joyreyes", status: "Booked" },
+    { source: "Instagram", name: "Joy Reyes", contact: "@joyreyes", photos: [] },
+    null,
+  ];
+
+  for (const details of notInquiries) {
+    await expect(inquiries.add(details as NewInquiry), JSON.stringify(details)).rejects.toThrow(Refused);
+  }
+  expect(await inquiries.list()).toEqual([]);
+});
+
+test("an Inquiry added by hand can have its details filled in, changed and cleared later", async () => {
+  const inquiries = local.inquiries();
+  const added = await inquiries.add({ source: "Instagram", name: "Joy", contact: "@joyreyes" });
+
+  await inquiries.change(added.id, { name: "Joy Reyes", eventDate: "2026-12-05", venue: "Brampton", guests: "60", notes: "Sent prices" });
+  const changed = await inquiries.change(added.id, { contact: "416-555-0199", venue: "", eventType: "Birthday", source: "Facebook" });
+
+  const expected = {
+    ...added,
+    source: "Facebook",
+    name: "Joy Reyes",
+    contact: "416-555-0199",
+    eventDate: "2026-12-05",
+    eventType: "Birthday",
+    guests: "60",
+    notes: "Sent prices",
+  };
+  expect(changed).toEqual(expected);
+  expect(await inquiries.list()).toEqual([expected]);
+});
+
+test("an Inquiry added by hand keeps its name and a way to reach them, and comes from Instagram or Facebook", async () => {
+  const inquiries = local.inquiries();
+  const added = await inquiries.add({ source: "Instagram", name: "Joy Reyes", contact: "@joyreyes" });
+  const notChanges = [{ name: " " }, { contact: "" }, { eventDate: "Dec 5" }, { eventDate: "2026-02-30" }, { guests: 60 }, { guests: "about 40" }, { source: "Contact form" }, { source: "TikTok" }];
+
+  for (const changes of notChanges) {
+    await expect(inquiries.change(added.id, changes as InquiryChanges), JSON.stringify(changes)).rejects.toThrow(Refused);
+  }
+  expect(await inquiries.list()).toEqual([added]);
+});
+
+test("a contact-form Inquiry's source can't be changed", async () => {
+  await local.store("inquiries").setJSON(maria.id, maria);
+
+  await expect(local.inquiries().change(maria.id, { source: "Instagram" })).rejects.toThrow(Refused);
+  expect(await local.inquiries().list()).toEqual([maria]);
+});
+
+/** A screenshot the owner attaches, its bytes standing in for the image. */
+const screenshot = (name: string, type = "image/png") => ({ name, type, body: new TextEncoder().encode(`screenshot bytes of ${name}`).buffer });
+
+test("photos can be attached to an Inquiry added by hand, and are served from the store", async () => {
+  const inquiries = local.inquiries();
+  const added = await inquiries.add({ source: "Instagram", name: "Joy Reyes", contact: "@joyreyes" });
+
+  await inquiries.addPhoto(added.id, screenshot("chat.png"));
+  const withPhotos = await inquiries.addPhoto(added.id, screenshot("cake.jpg", "image/jpeg"));
+
+  expect(withPhotos?.photos).toEqual([
+    { name: "chat.png", id: expect.any(String) },
+    { name: "cake.jpg", id: expect.any(String) },
+  ]);
+  const [{ photos }] = await inquiries.list();
+  expect(photos).toEqual(withPhotos?.photos);
+  const [chat, cake] = await Promise.all(photos.map((photo) => ("id" in photo ? inquiries.photo(photo.id) : undefined)));
+  expect(new TextDecoder().decode(chat!.body)).toBe("screenshot bytes of chat.png");
+  expect(chat!.type).toBe("image/png");
+  expect(new TextDecoder().decode(cake!.body)).toBe("screenshot bytes of cake.jpg");
+  expect(cake!.type).toBe("image/jpeg");
+});
+
+test("an Inquiry added by hand takes as many photos as the contact form, and only images", async () => {
+  const inquiries = local.inquiries();
+  const added = await inquiries.add({ source: "Facebook", name: "Joy Reyes", contact: "@joyreyes" });
+
+  await expect(inquiries.addPhoto(added.id, screenshot("page.html", "text/html"))).rejects.toThrow(Refused);
+  for (const name of ["1.png", "2.png", "3.png"]) await inquiries.addPhoto(added.id, screenshot(name));
+  await expect(inquiries.addPhoto(added.id, screenshot("4.png"))).rejects.toThrow(Refused);
+
+  const [{ photos }] = await inquiries.list();
+  expect(photos.map(({ name }) => name)).toEqual(["1.png", "2.png", "3.png"]);
+});
+
+test("a contact-form Inquiry keeps the photos the customer sent, and a photo for an Inquiry that isn't there is not saved", async () => {
+  await local.store("inquiries").setJSON(maria.id, maria);
+  const inquiries = local.inquiries();
+
+  await expect(inquiries.addPhoto(maria.id, screenshot("chat.png"))).rejects.toThrow(Refused);
+  expect(await inquiries.addPhoto("no-such-inquiry", screenshot("chat.png"))).toBeUndefined();
+  expect(await inquiries.list()).toEqual([maria]);
+  expect((await local.store("inquiry-photos").list()).blobs).toEqual([]);
 });

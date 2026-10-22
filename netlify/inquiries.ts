@@ -1,15 +1,15 @@
 import { getStore, type Store } from "@netlify/blobs";
-import { eventTiming, eventTimings, torontoToday } from "../src/inquiry-dates";
-import { photoFields } from "../src/inquiry-form";
+import { randomUUID } from "node:crypto";
+import { inListOrder, torontoToday } from "../src/inquiry-dates";
+import { customerAnswers, maxPhotos, photoFields } from "../src/inquiry-form";
+import { handAddedSources, type HandAddedSource, type InquirySource } from "../src/inquiry-sources";
 import { inquiryStatuses, type InquiryStatus } from "../src/inquiry-statuses";
 
 // The Inquiries module (ADR 0004) owns reading and writing Inquiries. Each Inquiry is one JSON
 // record in Netlify Blobs, keyed by its id, and its inspiration photos are blobs in a store of their
 // own, referenced from the record. Functions are thin layers over it.
 
-export type { InquiryStatus };
-
-export type InquirySource = "Contact form" | "Instagram" | "Facebook";
+export type { HandAddedSource, InquirySource, InquiryStatus };
 
 export interface Inquiry {
   id: string;
@@ -55,6 +55,11 @@ export interface PhotoFile {
   type: string;
 }
 
+/** An inspiration photo the owner attaches, with its file's name. */
+export interface NewPhoto extends PhotoFile {
+  name: string;
+}
+
 export interface Inquiries {
   /**
    * Every Inquiry: upcoming events soonest first, then past events most recent first, then those with
@@ -66,6 +71,16 @@ export interface Inquiries {
    * Its photos are copied straight away, as Netlify's links to them don't last.
    */
   receive(submission: FormSubmission): Promise<void>;
+  /**
+   * Saves an Inquiry the owner adds by hand from an Instagram or Facebook message, as New, received now.
+   * Only a name and a way to reach the customer are needed; details left empty are left out.
+   */
+  add(details: NewInquiry): Promise<Inquiry>;
+  /**
+   * Attaches an inspiration photo, such as a screenshot of the chat, to an Inquiry added by hand, and
+   * gives it back as it now is, or undefined if it isn't there. It takes as many as the contact form.
+   */
+  addPhoto(id: string, photo: NewPhoto): Promise<Inquiry | undefined>;
   /** A saved inspiration photo, by its id. */
   photo(id: string): Promise<PhotoFile | undefined>;
   /** Changes an Inquiry, and gives it back as it now is, or undefined if it isn't there. */
@@ -74,21 +89,24 @@ export interface Inquiries {
 
 /**
  * A change to an Inquiry. Any Inquiry status can be set from any other. A contact-form Inquiry's
- * customer answers are kept exactly as sent, so a change to one of them is refused.
+ * customer answers and source are kept exactly as sent, so a change to one of them is refused. One
+ * added by hand can have its details and source changed, and an optional detail left empty is taken off.
  */
 export type InquiryChanges = Partial<Pick<Inquiry, CustomerAnswer>> & {
+  source?: HandAddedSource;
   status?: InquiryStatus;
   /** The Inquiry's notes, in place of those it had. Notes of only spaces clear them. */
   notes?: string;
 };
 
-/** An Inquiry's fields that hold what the customer sent, apart from their photos. */
-const customerAnswers = ["name", "contact", "eventDate", "venue", "eventType", "guests", "theme", "decor"] as const;
+/** An Inquiry the owner adds by hand: where it came from, and what they know of the customer so far. */
+export type NewInquiry = Pick<Inquiry, "name" | "contact"> & Partial<Pick<Inquiry, CustomerAnswer>> & { source: HandAddedSource };
 
+/** An Inquiry's fields that hold what the customer sent, apart from their photos. */
 type CustomerAnswer = (typeof customerAnswers)[number];
 
-/** A change the Inquiries module won't make, saying why. Nothing about the Inquiry is changed. */
-export class ChangeRefused extends Error {}
+/** Something the Inquiries module won't save, saying why. Nothing is saved or changed. */
+export class Refused extends Error {}
 
 /** The contact form's name, and its fields for each customer answer. */
 const contactForm = "inquiry";
@@ -146,6 +164,29 @@ export function inquiriesIn(records: Store, photoStore: Store, fetchFile: FetchF
       await records.setJSON(id, inquiry);
     },
 
+    async add(details) {
+      refuseNewInquiryItCantTake(details);
+      const { source, ...given } = details;
+      const inquiry: Inquiry = { id: randomUUID(), status: "New", source, receivedAt: new Date().toISOString(), name: "", contact: "", photos: [] };
+      withDetails(inquiry, given);
+      await records.setJSON(inquiry.id, inquiry);
+      return inquiry;
+    },
+
+    async addPhoto(id, { name, body, type }) {
+      const inquiry = (await records.get(id, { type: "json" })) as Inquiry | null;
+      if (!inquiry) return undefined;
+      if (inquiry.source === "Contact form") throw new Refused("A contact-form Inquiry keeps the photos the customer sent.");
+      if (inquiry.photos.length >= maxPhotos) throw new Refused(`An Inquiry has up to ${maxPhotos} inspiration photos.`);
+      if (!isImage(type)) throw new Refused("An inspiration photo is an image.");
+
+      const photo = { name: name.trim() || "Photo", id: `${id}-${randomUUID()}` };
+      await photoStore.set(photo.id, body, { metadata: { type } });
+      const changed = { ...inquiry, photos: [...inquiry.photos, photo] };
+      await records.setJSON(id, changed);
+      return changed;
+    },
+
     async photo(id) {
       const found = await photoStore.getWithMetadata(id, { type: "arrayBuffer" });
       if (!found) return undefined;
@@ -156,8 +197,10 @@ export function inquiriesIn(records: Store, photoStore: Store, fetchFile: FetchF
       const inquiry = (await records.get(id, { type: "json" })) as Inquiry | null;
       if (!inquiry) return undefined;
       refuseChangesItCantTake(changes, inquiry);
-      const changed = { ...inquiry, ...changes };
+      const { status, notes, source, ...details } = changes;
+      const changed = { ...inquiry, ...(status && { status }), ...(source && { source }), ...(notes !== undefined && { notes }) };
       if (!changed.notes?.trim()) delete changed.notes;
+      withDetails(changed, details);
       await records.setJSON(id, changed);
       return changed;
     },
@@ -169,31 +212,65 @@ export function inquiriesIn(records: Store, photoStore: Store, fetchFile: FetchF
  * so each one is checked here.
  */
 function refuseChangesItCantTake(changes: unknown, inquiry: Inquiry): asserts changes is InquiryChanges {
-  if (typeof changes !== "object" || changes === null || Array.isArray(changes)) throw new ChangeRefused("Send the changes to make.");
+  if (typeof changes !== "object" || changes === null || Array.isArray(changes)) throw new Refused("Send the changes to make.");
   for (const [field, value] of Object.entries(changes)) {
     if (field === "status") {
-      if (!inquiryStatuses.includes(value)) throw new ChangeRefused(`An Inquiry status is one of ${inquiryStatuses.join(", ")}.`);
+      if (!inquiryStatuses.includes(value)) throw new Refused(`An Inquiry status is one of ${inquiryStatuses.join(", ")}.`);
     } else if (field === "notes") {
-      if (typeof value !== "string") throw new ChangeRefused("Notes are text.");
-    } else if (inquiry.source === "Contact form" && (customerAnswers as readonly string[]).includes(field)) {
-      throw new ChangeRefused("A contact-form Inquiry keeps the customer's answers exactly as they sent them.");
+      if (typeof value !== "string") throw new Refused("Notes are text.");
+    } else if (inquiry.source === "Contact form" && (isCustomerAnswer(field) || field === "source")) {
+      throw new Refused("A contact-form Inquiry keeps the customer's answers exactly as they sent them.");
+    } else if (field === "source") {
+      if (!handAddedSources.includes(value)) throw new Refused(`An Inquiry added by hand came from ${handAddedSources.join(" or ")}.`);
+    } else if (isCustomerAnswer(field)) {
+      refuseDetailItCantTake(field, value);
     } else {
-      throw new ChangeRefused(`An Inquiry's ${field} can't be changed.`);
+      throw new Refused(`An Inquiry's ${field} can't be changed.`);
     }
   }
 }
 
-/** Orders Inquiries for the list, given today's date. Ties go to the one received most recently. */
-function inListOrder(today: string) {
-  const group = ({ eventDate }: Inquiry) => eventTimings.indexOf(eventTiming(eventDate, today));
-  return (a: Inquiry, b: Inquiry) => {
-    const byGroup = group(a) - group(b);
-    if (byGroup) return byGroup;
-    const [first, second] = eventTiming(a.eventDate, today) === "Upcoming" ? [a, b] : [b, a];
-    const byDate = (first.eventDate ?? "").localeCompare(second.eventDate ?? "");
-    return byDate || b.receivedAt.localeCompare(a.receivedAt);
-  };
+/** Refuses an Inquiry the owner can't add. It comes from the dashboard as it was sent, so it's checked here. */
+function refuseNewInquiryItCantTake(details: unknown): asserts details is NewInquiry {
+  if (typeof details !== "object" || details === null || Array.isArray(details)) throw new Refused("Send the Inquiry to add.");
+  const { source, ...given } = details as Record<string, unknown>;
+  if (!handAddedSources.includes(source as HandAddedSource)) throw new Refused(`Say whether it came from ${handAddedSources.join(" or ")}.`);
+  for (const required of ["name", "contact"] as const) if (!(required in given)) refuseDetailItCantTake(required, "");
+  for (const [field, value] of Object.entries(given)) {
+    if (!isCustomerAnswer(field)) throw new Refused(`An Inquiry added by hand can't be given its ${field}.`);
+    refuseDetailItCantTake(field, value);
+  }
 }
+
+/**
+ * Refuses a customer detail the owner gives that an Inquiry can't keep. A name and a way to reach them
+ * are always needed; anything else can be left empty.
+ */
+function refuseDetailItCantTake(field: CustomerAnswer, value: unknown): asserts value is string {
+  if (typeof value !== "string") throw new Refused(`An Inquiry's ${field} is text.`);
+  const given = value.trim();
+  if (field === "name" && !given) throw new Refused("Give the customer's name.");
+  if (field === "contact" && !given) throw new Refused("Give a way to reach the customer, such as a phone number, email or handle.");
+  if (field === "eventDate" && given && !isDay(given)) throw new Refused("An event date is a day on the calendar, written as YYYY-MM-DD.");
+  // As the contact form takes it, so every Inquiry's guests read the same way.
+  if (field === "guests" && given && !/^[1-9]\d*$/.test(given)) throw new Refused("The number of guests is a whole number, like 40.");
+}
+
+/** Whether a date, as YYYY-MM-DD, is a day on the calendar, so it sorts and shows as one. */
+const isDay = (date: string) => {
+  const day = new Date(`${date}T00:00:00Z`);
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) && !Number.isNaN(day.getTime()) && day.toISOString().startsWith(date);
+};
+
+/** Gives an Inquiry the customer details the owner gave, already checked. One left empty is taken off. */
+function withDetails(inquiry: Inquiry, details: Partial<Pick<Inquiry, CustomerAnswer>>) {
+  for (const [field, value] of Object.entries(details) as [CustomerAnswer, string][]) {
+    if (value.trim()) inquiry[field] = value.trim();
+    else delete inquiry[field];
+  }
+}
+
+const isCustomerAnswer = (field: string): field is CustomerAnswer => (customerAnswers as readonly string[]).includes(field);
 
 /** A file in a submission: Netlify's link to it, its name and the media type the browser gave it. */
 interface Upload {

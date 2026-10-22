@@ -1,5 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
+import { addInquiry } from "../../netlify/functions/add-inquiry";
+import { addInquiryPhoto } from "../../netlify/functions/add-inquiry-photo";
 import { changeInquiry } from "../../netlify/functions/inquiry";
 import { listInquiries } from "../../netlify/functions/inquiries";
 import { inquiryPhoto } from "../../netlify/functions/inquiry-photo";
@@ -25,18 +27,24 @@ test.afterEach(async () => {
   await local.stop();
 });
 
-/** Answers the dashboard's function requests with the functions' own code. */
+/** Answers the dashboard's function requests with the functions' own code, each by its path and method. */
 async function serveFunctions(context: BrowserContext) {
-  const functions = {
-    "**/api/inquiries": listInquiries(() => local.inquiries(), gitHubStub),
-    "**/api/inquiries/*": changeInquiry(() => local.inquiries(), gitHubStub),
-    "**/api/inquiry-photos/*": inquiryPhoto(() => local.inquiries(), gitHubStub),
+  const inquiries = () => local.inquiries();
+  const functions: Record<string, Record<string, (request: Request) => Promise<Response>>> = {
+    "**/api/inquiries": { GET: listInquiries(inquiries, gitHubStub), POST: addInquiry(inquiries, gitHubStub) },
+    "**/api/inquiries/*": { PATCH: changeInquiry(inquiries, gitHubStub) },
+    "**/api/inquiries/*/photos": { POST: addInquiryPhoto(inquiries, gitHubStub) },
+    "**/api/inquiry-photos/*": { GET: inquiryPhoto(inquiries, gitHubStub) },
   };
-  for (const [url, handler] of Object.entries(functions)) {
+  for (const [url, byMethod] of Object.entries(functions)) {
     await context.route(url, async (route) => {
       const request = route.request();
+      const handler = byMethod[request.method()];
+      if (!handler) return route.fulfill({ status: 404 });
+      // As bytes, so a photo sent in a form arrives whole.
+      const body = request.postDataBuffer();
       const response = await handler(
-        new Request(request.url(), { method: request.method(), headers: request.headers(), body: request.postData() }),
+        new Request(request.url(), { method: request.method(), headers: request.headers(), body: body && new Uint8Array(body) }),
       );
       await route.fulfill({
         status: response.status,
@@ -466,4 +474,169 @@ test("a change that can't be saved says so, and the Inquiry shows what is saved"
 
   await expect(page.getByRole("alert")).toContainText("Couldn't reach the dashboard");
   await expect(statusChoice(page, "New")).toBeChecked();
+});
+
+// Inquiries the owner adds by hand, from Instagram or Facebook messages.
+
+const addButton = (page: Page) => page.getByRole("link", { name: "Add Inquiry" });
+const field = (page: Page, label: string) => page.locator(".inquiry-form").getByLabel(new RegExp(`^${label}`));
+
+test("an Inquiry from Instagram can be added with only a name and a way to reach them, and starts as New", async ({
+  page,
+  context,
+}) => {
+  await inquiriesArrive();
+  await signIn(page, context, "push-token");
+
+  await addButton(page).click();
+  await expect(page.getByRole("heading", { name: "Add an Inquiry", level: 1 })).toBeVisible();
+  await expect(page.getByRole("radio", { name: "Instagram" })).toBeChecked();
+  await field(page, "Name").fill("Joy Reyes");
+  await field(page, "Phone, email or handle").fill("@joyreyes");
+  await page.getByRole("button", { name: "Add Inquiry" }).click();
+
+  await expect(page.getByRole("heading", { name: "Joy Reyes", level: 1 })).toBeVisible();
+  await expect(page.getByText(/^Added .+ · Instagram$/)).toBeVisible();
+  await expect(statusChoice(page, "New")).toBeChecked();
+  await expect(page.locator(".inquiry-answers")).toContainText("Phone, email or handle@joyreyes");
+  await expect(page.locator(".inquiry-answers")).toContainText("Event dateNot given");
+  await expect(page.getByText("No photos added.")).toBeVisible();
+
+  // Kept, and listed with the Inquiries that have no date yet, after every dated one, newest first.
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Joy Reyes", level: 1 })).toBeVisible();
+  await page.getByRole("link", { name: "All Inquiries" }).click();
+  await expect(rows(page)).toHaveCount(5);
+  await expect(rows(page).nth(3)).toContainText("Joy Reyes");
+  await expect(rows(page).nth(3)).toContainText("Instagram");
+  await expect(rows(page).nth(4)).toContainText("Undated Customer");
+  await expect(rows(page).nth(4)).toContainText("Contact form");
+  await expect(page.getByRole("region", { name: "No date yet" }).locator(".inquiry-row")).toHaveCount(2);
+  await expect(page.getByText("5 New Inquiries", { exact: true })).toBeVisible();
+});
+
+test("an Inquiry can't be added without a name and a way to reach them", async ({ page, context }) => {
+  await signIn(page, context, "push-token");
+  await addButton(page).click();
+
+  await page.getByRole("button", { name: "Add Inquiry" }).click();
+
+  await expect(page.getByText("Enter the customer's name.")).toBeVisible();
+  await expect(page.getByText("Enter a way to reach them")).toBeVisible();
+  await expect(field(page, "Name")).toBeFocused();
+  await field(page, "Name").fill("Joy Reyes");
+  await expect(page.getByText("Enter the customer's name.")).toBeHidden();
+
+  await page.getByRole("link", { name: "Cancel" }).click();
+  await expect(page.getByText("No Inquiries yet")).toBeVisible();
+  expect(await local.inquiries().list()).toEqual([]);
+});
+
+/** A screenshot from a chat, as the owner picks it on their phone. */
+const screenshot = (name: string) => ({ name, mimeType: "image/png", buffer: photoBytes });
+
+test("an Inquiry from Facebook can be added with all its details and photos", async ({ page, context }) => {
+  await signIn(page, context, "push-token");
+  await addButton(page).click();
+
+  await page.getByText("Facebook", { exact: true }).click();
+  await field(page, "Name").fill("Joy Reyes");
+  await field(page, "Phone, email or handle").fill("facebook.com/joy.reyes");
+  await field(page, "Event date").fill(daysFromToday(30));
+  await field(page, "Venue or city").fill("Brampton");
+  await field(page, "Event type").selectOption("Birthday");
+  await field(page, "Number of guests").fill("60");
+  await field(page, "Theme or colours").fill("Pink and white");
+  await field(page, "Décor wanted").fill("A balloon garland");
+  await field(page, "Inspiration photos").setInputFiles([screenshot("chat.png"), screenshot("cake.png")]);
+  await page.getByRole("button", { name: "Add Inquiry" }).click();
+
+  await expect(page.getByRole("heading", { name: "Joy Reyes", level: 1 })).toBeVisible();
+  await expect(says(page, "Inquiry added")).toBeVisible();
+  await expect(page.getByText(/^Added .+ · Facebook$/)).toBeVisible();
+  const answers = page.locator(".inquiry-answers");
+  await expect(answers).toContainText("Venue or cityBrampton");
+  await expect(answers).toContainText("Event typeBirthday");
+  await expect(answers).toContainText("Number of guests60");
+  await expect(answers).toContainText("Theme or coloursPink and white");
+  await expect(answers).toContainText("Décor wantedA balloon garland");
+  for (const number of [1, 2]) {
+    const photo = page.getByRole("img", { name: `Inspiration photo ${number} from Joy Reyes` });
+    await expect(photo).toBeVisible();
+    expect(await photo.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(1);
+  }
+  await expect(page.getByText("chat.png")).toBeVisible();
+
+  await page.getByRole("link", { name: "All Inquiries" }).click();
+  await expect(page.getByRole("region", { name: "Upcoming" }).locator(".inquiry-row")).toContainText("Facebook");
+});
+
+test("an Inquiry takes as many photos as the contact form", async ({ page, context }) => {
+  await signIn(page, context, "push-token");
+  await addButton(page).click();
+
+  await field(page, "Name").fill("Joy Reyes");
+  await field(page, "Phone, email or handle").fill("@joyreyes");
+  await field(page, "Inspiration photos").setInputFiles(["1.png", "2.png", "3.png", "4.png"].map(screenshot));
+  await page.getByRole("button", { name: "Add Inquiry" }).click();
+
+  await expect(page.getByText("Choose up to 3 images.")).toBeVisible();
+  expect(await local.inquiries().list()).toEqual([]);
+});
+
+test("an added Inquiry's details can be filled in and changed later, and more photos added", async ({ page, context }) => {
+  await inquiriesArrive();
+  await local.inquiries().add({ source: "Instagram", name: "Joy", contact: "@joyreyes", venue: "Brampton" });
+  await signIn(page, context, "push-token");
+  await rows(page).filter({ hasText: "Joy" }).click();
+  await notes(page).fill("Wants pink.");
+
+  await page.getByRole("link", { name: "Edit details" }).click();
+  await expect(page.getByRole("heading", { name: "Edit details", level: 1 })).toBeVisible();
+  await expect(field(page, "Name")).toHaveValue("Joy");
+  await expect(field(page, "Venue or city")).toHaveValue("Brampton");
+  await page.getByText("Facebook", { exact: true }).click();
+  await field(page, "Name").fill("Joy Reyes");
+  await field(page, "Event date").fill(daysFromToday(5));
+  await field(page, "Venue or city").fill("");
+  await field(page, "Inspiration photos").setInputFiles([screenshot("chat.png")]);
+  await page.getByRole("button", { name: "Save details" }).click();
+
+  await expect(page.getByRole("heading", { name: "Joy Reyes", level: 1 })).toBeVisible();
+  await expect(says(page, "Details saved")).toBeVisible();
+  await expect(page.getByText(/^Added .+ · Facebook$/)).toBeVisible();
+  await expect(page.locator(".inquiry-answers")).toContainText("Venue or cityNot given");
+  await expect(page.getByRole("img", { name: "Inspiration photo 1 from Joy Reyes" })).toBeVisible();
+  await expect(notes(page)).toHaveValue("Wants pink.");
+
+  // Back from the Inquiry returns to the list, not to the form, with the Inquiry moved to its new date.
+  await page.goBack();
+  await expect(rows(page).first()).toContainText("Joy Reyes");
+  await page.reload();
+  await expect(rows(page).first()).toContainText("Joy Reyes");
+  await rows(page).first().click();
+  await expect(notes(page)).toHaveValue("Wants pink.");
+  await expect(page.locator(".inquiry-answers")).toContainText("Venue or cityNot given");
+});
+
+test("a contact-form Inquiry's answers can't be edited", async ({ page, context }) => {
+  await inquiriesArrive();
+  await signIn(page, context, "push-token");
+
+  await rows(page).filter({ hasText: "Maria Santos" }).click();
+
+  await expect(page.getByRole("heading", { name: "What they sent" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Edit details" })).toBeHidden();
+});
+
+test("the form for adding an Inquiry doesn't scroll sideways, and meets WCAG AA", async ({ page, context }) => {
+  const axe = () => new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+  const overflow = () => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  await signIn(page, context, "push-token");
+  await addButton(page).click();
+  await page.getByRole("button", { name: "Add Inquiry" }).click();
+  await expect(page.getByText("Enter the customer's name.")).toBeVisible();
+
+  expect(await overflow()).toBeLessThanOrEqual(0);
+  expect((await axe()).violations).toEqual([]);
 });

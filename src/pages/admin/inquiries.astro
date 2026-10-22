@@ -3,14 +3,20 @@ import "@fontsource-variable/cormorant-garamond";
 import "@fontsource-variable/jost";
 import "../../styles/tokens.css";
 import "../../styles/global.css";
+import { getEventTypes } from "../../event-types-list";
+import { maxPhotos } from "../../inquiry-form";
+import { handAddedSources } from "../../inquiry-sources";
 import { inquiryStatuses } from "../../inquiry-statuses";
 import { siteName } from "../../site-settings";
+
+const eventTypes = await getEventTypes();
 
 // The Inquiry dashboard (ADR 0004): a static page whose script signs the owner in with GitHub through
 // Netlify's OAuth provider, the same login as the editor, and asks the Inquiry functions for Inquiries.
 // The functions decide who may see them; this page only keeps the sign-in and shows what they send.
-// The list and an opened Inquiry are both this page: an opened one is `?inquiry=<id>`, so the phone's
-// back button and a reload both work.
+// The list, an opened Inquiry and the form for adding one or editing its details are all this page:
+// an opened one is `?inquiry=<id>`, adding one is `?add` and editing one is `?edit=<id>`, so the
+// phone's back button and a reload both work.
 ---
 
 <!doctype html>
@@ -38,7 +44,7 @@ import { siteName } from "../../site-settings";
         <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M10 3 5 8l5 5" /></svg>
         All Inquiries
       </a>
-      <h1 data-heading>Inquiries</h1>
+      <h1 id="dashboard-heading" data-heading>Inquiries</h1>
       <p role="alert" class="dashboard-problem" data-problem></p>
 
       <section data-view="signed-out" class="dashboard-sign-in">
@@ -49,9 +55,13 @@ import { siteName } from "../../site-settings";
       <p data-view="loading" class="dashboard-quiet" hidden>Loading Inquiries…</p>
 
       <section data-view="list" hidden>
+        <a class="pill pill-solid inquiry-add" href="?add" data-add>Add Inquiry</a>
         <div data-empty class="dashboard-empty" hidden>
           <p class="dashboard-empty-title">No Inquiries yet</p>
-          <p class="dashboard-quiet">Each Inquiry sent through the contact form will appear here.</p>
+          <p class="dashboard-quiet">
+            Each Inquiry sent through the contact form will appear here. Add ones from Instagram or Facebook
+            with Add Inquiry.
+          </p>
         </div>
         <div data-overview class="inquiry-overview">
           <p class="inquiry-new-count" data-new-count></p>
@@ -73,9 +83,10 @@ import { siteName } from "../../site-settings";
 
       <article data-view="detail" class="inquiry" hidden>
         <p class="inquiry-received" data-received></p>
-        <fieldset class="inquiry-status-choice" data-status-choice>
+        <p role="status" class="inquiry-saved" data-details-saved></p>
+        <fieldset class="inquiry-choice" data-status-choice>
           <legend>Inquiry status</legend>
-          <div class="inquiry-status-options">
+          <div class="inquiry-choice-options">
             {
               inquiryStatuses.map((status) => (
                 <label class="pill">
@@ -95,16 +106,125 @@ import { siteName } from "../../site-settings";
             <p role="status" class="inquiry-saved" data-notes-saved></p>
           </div>
         </div>
-        <h2>What they sent</h2>
+        <h2 data-answers-heading>What they sent</h2>
         <dl class="inquiry-answers" data-answers></dl>
+        <a class="pill inquiry-edit" data-edit hidden>Edit details</a>
         <h2>Inspiration photos</h2>
         <div class="inquiry-photos" data-photos></div>
       </article>
+
+      <!--
+        Adding an Inquiry from an Instagram or Facebook message, or editing the details of one added that
+        way. Only a name and a way to reach the customer are needed. Each field's message shows in the
+        "-error" line under it, as on the contact form; data-missing is the message when it's left empty,
+        and data-invalid when it's filled in wrongly.
+      -->
+      <form data-view="form" class="inquiry-form" aria-labelledby="dashboard-heading" novalidate hidden>
+        <fieldset class="inquiry-choice">
+          <legend>Where it came from</legend>
+          <div class="inquiry-choice-options">
+            {
+              handAddedSources.map((source, index) => (
+                <label class="pill">
+                  <input type="radio" name="source" value={source} checked={index === 0} />
+                  {source}
+                </label>
+              ))
+            }
+          </div>
+        </fieldset>
+
+        <div class="field">
+          <label for="inquiry-form-name">Name</label>
+          <input
+            id="inquiry-form-name"
+            name="name"
+            autocomplete="off"
+            data-missing="Enter the customer's name."
+            aria-describedby="inquiry-form-name-error"
+          />
+          <p class="error" id="inquiry-form-name-error"></p>
+        </div>
+
+        <div class="field">
+          <label for="inquiry-form-contact">Phone, email or handle</label>
+          <input
+            id="inquiry-form-contact"
+            name="contact"
+            autocomplete="off"
+            data-missing="Enter a way to reach them, such as their Instagram or Facebook name."
+            aria-describedby="inquiry-form-contact-error"
+          />
+          <p class="error" id="inquiry-form-contact-error"></p>
+        </div>
+
+        <div class="field">
+          <label for="inquiry-form-event-date">Event date <span class="optional">(optional)</span></label>
+          <input id="inquiry-form-event-date" name="eventDate" type="date" />
+        </div>
+
+        <div class="field">
+          <label for="inquiry-form-venue">Venue or city <span class="optional">(optional)</span></label>
+          <input id="inquiry-form-venue" name="venue" />
+        </div>
+
+        <div class="field">
+          <label for="inquiry-form-event-type">Event type <span class="optional">(optional)</span></label>
+          <select id="inquiry-form-event-type" name="eventType" data-event-types>
+            <option value="">Not known yet</option>
+            {eventTypes.all.map((eventType) => <option>{eventType}</option>)}
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="inquiry-form-guests">Number of guests <span class="optional">(optional)</span></label>
+          <input
+            id="inquiry-form-guests"
+            name="guests"
+            type="number"
+            min="1"
+            inputmode="numeric"
+            data-invalid="Enter the number of guests as a whole number, like 40."
+            aria-describedby="inquiry-form-guests-error"
+          />
+          <p class="error" id="inquiry-form-guests-error"></p>
+        </div>
+
+        <div class="field">
+          <label for="inquiry-form-theme">Theme or colours <span class="optional">(optional)</span></label>
+          <input id="inquiry-form-theme" name="theme" />
+        </div>
+
+        <div class="field">
+          <label for="inquiry-form-decor">Décor wanted <span class="optional">(optional)</span></label>
+          <textarea id="inquiry-form-decor" name="decor" rows="4"></textarea>
+        </div>
+
+        <div class="field" data-photo-field>
+          <label for="inquiry-form-photos">Inspiration photos <span class="optional">(optional)</span></label>
+          <p class="hint" id="inquiry-form-photos-hint" data-photo-hint></p>
+          <input
+            id="inquiry-form-photos"
+            type="file"
+            accept="image/*"
+            multiple
+            data-max={maxPhotos}
+            aria-describedby="inquiry-form-photos-hint inquiry-form-photos-error"
+          />
+          <p class="error" id="inquiry-form-photos-error"></p>
+        </div>
+
+        <div class="inquiry-form-actions">
+          <button class="pill pill-solid" type="submit" data-form-submit>Add Inquiry</button>
+          <a class="link-line" data-form-cancel>Cancel</a>
+        </div>
+      </form>
     </main>
 
     <script>
-      import type { Inquiry, InquiryChanges, InquiryPhoto } from "../../../netlify/inquiries";
-      import { eventTiming, torontoToday, type EventTiming } from "../../inquiry-dates";
+      import type { Inquiry, InquiryChanges, InquiryPhoto, NewInquiry } from "../../../netlify/inquiries";
+      import { eventTiming, inListOrder, torontoToday, type EventTiming } from "../../inquiry-dates";
+      import { customerAnswers } from "../../inquiry-form";
       import { inquiryStatuses } from "../../inquiry-statuses";
 
       /** Netlify's OAuth provider, which the editor signs in through too. */
@@ -134,6 +254,17 @@ import { siteName } from "../../site-settings";
       const notes = document.querySelector<HTMLTextAreaElement>("[data-notes]")!;
       const saveNotesButton = document.querySelector<HTMLButtonElement>("[data-save-notes]")!;
       const notesSaved = document.querySelector<HTMLElement>("[data-notes-saved]")!;
+      const addLink = document.querySelector<HTMLAnchorElement>("[data-add]")!;
+      const detailsSaved = document.querySelector<HTMLElement>("[data-details-saved]")!;
+      const answersHeading = document.querySelector<HTMLElement>("[data-answers-heading]")!;
+      const editLink = document.querySelector<HTMLAnchorElement>("[data-edit]")!;
+      const form = document.querySelector<HTMLFormElement>(".inquiry-form")!;
+      const eventTypeChoice = form.querySelector<HTMLSelectElement>("[data-event-types]")!;
+      const photoField = form.querySelector<HTMLElement>("[data-photo-field]")!;
+      const photoHint = form.querySelector<HTMLElement>("[data-photo-hint]")!;
+      const photoInput = form.querySelector<HTMLInputElement>("input[type=file]")!;
+      const submitButton = form.querySelector<HTMLButtonElement>("[data-form-submit]")!;
+      const cancelLink = form.querySelector<HTMLAnchorElement>("[data-form-cancel]")!;
 
       // The sign-in is kept in this browser so the owner stays signed in on their phone. Storage can be
       // blocked, as in a private window, and then the owner signs in each visit.
@@ -161,7 +292,7 @@ import { siteName } from "../../site-settings";
       let token: string | undefined;
       let inquiries: Inquiry[] | undefined;
 
-      function show(view: "signed-out" | "loading" | "list" | "detail" | "nothing") {
+      function show(view: "signed-out" | "loading" | "list" | "detail" | "form" | "nothing") {
         for (const element of views) element.hidden = element.dataset.view !== view;
         signOutButton.hidden = view === "signed-out";
       }
@@ -291,7 +422,7 @@ import { siteName } from "../../site-settings";
         return status;
       }
 
-      /** One row of the list: the event's date, who it's for and what it is, and its Inquiry status. */
+      /** One row of the list: the event's date, who it's for, what it is and where it came from, and its Inquiry status. */
       function rowFor(inquiry: Inquiry, today: string) {
         const link = element("a", "inquiry-row");
         link.href = `?inquiry=${encodeURIComponent(inquiry.id)}`;
@@ -309,6 +440,7 @@ import { siteName } from "../../site-settings";
           const weekday = day(inquiry.eventDate, { weekday: "short" });
           what.push(year === today.slice(0, 4) ? weekday : `${weekday}, ${year}`);
         }
+        what.push(inquiry.source);
 
         const who = element("span", "inquiry-who");
         who.append(element("span", "inquiry-name", inquiry.name));
@@ -383,20 +515,30 @@ import { siteName } from "../../site-settings";
         return link;
       }
 
-      /** Everything the customer sent, under the contact form's own labels. */
+      /**
+       * Everything the customer sent, under the contact form's own labels. One the owner added by hand can
+       * have its details edited.
+       */
       function showDetail(inquiry: Inquiry) {
+        const byHand = inquiry.source !== "Contact form";
         heading.textContent = inquiry.name;
         document.title = `${inquiry.name} · ${pageTitle}`;
 
-        received.textContent = `Received ${receivedTime(inquiry.receivedAt)} · ${inquiry.source}`;
+        received.textContent = `${byHand ? "Added" : "Received"} ${receivedTime(inquiry.receivedAt)} · ${inquiry.source}`;
         showStatus(inquiry);
         notes.value = inquiry.notes ?? "";
         notesFor = inquiry.id;
         statusSaved.textContent = "";
         notesSaved.textContent = "";
+        detailsSaved.textContent = afterSaving?.saved ?? "";
+        if (afterSaving?.problem) showProblem(afterSaving.problem);
+        afterSaving = undefined;
+        answersHeading.textContent = byHand ? "Their details" : "What they sent";
+        editLink.hidden = !byHand;
+        editLink.href = `?edit=${encodeURIComponent(inquiry.id)}`;
 
         const rows: [string, string | Node | undefined][] = [
-          ["Phone number or email", contactFor(inquiry.contact)],
+          [byHand ? "Phone, email or handle" : "Phone number or email", contactFor(inquiry.contact)],
           ["Event date", inquiry.eventDate && day(inquiry.eventDate, { dateStyle: "full" })],
           ["Venue or city", inquiry.venue],
           ["Event type", inquiry.eventType],
@@ -416,7 +558,7 @@ import { siteName } from "../../site-settings";
         photos.replaceChildren(
           ...(inquiry.photos.length
             ? inquiry.photos.map((photo, index) => photoFor(photo, `Inspiration photo ${index + 1} from ${inquiry.name}`))
-            : [element("p", "dashboard-quiet", "No photos sent.")]),
+            : [element("p", "dashboard-quiet", byHand ? "No photos added." : "No photos sent.")]),
         );
         show("detail");
       }
@@ -454,14 +596,18 @@ import { siteName } from "../../site-settings";
       }
 
       /** Sends a change to an Inquiry, and gives it back as it now is, or undefined if it wasn't saved. */
-      async function send(id: string, changes: InquiryChanges): Promise<Inquiry | undefined> {
+      const send = (id: string, changes: InquiryChanges) =>
+        sendTo(`/api/inquiries/${encodeURIComponent(id)}`, "PATCH", JSON.stringify(changes));
+
+      /**
+       * Sends something to save to a function, as JSON or a form, and gives back the Inquiry it saved, or
+       * undefined if it wasn't saved, saying why.
+       */
+      async function sendTo(path: string, method: "POST" | "PATCH", body: string | FormData): Promise<Inquiry | undefined> {
         let response: Response | undefined;
         try {
-          response = await ask(`/api/inquiries/${encodeURIComponent(id)}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(changes),
-          });
+          const headers: HeadersInit = typeof body === "string" ? { "Content-Type": "application/json" } : {};
+          response = await ask(path, { method, headers, body });
         } catch {
           return undefined;
         }
@@ -565,19 +711,31 @@ import { siteName } from "../../site-settings";
       /** The id of the Inquiry the address opens, if it opens one. */
       const openedId = () => new URLSearchParams(location.search).get("inquiry");
 
-      /** Shows what the address asks for: the list, or one Inquiry. */
+      /** What the address asks the form for: adding an Inquiry, or editing the details of the one with this id. */
+      function formAsked(): { adding: true } | { editing: string } | undefined {
+        const asked = new URLSearchParams(location.search);
+        if (asked.has("add")) return { adding: true };
+        const editing = asked.get("edit");
+        return editing ? { editing } : undefined;
+      }
+
+      /** Shows what the address asks for: the list, one Inquiry, or the form. */
       function showPage() {
         saveNotes();
         notesFor = undefined;
         const opened = openedId();
-        back.hidden = !opened || !token;
+        const asked = formAsked();
+        back.hidden = (!opened && !asked) || !token;
         heading.textContent = "Inquiries";
         document.title = pageTitle;
         if (!token) return show("signed-out");
         if (!inquiries) return;
 
-        if (!opened) return showList(inquiries);
-        const inquiry = inquiryById(opened);
+        if (asked && "adding" in asked) return showForm();
+        const inquiry = inquiryById(opened ?? (asked && asked.editing));
+        if (!opened && !asked) return showList(inquiries);
+        // A contact-form Inquiry keeps the customer's answers, so it has no form to edit them.
+        if (inquiry && asked) return inquiry.source === "Contact form" ? showDetail(inquiry) : showForm(inquiry);
         if (inquiry) return showDetail(inquiry);
         show("nothing");
         showProblem("This Inquiry isn't here any more.");
@@ -586,17 +744,195 @@ import { siteName } from "../../site-settings";
       /** A click that opens a link here, rather than in a new tab or window. */
       const opensHere = (event: MouseEvent) => !event.metaKey && !event.ctrlKey && !event.shiftKey && event.button === 0;
 
-      // Opening an Inquiry and coming back stay on this page, and the list keeps its place.
-      groups.addEventListener("click", (event) => {
-        const link = (event.target as Element).closest<HTMLAnchorElement>("a[data-inquiry]");
-        if (!link || !opensHere(event)) return;
-        event.preventDefault();
-        history.replaceState({ scroll: scrollY }, "");
-        history.pushState({ fromList: true }, "", link.href);
+      /**
+       * Shows a link's page on this page, as if it were opened. Where it was opened from is kept in `state`,
+       * so going back can return there, and the page left keeps its place.
+       */
+      function openHere(href: string, state: { fromList?: true; fromInquiry?: true }) {
+        history.replaceState({ ...history.state, scroll: scrollY }, "");
+        history.pushState(state, "", href);
         showProblem();
         showPage();
         scrollTo(0, 0);
         heading.focus({ preventScroll: true });
+      }
+
+      // Opening an Inquiry, adding one or editing one and coming back stay on this page, and the list keeps its place.
+      groups.addEventListener("click", (event) => {
+        const link = (event.target as Element).closest<HTMLAnchorElement>("a[data-inquiry]");
+        if (!link || !opensHere(event)) return;
+        event.preventDefault();
+        openHere(link.href, { fromList: true });
+      });
+
+      addLink.addEventListener("click", (event) => {
+        if (!opensHere(event)) return;
+        event.preventDefault();
+        openHere(addLink.href, { fromList: true });
+      });
+
+      editLink.addEventListener("click", (event) => {
+        if (!opensHere(event)) return;
+        event.preventDefault();
+        openHere(editLink.href, { fromInquiry: true });
+      });
+
+      // The form: adding an Inquiry from an Instagram or Facebook message, or editing one's details.
+
+
+      /** What happens after the form saves, shown on the Inquiry it saved: that it's saved, and any photo that wasn't. */
+      let afterSaving: { saved: string; problem?: string } | undefined;
+
+      /** The Inquiry whose details the form is editing, or undefined when it's adding one. */
+      let editing: Inquiry | undefined;
+
+      /** How many more photos the Inquiry in the form can take. */
+      const photoRoom = () => Number(photoInput.dataset.max) - (editing?.photos.length ?? 0);
+
+      /** The form, empty for adding an Inquiry, or holding the details of the one it edits. */
+      function showForm(inquiry?: Inquiry) {
+        editing = inquiry;
+        heading.textContent = inquiry ? "Edit details" : "Add an Inquiry";
+        document.title = `${inquiry ? `${inquiry.name}: edit details` : "Add an Inquiry"} · ${pageTitle}`;
+        form.reset();
+        for (const field of form.querySelectorAll<HTMLInputElement>("[aria-invalid]")) showFieldError(field, "");
+        showFieldError(photoInput, "");
+        // An Event type the owner has since renamed or removed is still offered, so editing keeps it.
+        eventTypeChoice.querySelector("[data-kept]")?.remove();
+        if (inquiry) {
+          const fields = form.elements;
+          (fields.namedItem("source") as RadioNodeList).value = inquiry.source;
+          if (inquiry.eventType && ![...eventTypeChoice.options].some((option) => option.value === inquiry.eventType)) {
+            const kept = element("option", undefined, inquiry.eventType);
+            kept.dataset.kept = "";
+            eventTypeChoice.append(kept);
+          }
+          for (const name of customerAnswers) (fields.namedItem(name) as HTMLInputElement).value = inquiry[name] ?? "";
+        }
+
+        const room = photoRoom();
+        photoField.hidden = room <= 0;
+        photoHint.textContent = `${inquiry?.photos.length ? `Up to ${room} more` : `Up to ${room}`} ${room === 1 ? "image" : "images"}, such as screenshots of the chat.`;
+        submitButton.textContent = inquiry ? "Save details" : "Add Inquiry";
+        cancelLink.href = inquiry ? `?inquiry=${encodeURIComponent(inquiry.id)}` : "/admin/inquiries/";
+        show("form");
+      }
+
+      /** Shows the message in the line under the field, or clears it when the message is empty. */
+      function showFieldError(field: HTMLInputElement, message: string) {
+        document.getElementById(`${field.id}-error`)!.textContent = message;
+        if (message) field.setAttribute("aria-invalid", "true");
+        else field.removeAttribute("aria-invalid");
+      }
+
+      /** The message a field's value needs, or empty if it's fine. */
+      function problemWith(field: HTMLInputElement): string {
+        if (field.type === "file") {
+          const room = photoRoom();
+          return field.files!.length > room ? `Choose up to ${room} ${room === 1 ? "image" : "images"}.` : "";
+        }
+        if (field.dataset.missing && !field.value.trim()) return field.dataset.missing;
+        if (field.dataset.invalid && !field.validity.valid) return field.dataset.invalid;
+        return "";
+      }
+
+      const checkedFields = [...form.querySelectorAll<HTMLInputElement>("[data-missing], [data-invalid]"), photoInput];
+
+      /** Shows each field's message, and moves to the first that needs fixing. True when none does. */
+      function formIsReady(): boolean {
+        let first: HTMLInputElement | undefined;
+        for (const field of checkedFields) {
+          const message = problemWith(field);
+          showFieldError(field, message);
+          if (message) first ??= field;
+        }
+        first?.focus();
+        return !first;
+      }
+
+      // A field with a message is checked again as the owner fixes it.
+      for (const field of checkedFields) {
+        field.addEventListener(field.type === "file" ? "change" : "input", () => {
+          if (field.hasAttribute("aria-invalid")) showFieldError(field, problemWith(field));
+        });
+      }
+
+      /** The form's details and where the Inquiry came from, as the Inquiries module takes them. */
+      function detailsInForm(): NewInquiry {
+        const data = new FormData(form);
+        return Object.fromEntries(["source", ...customerAnswers].map((name) => [name, String(data.get(name) ?? "")])) as NewInquiry;
+      }
+
+      /** Attaches each photo to the Inquiry, one at a time. Gives back the names of any that weren't saved. */
+      async function attachPhotos(id: string, files: File[]): Promise<string[]> {
+        const notSaved: string[] = [];
+        for (const file of files) {
+          const body = new FormData();
+          body.set("photo", file);
+          const saved = await sendTo(`/api/inquiries/${encodeURIComponent(id)}/photos`, "POST", body);
+          if (saved) savedAs(saved);
+          else notSaved.push(file.name);
+        }
+        return notSaved;
+      }
+
+      /** Keeps an Inquiry as it was just saved, in its place in the list. */
+      function savedAs(saved: Inquiry) {
+        lastSaved.set(saved.id, saved);
+        inquiries = [...(inquiries ?? []).filter((inquiry) => inquiry.id !== saved.id), saved].sort(inListOrder(torontoToday()));
+      }
+
+      const photosNotSaved = (names: string[]) =>
+        names.length ? `Couldn't save ${names.join(", ")}. Choose Edit details to add ${names.length === 1 ? "it" : "them"} again.` : undefined;
+
+      /**
+       * Leaves the form for the page it returns to. Going back returns there when the form was opened from it,
+       * so the back button doesn't lead to the form again.
+       */
+      function leaveForm(to: string, openedFrom: boolean) {
+        if (openedFrom) return history.back();
+        history.replaceState({}, "", to);
+        showProblem();
+        showPage();
+      }
+
+      let formSaving = false;
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (formSaving || !formIsReady()) return;
+        const inquiry = editing;
+        const details = detailsInForm();
+        const photos = [...photoInput.files!];
+        formSaving = true;
+        submitButton.disabled = true;
+        submitButton.textContent = inquiry ? "Saving…" : "Adding…";
+        showProblem();
+        try {
+          // A status or notes change still being saved goes first, so this one is kept after it.
+          await saving;
+          const saved = inquiry ? await send(inquiry.id, details) : await sendTo("/api/inquiries", "POST", JSON.stringify(details));
+          if (!saved) return;
+          savedAs(saved);
+          afterSaving = { saved: inquiry ? "Details saved" : "Inquiry added", problem: photosNotSaved(await attachPhotos(saved.id, photos)) };
+          const opened = `?inquiry=${encodeURIComponent(saved.id)}`;
+          if (inquiry) return leaveForm(opened, history.state?.fromInquiry);
+          // A new Inquiry opens in place of the form, so going back from it returns to the list.
+          history.replaceState({ fromList: history.state?.fromList }, "", opened);
+          showPage();
+          scrollTo(0, 0);
+          heading.focus({ preventScroll: true });
+        } finally {
+          formSaving = false;
+          submitButton.disabled = false;
+          submitButton.textContent = inquiry ? "Save details" : "Add Inquiry";
+        }
+      });
+
+      cancelLink.addEventListener("click", (event) => {
+        if (!opensHere(event)) return;
+        event.preventDefault();
+        leaveForm(cancelLink.href, editing ? history.state?.fromInquiry : history.state?.fromList);
       });
 
       // Coming from the list, going back returns to it where it was left. Opened straight from a link, it opens the list.
@@ -938,33 +1274,34 @@ import { siteName } from "../../site-settings";
     font-size: var(--text-sm);
   }
 
-  /* The Inquiry status, one pill for each, as in the gallery's filter: the one it's set to is solid. */
-  .inquiry-status-choice {
+  /* A choice of one, such as the Inquiry status or where an Inquiry came from: one pill for each, as in the
+     gallery's filter, and the one chosen is solid. */
+  .inquiry-choice {
     min-width: 0;
     margin: 0;
     padding: 0;
     border: 0;
   }
 
-  .inquiry-status-choice legend {
+  .inquiry-choice legend {
     margin-block-end: var(--space-xs);
     padding: 0;
     color: var(--color-text-muted);
     font-size: var(--text-sm);
   }
 
-  .inquiry-status-options {
+  .inquiry-choice-options {
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-xs);
   }
 
-  .inquiry-status-options .pill {
+  .inquiry-choice-options .pill {
     position: relative;
   }
 
   /* Each radio is unseen but covers its whole pill, so a tap anywhere on the pill chooses it. */
-  .inquiry-status-options input {
+  .inquiry-choice-options input {
     position: absolute;
     inset: 0;
     margin: 0;
@@ -972,12 +1309,12 @@ import { siteName } from "../../site-settings";
     cursor: pointer;
   }
 
-  .inquiry-status-options .pill:has(:checked) {
+  .inquiry-choice-options .pill:has(:checked) {
     background: var(--color-action);
     color: var(--color-on-action);
   }
 
-  .inquiry-status-options .pill:has(:focus-visible) {
+  .inquiry-choice-options .pill:has(:focus-visible) {
     outline: 2px solid var(--color-action);
     outline-offset: 3px;
   }
@@ -1122,5 +1459,136 @@ import { siteName } from "../../site-settings";
     from {
       opacity: 0;
     }
+  }
+
+  /* Add Inquiry, above the list, and Edit details, under an added Inquiry's details. */
+  .inquiry-add {
+    margin-block-end: var(--space-lg);
+  }
+
+  /* That the details were saved shows as the Inquiry opens, never while it's open, so it takes no room until then. */
+  [data-details-saved]:empty {
+    min-height: 0;
+    margin: 0;
+  }
+
+  .inquiry-edit {
+    margin-block-start: var(--space-md);
+  }
+
+  /* A pill sets its own display, which would otherwise show Edit details on a contact-form Inquiry. */
+  .inquiry-edit[hidden] {
+    display: none;
+  }
+
+  /* The form for adding an Inquiry or editing its details, its fields set like the contact form's. */
+  .inquiry-form {
+    display: grid;
+    gap: var(--space-md);
+    max-width: 34rem;
+  }
+
+  .inquiry-form[hidden] {
+    display: none;
+  }
+
+  .inquiry-form .field {
+    display: grid;
+    gap: 0.375rem;
+  }
+
+  .inquiry-form .field[hidden] {
+    display: none;
+  }
+
+  .inquiry-form label:not(.pill) {
+    font-weight: 500;
+  }
+
+  .inquiry-form .optional {
+    color: var(--color-text-muted);
+    font-weight: 400;
+  }
+
+  .inquiry-form .hint,
+  .inquiry-form .error {
+    margin: 0;
+    font-size: var(--text-sm);
+  }
+
+  .inquiry-form .hint {
+    color: var(--color-text-muted);
+  }
+
+  .inquiry-form .error {
+    color: var(--color-error);
+  }
+
+  .inquiry-form .error:empty {
+    display: none;
+  }
+
+  .inquiry-form .field :is(input, select, textarea) {
+    width: 100%;
+    min-height: 2.75rem;
+    padding: var(--space-xs) var(--space-sm);
+    border: 1px solid var(--color-text-muted);
+    border-radius: var(--radius);
+    background: #fff;
+    color: var(--color-text);
+    font: inherit;
+    caret-color: var(--color-action);
+  }
+
+  .inquiry-form .field :is(input, select, textarea):is(:hover, :focus) {
+    border-color: var(--color-action);
+  }
+
+  .inquiry-form [aria-invalid="true"] {
+    border-color: var(--color-error);
+  }
+
+  .inquiry-form textarea {
+    resize: vertical;
+  }
+
+  /* The photo picker's own button, as a small outline pill. */
+  .inquiry-form input[type="file"] {
+    padding-block: 0.3125rem;
+    cursor: pointer;
+  }
+
+  .inquiry-form input[type="file"]::file-selector-button {
+    margin-right: var(--space-sm);
+    padding: 0.25rem var(--space-sm);
+    border: 1px solid var(--color-action);
+    border-radius: 100vmax;
+    background: transparent;
+    color: var(--color-action);
+    font: inherit;
+    font-size: var(--text-sm);
+    cursor: pointer;
+  }
+
+  .inquiry-form input[type="file"]:hover::file-selector-button {
+    background: var(--color-sage-band);
+  }
+
+  .inquiry-form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-md);
+    margin-block-start: var(--space-xs);
+  }
+
+  .inquiry-form-actions .pill-solid {
+    padding-inline: var(--space-lg);
+  }
+
+  .inquiry-form-actions .link-line {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
   }
 </style>
