@@ -85,6 +85,11 @@ export interface Inquiries {
   photo(id: string): Promise<PhotoFile | undefined>;
   /** Changes an Inquiry, and gives it back as it now is, or undefined if it isn't there. */
   change(id: string, changes: InquiryChanges): Promise<Inquiry | undefined>;
+  /**
+   * Deletes an Inquiry and its inspiration photos, such as spam that slipped through or a duplicate.
+   * True once deleted, or false if it isn't there.
+   */
+  delete(id: string): Promise<boolean>;
 }
 
 /**
@@ -203,6 +208,15 @@ export function inquiriesIn(records: Store, photoStore: Store, fetchFile: FetchF
       withDetails(changed, details);
       await records.setJSON(id, changed);
       return changed;
+    },
+
+    async delete(id) {
+      const inquiry = (await records.get(id, { type: "json" })) as Inquiry | null;
+      if (!inquiry) return false;
+      // The photos go first, so none is left behind with no Inquiry pointing to it.
+      await Promise.all(inquiry.photos.map((photo) => "id" in photo && photoStore.delete(photo.id)));
+      await records.delete(id);
+      return true;
     },
   };
 }

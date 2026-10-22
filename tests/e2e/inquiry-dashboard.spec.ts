@@ -2,6 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { addInquiry } from "../../netlify/functions/add-inquiry";
 import { addInquiryPhoto } from "../../netlify/functions/add-inquiry-photo";
+import { deleteInquiry } from "../../netlify/functions/delete-inquiry";
 import { changeInquiry } from "../../netlify/functions/inquiry";
 import { listInquiries } from "../../netlify/functions/inquiries";
 import { inquiryPhoto } from "../../netlify/functions/inquiry-photo";
@@ -32,7 +33,7 @@ async function serveFunctions(context: BrowserContext) {
   const inquiries = () => local.inquiries();
   const functions: Record<string, Record<string, (request: Request) => Promise<Response>>> = {
     "**/api/inquiries": { GET: listInquiries(inquiries, gitHubStub), POST: addInquiry(inquiries, gitHubStub) },
-    "**/api/inquiries/*": { PATCH: changeInquiry(inquiries, gitHubStub) },
+    "**/api/inquiries/*": { PATCH: changeInquiry(inquiries, gitHubStub), DELETE: deleteInquiry(inquiries, gitHubStub) },
     "**/api/inquiries/*/photos": { POST: addInquiryPhoto(inquiries, gitHubStub) },
     "**/api/inquiry-photos/*": { GET: inquiryPhoto(inquiries, gitHubStub) },
   };
@@ -639,4 +640,84 @@ test("the form for adding an Inquiry doesn't scroll sideways, and meets WCAG AA"
 
   expect(await overflow()).toBeLessThanOrEqual(0);
   expect((await axe()).violations).toEqual([]);
+});
+
+// Deleting an Inquiry, such as spam that slipped through or a duplicate.
+
+const deleteButton = (page: Page) => page.getByRole("button", { name: "Delete Inquiry" });
+const confirmStep = (page: Page) => page.getByRole("region", { name: "Delete the Inquiry from Maria Santos?" });
+
+test("deleting an Inquiry asks first, naming it and pointing to Declined, and cancelling keeps it", async ({ page, context }) => {
+  const axe = () => new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+  const overflow = () => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  await inquiriesArrive();
+  await signIn(page, context, "push-token");
+  await rows(page).filter({ hasText: "Maria Santos" }).click();
+
+  await deleteButton(page).click();
+
+  await expect(confirmStep(page)).toBeVisible();
+  await expect(confirmStep(page)).toContainText("photos");
+  await expect(confirmStep(page)).toContainText("didn't book");
+  await expect(confirmStep(page).getByRole("button", { name: "Set to Declined instead" })).toBeVisible();
+  expect(await overflow()).toBeLessThanOrEqual(0);
+  expect((await axe()).violations).toEqual([]);
+
+  await confirmStep(page).getByRole("button", { name: "Keep it" }).click();
+  await expect(confirmStep(page)).toBeHidden();
+  await expect(deleteButton(page)).toBeFocused();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Maria Santos", level: 1 })).toBeVisible();
+  expect(await local.inquiries().list()).toHaveLength(4);
+});
+
+test("a confirmed delete removes the Inquiry and its photos, and returns to the list", async ({ page, context }) => {
+  await inquiriesArrive();
+  await signIn(page, context, "push-token");
+  await rows(page).filter({ hasText: "Maria Santos" }).click();
+  await expect(page.getByRole("img", { name: "Inspiration photo 1 from Maria Santos" })).toBeVisible();
+
+  await deleteButton(page).click();
+  await confirmStep(page).getByRole("button", { name: "Delete for good" }).click();
+
+  await expect(page.getByRole("heading", { name: "Inquiries", level: 1 })).toBeVisible();
+  await expect(says(page, "Deleted the Inquiry from Maria Santos")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Inquiries", level: 1 })).toBeFocused();
+  await expect(rows(page)).toHaveCount(3);
+  await expect(rows(page).filter({ hasText: "Maria Santos" })).toHaveCount(0);
+  await expect(page.getByText("3 New Inquiries", { exact: true })).toBeVisible();
+  expect((await local.inquiries().list()).map(({ name }) => name)).not.toContain("Maria Santos");
+  expect((await local.store("inquiry-photos").list()).blobs).toEqual([]);
+
+  await page.reload();
+  await expect(rows(page)).toHaveCount(3);
+});
+
+test("a customer who didn't book can be set to Declined from the confirm step instead, and is kept", async ({ page, context }) => {
+  await inquiriesArrive();
+  await signIn(page, context, "push-token");
+  await rows(page).filter({ hasText: "Maria Santos" }).click();
+
+  await deleteButton(page).click();
+  await confirmStep(page).getByRole("button", { name: "Set to Declined instead" }).click();
+
+  await expect(says(page, "Set to Declined")).toBeVisible();
+  await expect(statusChoice(page, "Declined")).toBeChecked();
+  await expect(confirmStep(page)).toBeHidden();
+  const maria = (await local.inquiries().list()).find(({ name }) => name === "Maria Santos");
+  expect(maria?.status).toBe("Declined");
+});
+
+test("a delete that can't be sent says so, and keeps the Inquiry", async ({ page, context }) => {
+  await inquiriesArrive();
+  await signIn(page, context, "push-token");
+  await rows(page).filter({ hasText: "Maria Santos" }).click();
+  await context.route("**/api/inquiries/*", (route) => route.abort());
+
+  await deleteButton(page).click();
+  await confirmStep(page).getByRole("button", { name: "Delete for good" }).click();
+
+  await expect(page.getByRole("alert")).toContainText("Couldn't reach the dashboard");
+  await expect(page.getByRole("heading", { name: "Maria Santos", level: 1 })).toBeVisible();
+  expect(await local.inquiries().list()).toHaveLength(4);
 });

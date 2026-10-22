@@ -414,3 +414,27 @@ test("a contact-form Inquiry keeps the photos the customer sent, and a photo for
   expect(await inquiries.list()).toEqual([maria]);
   expect((await local.store("inquiry-photos").list()).blobs).toEqual([]);
 });
+
+test("deleting an Inquiry removes it and its photos, and leaves the others as they were", async () => {
+  const inquiries = local.inquiries(netlifyFiles());
+  await inquiries.receive(submission({ "inspiration-photo-1": upload("arch.jpg"), "inspiration-photo-2": upload("cake.png") }));
+  const added = await inquiries.add({ source: "Instagram", name: "Joy Reyes", contact: "@joyreyes" });
+  const withPhoto = await inquiries.addPhoto(added.id, screenshot("chat.png"));
+
+  expect(await inquiries.delete("5f1a2b3c4d5e6f7a8b9c0d1e")).toBe(true);
+
+  expect(await inquiries.list()).toEqual([withPhoto]);
+  const [chat] = withPhoto!.photos;
+  expect((await local.store("inquiry-photos").list()).blobs.map(({ key }) => key)).toEqual(["id" in chat ? chat.id : ""]);
+});
+
+test("deleting an Inquiry whose photo couldn't be saved removes it, and one that isn't there deletes nothing", async () => {
+  await local.store("inquiries").setJSON(maria.id, { ...maria, photos: [{ name: "cake.png", missing: true }] });
+  await local.store("inquiries").setJSON(joy.id, joy);
+  const inquiries = local.inquiries();
+
+  expect(await inquiries.delete("no-such-inquiry")).toBe(false);
+  expect(await inquiries.delete(maria.id)).toBe(true);
+
+  expect(await inquiries.list()).toEqual([joy]);
+});

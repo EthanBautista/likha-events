@@ -4,9 +4,9 @@
 
 **Blocked by:** 03
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Delete with a confirm step that names the Inquiry and points to Declined for customers who didn't book
-- [ ] Deleting removes the record and its photo blobs
-- [ ] The delete function refuses without access
-- [ ] Tests: cancel keeps it, confirm removes it and its photos
+- [x] Delete with a confirm step that names the Inquiry and points to Declined for customers who didn't book
+- [x] Deleting removes the record and its photo blobs
+- [x] The delete function refuses without access
+- [x] Tests: cancel keeps it, confirm removes it and its photos

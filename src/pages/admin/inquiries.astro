@@ -56,6 +56,7 @@ const eventTypes = await getEventTypes();
 
       <section data-view="list" hidden>
         <a class="pill pill-solid inquiry-add" href="?add" data-add>Add Inquiry</a>
+        <p role="status" class="inquiry-saved" data-list-saved></p>
         <div data-empty class="dashboard-empty" hidden>
           <p class="dashboard-empty-title">No Inquiries yet</p>
           <p class="dashboard-quiet">
@@ -111,6 +112,29 @@ const eventTypes = await getEventTypes();
         <a class="pill inquiry-edit" data-edit hidden>Edit details</a>
         <h2>Inspiration photos</h2>
         <div class="inquiry-photos" data-photos></div>
+        <!--
+          Deleting is for spam that slipped through or a duplicate, so it asks first, naming the Inquiry, and
+          points a customer who just didn't book to Declined, which keeps a record of them.
+        -->
+        <div class="inquiry-delete">
+          <button type="button" class="pill" data-delete>Delete Inquiry</button>
+          <section
+            class="inquiry-delete-confirm"
+            aria-labelledby="inquiry-delete-heading"
+            tabindex="-1"
+            data-delete-confirm
+            hidden
+          >
+            <h2 id="inquiry-delete-heading" data-delete-heading></h2>
+            <p>It's gone for good, with its photos. Delete only spam or a duplicate.</p>
+            <p>If they just didn't book, set it to Declined instead, so you keep a record of them.</p>
+            <div class="inquiry-delete-actions">
+              <button type="button" class="pill pill-solid" data-delete-confirmed>Delete for good</button>
+              <button type="button" class="pill" data-decline-instead>Set to Declined instead</button>
+              <button type="button" class="link-line" data-delete-cancel>Keep it</button>
+            </div>
+          </section>
+        </div>
       </article>
 
       <!--
@@ -258,6 +282,13 @@ const eventTypes = await getEventTypes();
       const detailsSaved = document.querySelector<HTMLElement>("[data-details-saved]")!;
       const answersHeading = document.querySelector<HTMLElement>("[data-answers-heading]")!;
       const editLink = document.querySelector<HTMLAnchorElement>("[data-edit]")!;
+      const deleteButton = document.querySelector<HTMLButtonElement>("[data-delete]")!;
+      const deleteConfirm = document.querySelector<HTMLElement>("[data-delete-confirm]")!;
+      const deleteHeading = document.querySelector<HTMLElement>("[data-delete-heading]")!;
+      const deleteConfirmed = document.querySelector<HTMLButtonElement>("[data-delete-confirmed]")!;
+      const declineInstead = document.querySelector<HTMLButtonElement>("[data-decline-instead]")!;
+      const deleteCancel = document.querySelector<HTMLButtonElement>("[data-delete-cancel]")!;
+      const listSaved = document.querySelector<HTMLElement>("[data-list-saved]")!;
       const form = document.querySelector<HTMLFormElement>(".inquiry-form")!;
       const eventTypeChoice = form.querySelector<HTMLSelectElement>("[data-event-types]")!;
       const photoField = form.querySelector<HTMLElement>("[data-photo-field]")!;
@@ -474,6 +505,8 @@ const eventTypes = await getEventTypes();
             ? "1 New Inquiry"
             : `${newInquiries} New Inquiries`;
         newCount.classList.toggle("has-new", newInquiries > 0);
+        listSaved.textContent = afterDeleting ?? "";
+        afterDeleting = undefined;
         for (const button of filterButtons) button.setAttribute("aria-pressed", String(button.dataset.status === status));
         noneShown.hidden = shown.length > 0;
         noneShown.textContent = `No ${status} Inquiries`;
@@ -536,6 +569,8 @@ const eventTypes = await getEventTypes();
         answersHeading.textContent = byHand ? "Their details" : "What they sent";
         editLink.hidden = !byHand;
         editLink.href = `?edit=${encodeURIComponent(inquiry.id)}`;
+        showDeleteConfirm(false);
+        deleteHeading.textContent = `Delete the Inquiry from ${inquiry.name}?`;
 
         const rows: [string, string | Node | undefined][] = [
           [byHand ? "Phone, email or handle" : "Phone number or email", contactFor(inquiry.contact)],
@@ -589,7 +624,8 @@ const eventTypes = await getEventTypes();
         saving = saving.then(async () => {
           const saved = await send(id, changes);
           if (saved) lastSaved.set(id, saved);
-          replaceInquiry(lastSaved.get(id)!);
+          // One deleted meanwhile is gone from the page, and stays gone.
+          if (lastSaved.has(id)) replaceInquiry(lastSaved.get(id)!);
           return saved !== undefined;
         });
         return saving;
@@ -661,6 +697,84 @@ const eventTypes = await getEventTypes();
         notesSaved.textContent = "";
         const done = await saveNotes();
         if (done && openedId() === id) notesSaved.textContent = "Notes saved";
+      });
+
+      /** That an Inquiry was deleted, shown on the list it returns to. */
+      let afterDeleting: string | undefined;
+
+      /** Opens the step that asks before deleting the opened Inquiry, in place of its Delete button, or closes it. */
+      function showDeleteConfirm(open: boolean) {
+        deleteConfirm.hidden = !open;
+        deleteButton.hidden = open;
+      }
+
+      deleteButton.addEventListener("click", () => {
+        showDeleteConfirm(true);
+        deleteConfirm.focus();
+      });
+
+      deleteCancel.addEventListener("click", () => {
+        showDeleteConfirm(false);
+        deleteButton.focus();
+      });
+
+      // A customer who just didn't book is kept as Declined, saved as if the owner had chosen it above.
+      declineInstead.addEventListener("click", () => {
+        showDeleteConfirm(false);
+        const declined = statusInputs.find((input) => input.value === "Declined")!;
+        declined.checked = true;
+        declined.dispatchEvent(new Event("change", { bubbles: true }));
+        declined.focus();
+      });
+
+      let deleting = false;
+
+      deleteConfirmed.addEventListener("click", async () => {
+        const inquiry = inquiryById(openedId());
+        if (!inquiry || deleting) return;
+        // Nothing else about it can be changed while it's being deleted.
+        const whileDeleting = (busy: boolean) => {
+          deleting = busy;
+          for (const control of [deleteConfirmed, declineInstead, deleteCancel, statusChoice]) control.disabled = busy;
+          notes.readOnly = busy;
+        };
+        whileDeleting(true);
+        deleteConfirmed.textContent = "Deleting…";
+        showProblem();
+        try {
+          // A status or notes change still being saved goes first, so it isn't sent for an Inquiry that's gone.
+          await saving;
+          let response: Response | undefined;
+          try {
+            response = await ask(`/api/inquiries/${encodeURIComponent(inquiry.id)}`, { method: "DELETE" });
+          } catch {
+            return;
+          }
+          if (!response) return showProblem("Couldn't reach the dashboard. Check your connection, then try again.");
+          // One that isn't there any more is already gone, as asked.
+          if (!response.ok && response.status !== 404) return showProblem("Couldn't delete it. Try again.");
+
+          inquiries = inquiries?.filter(({ id }) => id !== inquiry.id);
+          lastSaved.delete(inquiry.id);
+          notesFor = undefined;
+          for (const photo of inquiry.photos) {
+            if (!("id" in photo)) continue;
+            photoUrls.get(photo.id)?.then((loaded) => loaded && URL.revokeObjectURL(loaded));
+            photoUrls.delete(photo.id);
+          }
+          afterDeleting = `Deleted the Inquiry from ${inquiry.name}`;
+          // Back to the list it was opened from, so going back doesn't lead to the Inquiry that's gone.
+          if (history.state?.fromList) {
+            addEventListener("popstate", () => heading.focus({ preventScroll: true }), { once: true });
+            return history.back();
+          }
+          history.replaceState({}, "", back.href);
+          showPage();
+          heading.focus({ preventScroll: true });
+        } finally {
+          whileDeleting(false);
+          deleteConfirmed.textContent = "Delete for good";
+        }
       });
 
       // Photos are served only with the sign-in, which an image element can't send, so the page fetches each one
@@ -1479,6 +1593,62 @@ const eventTypes = await getEventTypes();
   /* A pill sets its own display, which would otherwise show Edit details on a contact-form Inquiry. */
   .inquiry-edit[hidden] {
     display: none;
+  }
+
+  /* Delete Inquiry, last on an opened Inquiry and set apart by a hairline, so it's never tapped by mistake. */
+  .inquiry-delete {
+    margin-block-start: var(--space-xl);
+    padding-block-start: var(--space-lg);
+    border-top: 1px solid var(--color-line);
+  }
+
+  .inquiry-delete .pill[hidden] {
+    display: none;
+  }
+
+  /* The step that asks first, on the sage band behind the paper, as the dashboard's empty list is. */
+  .inquiry-delete-confirm {
+    padding: var(--space-md);
+    border-radius: var(--radius);
+    background: var(--color-sage-band);
+  }
+
+  .inquiry-delete-confirm:focus {
+    outline: none;
+  }
+
+  .inquiry .inquiry-delete-confirm h2 {
+    margin-block: 0 var(--space-xs);
+  }
+
+  .inquiry-delete-confirm p {
+    margin-block: 0 var(--space-sm);
+  }
+
+  .inquiry-delete-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-sm) var(--space-md);
+    margin-block-start: var(--space-md);
+  }
+
+  .inquiry-delete-actions button.link-line {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--color-action);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  /* That an Inquiry was deleted shows as the list returns, so it takes no room until then. */
+  [data-list-saved]:empty {
+    min-height: 0;
+    margin: 0;
   }
 
   /* The form for adding an Inquiry or editing its details, its fields set like the contact form's. */
