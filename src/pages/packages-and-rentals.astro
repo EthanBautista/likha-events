@@ -167,13 +167,12 @@ const rentals = await getRentalsInOrder();
     gap: var(--space-lg);
   }
 
-  /* The page ends on this band, so it runs down to the sage footer, a hairline between them, rather than
-     leaving a strip of paper in the footer's gap. */
+  /* The page ends on this tan band, so it runs down to the sage footer rather than leaving a strip of cream
+     in the footer's gap. Only charcoal text sits on tan. */
   .booking {
     margin-bottom: calc(-1 * var(--space-2xl));
     padding-block: var(--space-xl);
-    border-bottom: 1px solid var(--color-line);
-    background: var(--color-sage-band);
+    background: var(--color-tan);
   }
 
   .booking h2 {
@@ -219,7 +218,6 @@ const rentals = await getRentalsInOrder();
 
   .travel {
     margin: 0 0 var(--space-md);
-    color: var(--color-text-muted);
   }
 
 </style>

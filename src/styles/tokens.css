@@ -1,29 +1,31 @@
 /*
- * Likha brand design tokens. Colours come from the brand guide; every text pairing below
- * meets WCAG AA (4.5:1) against the background it is used on.
+ * Likha brand design tokens. The four brand colours (charcoal, sage, tan, cream) come from the brand guide;
+ * every text pairing below meets WCAG AA (4.5:1) against the background it is used on.
  */
 :root {
   /* Colour */
-  --color-bg: #f8f6f1; /* off-white page background */
-  --color-text: #303838; /* charcoal body text, 11.1:1 on bg */
-  --color-text-muted: #56605c; /* secondary text, 6.0:1 on bg */
-  --color-action: #183828; /* forest green: buttons and links, 11.9:1 on bg, 10.3:1 on sage band */
-  --color-action-hover: #0f2619;
-  --color-on-action: #f8f6f1; /* text on forest green */
-  --color-sage: #788880; /* decorative sage: rules, motifs. 3.5:1 on bg, so never for text */
-  /* The spec names #788880 for bands, but charcoal text on it is only 3.3:1, so bands use this tint of it. */
-  --color-sage-band: #e2e7e2; /* soft sage band background, charcoal text 9.6:1, muted text 5.2:1 */
-  --color-line: #d6d9d3;
-  --color-error: #9c2b1e; /* form error messages, 7.0:1 on bg */
-  /* The Photo viewer's deep sage wall, where photos hang in paper mats. Text on it is paper. */
-  --color-wall: #2c3a33; /* paper text 11.0:1 */
-  --color-on-wall-muted: #c9d2cc; /* secondary text on the wall, 7.7:1 */
-  --color-on-wall-line: rgb(248 246 241 / 0.4); /* paper at 40%: outline pill borders on the wall, never text */
-  --color-on-wall-hover: rgb(248 246 241 / 0.1); /* paper at 10%: outline pill hover fill on the wall */
+  --color-bg: #f1f0e4; /* brand cream: the page background */
+  --color-text: #353b38; /* brand charcoal: body text, 10.0:1 on bg */
+  --color-text-muted: #4f5652; /* secondary text, 6.6:1 on bg, 5.5:1 on sage band. Never on tan (2.8:1) */
+  --color-action: #353b38; /* brand charcoal: buttons and links, 10.0:1 on bg, 8.4:1 on sage band, 5.0:1 on tan */
+  --color-action-hover: #252927; /* 12.9:1 on bg, 6.4:1 on tan */
+  --color-on-action: #f1f0e4; /* cream text on charcoal, 10.0:1 */
+  --color-sage: #7d8d86; /* brand sage, decorative only: rules, motifs. 3.0:1 on bg, so never for text */
+  /* Charcoal text on the brand sage is only 3.3:1, so sage bands use this tint of it. */
+  --color-sage-band: #dcded3; /* soft sage band background, charcoal text 8.4:1, muted text 5.5:1 */
+  --color-tan: #bca88d; /* brand tan: bands and the logo's balloons. Only charcoal text on it (5.0:1), never tan text */
+  --color-line: #d5d5ca;
+  --color-error: #9c2b1e; /* form error messages, 6.6:1 on bg */
+  /* The Photo viewer's charcoal wall, where photos hang in cream mats. Text on it is cream. */
+  --color-wall: #353b38; /* cream text 10.0:1 */
+  --color-on-wall-muted: #c9d2cc; /* secondary text on the wall, 7.4:1 */
+  --color-on-wall-line: rgb(241 240 228 / 0.4); /* cream at 40%: outline pill borders on the wall, never text */
+  --color-on-wall-hover: rgb(241 240 228 / 0.1); /* cream at 10%: outline pill hover fill on the wall */
 
   /* Type */
   --font-heading: "Cormorant Garamond Variable", "Cormorant Garamond", Georgia, serif;
   --font-body: "Jost Variable", "Jost", system-ui, sans-serif;
+  --font-tagline: "Cinzel Variable", "Cinzel", Georgia, serif; /* the brand guide's small caps, for the tagline only */
   --text-sm: 0.9375rem;
   --text-base: 1.0625rem;
   --text-lg: 1.25rem;

@@ -156,7 +156,7 @@ A four-page website for Likha Events (Home, Gallery, Packages & Rentals, Contact
 - **Naming**: the business is "Likha Events" in all text and page titles. Titles follow the pattern "Gallery · Likha Events". The logo artwork shows "Likha" and is used as an image.
 - **Brand**:
   - The logo and arch motif are extracted as vector artwork from the brand guide PDF.
-  - Colours are defined once as design tokens: off-white background, charcoal text (~#303838), forest green for buttons and links (~#183828), and sage for soft bands (~#788880).
+  - Colours are defined once as design tokens, from the brand guide's four: cream background (#F1F0E4), charcoal text, buttons and links (#353B38), tan (#BCA88D) and sage (#7D8D86) for bands and motifs.
   - Headings use a free, self-hosted, high-contrast serif that echoes the wordmark. Body text uses a clean sans-serif.
   - Colour contrast meets WCAG AA.
 - **Navigation**: the menu is Home · Gallery · Packages & Rentals · Contact. Below tablet width it collapses into an accessible menu button.

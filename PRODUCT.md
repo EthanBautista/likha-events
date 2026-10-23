@@ -55,7 +55,7 @@ The owner counts it a success if it brings more bookings, makes the business loo
 
 - The name is "Likha Events" in all text and page titles, with titles like "Gallery · Likha Events". The logo artwork shows the short form "Likha" and is used as an image.
 - Tagline: "We create. You celebrate."
-- The brand guide is `2025--11-13 - Likha-Brand Guidelines_V2.pdf`. It's kept on the developer's machine only, because it contains the owner's phone number, and is ignored by git. The logo and arch artwork taken from it are in `src/assets/brand/`. The arch shape is a binding brand motif.
+- The brand guide is `2025--11-13 - Likha-Brand Guidelines_V2 (1).pdf`: its first page sets the four brand colours (charcoal, sage, tan, cream) and the type (Frunchy Sage, Cinzel). The earlier `2025--11-13 - Likha-Brand Guidelines_V2.pdf` has only logo and motif sketches. Both are kept on the developer's machine only, because they contain the owner's phone number, and are ignored by git. The logo and arch artwork taken from them are in `src/assets/brand/`. The arch shape is a binding brand motif.
 - Voice: warm and plain. Friendly, short sentences, as if the owner were talking to a customer. Not formal or boutique-polished.
 
 ## Evidence on Hand
