@@ -10,4 +10,4 @@ The site owner isn't technical and needs to add Setups and edit Packages from a 
 
 ## Consequences
 
-Edits from the editor page become commits, so every change to the site's text content is versioned and can be undone. Inquiries depend on Netlify Forms; moving off Netlify means replacing the form backend.
+Edits from the editor page become commits, so every change to the site's text content is versioned and can be undone. Each Netlify deploy costs plan credits, and the free plan ran out within a day of building the site, so a save in the editor doesn't deploy: the owner presses Publish Changes, which calls a Netlify build hook, to put every save live at once. Inquiries depend on Netlify Forms; moving off Netlify means replacing the form backend.

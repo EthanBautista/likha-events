@@ -97,6 +97,10 @@ export function editorConfig(nextOrders: NextDisplayOrders, eventTypes: EventTyp
       branch: "main",
       // Login goes through Netlify's OAuth provider, the default for the GitHub backend.
       base_url: "https://api.netlify.com",
+      // Each Netlify deploy costs plan credits, so a save is committed with "[skip ci]", which Netlify
+      // doesn't build. The owner's Publish Changes button calls a Netlify build hook to deploy every save
+      // at once. The hook's URL is entered in the editor's Settings on each device, never kept here.
+      automatic_deployments: false,
     },
     // Photos upload straight to Cloudinary, and a photo field stores the photo's full URL (ADR 0002).
     // Uploading into the repo is turned off. The upload preset that shrinks each photo is set in

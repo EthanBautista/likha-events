@@ -31,6 +31,7 @@ interface EditorField {
 
 /** The parts of the editor configuration these tests read. */
 interface EditorConfig {
+  backend: { automatic_deployments?: boolean };
   media_folder?: string;
   media_libraries?: {
     default?: unknown;
@@ -139,6 +140,10 @@ test("a new Package, Wedding Package or Rental starts after the last one in disp
   expect(orderField("packages")?.default).toBe(readPackagesInOrder().at(-1)!.order + 1);
   expect(orderField("weddingPackages")?.default).toBe(readWeddingPackagesInOrder().at(-1)!.order + 1);
   expect(orderField("rentals")?.default).toBe(readRentalsInOrder().at(-1)!.order + 1);
+});
+
+test("a save doesn't deploy the site; the owner publishes every save at once", () => {
+  expect(config.backend.automatic_deployments).toBe(false);
 });
 
 test("every photo field uploads straight to Cloudinary and stores the photo's URL, never a file in the repo", () => {

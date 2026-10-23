@@ -30,7 +30,15 @@ Photos are made smaller automatically when they upload, but each one has to be 1
 3. Leave **Sample** turned off. It's only for the example Setups the site started with.
 4. Tap **Save**.
 
-The Setup appears on the website after a couple of minutes.
+Saving keeps the Setup safe, but doesn't put it on the website yet. That way you can add several Setups, or fix one, without using up the site's monthly deploys.
+
+## 5. Publish
+
+When you've finished everything you want to add or change, tap **Publish Changes** in the editor. Everything you've saved appears on the website after a couple of minutes. Each Publish uses one of the site's deploys, about 20 a month on the free plan, so publish once at the end rather than after every Setup.
+
+**Publish Changes** can only be tapped when there are saves not yet on the website.
+
+The first time on each phone or computer, the editor needs the site's publish link: go to **Settings**, then **Developer**, and paste the link Ethan sends you into **Deploy Hook URL**. Keep the link private: anyone with it can start a deploy.
 
 ## Adding, renaming and removing Event types
 
@@ -40,7 +48,7 @@ The Event types are the kinds of event you can pick for a Setup, such as Baby sh
 2. **To add one**: tap **Add Event type** and write its name, such as "Bridal shower".
 3. **To rename one**: change its name in the list.
 4. **To remove one**: tap the menu next to it and remove it.
-5. Tap **Save**. After a couple of minutes, reload the editor, and the new list shows in each Setup's **Event type**.
+5. Tap **Save**, then **Publish Changes**. After a couple of minutes, reload the editor, and the new list shows in each Setup's **Event type**.
 
 Good to know:
 
@@ -55,5 +63,5 @@ Good to know:
 
 - **It won't save**: look for a message in red next to a field. A Setup needs a caption, an Event type and a cover photo. The rest is up to you. An Event type on the list needs a name, and it can't be "Other".
 - **"Choose photos from Cloudinary"**: add the photo with the button in step 3, rather than pasting a link to a photo somewhere else.
-- **To change or remove a Setup**: tap **Setups**, tap the Setup, then change it and tap **Save**, or delete it from the menu.
+- **To change or remove a Setup**: tap **Setups**, tap the Setup, then change it and tap **Save**, or delete it from the menu. Then tap **Publish Changes**.
 - **Still stuck**: send Ethan a screenshot of the screen.
