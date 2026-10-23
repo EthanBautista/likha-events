@@ -16,12 +16,12 @@ This is how to put a new Setup on the website using just your phone. It takes ab
 ## 3. Add the photos
 
 1. Under **Cover photo**, tap the button to add a photo. This opens Cloudinary, where the website's photos are kept.
-2. The first time, Cloudinary asks you to log in. Use the Likha Events Cloudinary login, then type in the code it sends to check it's you.
+2. The first time, Cloudinary asks you to log in. Use the Likha Events Cloudinary login.
 3. Tap **Upload**, then choose the photo from your phone. Pick your best photo for the cover: it's the one people see first in the gallery.
 4. When it has uploaded, select it and tap **Insert**.
 5. Under **More photos**, do the same for up to 8 more photos, such as the cake table and close-ups. You can choose several at once.
 
-Don't worry about photo size. Big photos are made smaller automatically when they upload.
+Photos are made smaller automatically when they upload, but each one has to be 10 MB or less to start with. Most phone photos are. If Cloudinary says a photo is too big, take a screenshot of it on your phone and upload the screenshot instead.
 
 ## 4. Finish and publish
 
