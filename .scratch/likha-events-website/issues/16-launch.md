@@ -15,7 +15,7 @@
 - [x] Netlify OAuth is set up so the owner can log in to `/admin`
 - [x] Form detection is turned on in the Netlify dashboard (it's off by default on new sites), and the `inquiry` form appears after the next deploy
 - [x] Netlify Forms notifications send each Inquiry to likhaproductions25@gmail.com
-- [ ] A real test Inquiry with an inspiration photo arrives in the inbox
+- [x] A real test Inquiry with an inspiration photo arrives in the inbox
 - [x] The owner publishes a test Setup from their phone and sees it live within a few minutes
 - [ ] Sample content is replaced or removed once the real photos and the package picture arrive
 
