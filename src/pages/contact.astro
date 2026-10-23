@@ -245,6 +245,49 @@ const eventTypes = await getEventTypes();
   const isImage = (file: File) =>
     file.type ? file.type.startsWith("image/") : /\.(jpe?g|png|gif|webp|heic|heif|avif)$/i.test(file.name);
 
+  // Netlify drops a form post over 8 MB without a word, though the visitor still sees the thank-you page,
+  // so photos that together come to more than this aren't sent. The rest leaves room for the other answers.
+  const photoBudget = 7_500_000;
+
+  // A phone photo can be several thousand pixels wide and over 10 MB, far more than an Inquiry needs, so
+  // each is drawn again at most this wide and sent as a JPEG, at a quality that still looks like the photo.
+  // One the browser can't open, such as HEIC outside Safari, is sent as it is.
+  const photoWidth = 2000;
+
+  const shrink = async (file: File) => {
+    try {
+      // Phones store a photo on its side and say which way up it goes, so turn it the right way first.
+      const image = await createImageBitmap(file, { imageOrientation: "from-image" });
+      const scale = Math.min(1, photoWidth / image.width);
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(image.width * scale);
+      canvas.height = Math.round(image.height * scale);
+      const context = canvas.getContext("2d")!;
+      // A JPEG has no see-through parts, which would turn black, so they go white.
+      context.fillStyle = "#fff";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      image.close();
+      const jpeg = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.85));
+      // A small photo can come out bigger as a JPEG, so it's sent as it is.
+      if (!jpeg || (scale === 1 && jpeg.size >= file.size)) return file;
+      return new File([jpeg], `${file.name.replace(/\.[^.]*$/, "")}.jpg`, { type: "image/jpeg" });
+    } catch {
+      return file;
+    }
+  };
+
+  // One at a time, as a phone may not have the memory to open several full-size photos at once.
+  const shrinkAll = async (files: File[]) => {
+    const shrunk: File[] = [];
+    for (const file of files) shrunk.push(await shrink(file));
+    return shrunk;
+  };
+
+  // The photos as they will be sent, and the shrinking of them while it runs.
+  let photosToSend: File[] = [];
+  let shrinking: Promise<void> | undefined;
+
   // The picker only offers images, but a visitor can still drop in any file, so check what they chose.
   photos.addEventListener("change", () => {
     const chosen = [...(photos.files ?? [])];
@@ -257,6 +300,20 @@ const eventTypes = await getEventTypes();
     }
     photos.setCustomValidity(message);
     showError(photos, message);
+    photosToSend = [];
+    shrinking = undefined;
+    if (message) return;
+    // Choosing again while the last photos are still shrinking leaves those ones out.
+    const thisChoice = (shrinking = shrinkAll(chosen).then((shrunk) => {
+      if (shrinking !== thisChoice) return;
+      shrinking = undefined;
+      photosToSend = shrunk;
+      if (shrunk.reduce((total, file) => total + file.size, 0) > photoBudget) {
+        const tooLarge = "These photos are too large to send together. Please choose fewer or smaller photos.";
+        photos.setCustomValidity(tooLarge);
+        showError(photos, tooLarge);
+      }
+    }));
   });
 
   // While the Inquiry and its photos are on their way, which can take a while on mobile data, the button
@@ -278,9 +335,24 @@ const eventTypes = await getEventTypes();
   };
 
   form.addEventListener("submit", (event) => {
-    if (sending) event.preventDefault();
-    else showSending(true);
+    if (sending) {
+      event.preventDefault();
+      return;
+    }
+    showSending(true);
+    // The form can't wait for the photos to finish shrinking as it sends, so it waits first and sends again,
+    // rather than send them full size.
+    if (shrinking) {
+      event.preventDefault();
+      sendOnceShrunk();
+    }
   });
+
+  const sendOnceShrunk = async () => {
+    while (shrinking) await shrinking;
+    showSending(false);
+    form.requestSubmit();
+  };
 
   // Coming back to the page from the thank-you page, the form is ready to send again.
   addEventListener("pageshow", (event) => {
@@ -290,7 +362,7 @@ const eventTypes = await getEventTypes();
   // Send each chosen photo in a field of its own, as Netlify Forms takes one file per field.
   form.addEventListener("formdata", (event) => {
     for (const name of photoFields) event.formData.delete(name);
-    [...(photos.files ?? [])].forEach((file, index) => event.formData.append(photoFields[index], file));
+    photosToSend.forEach((file, index) => event.formData.append(photoFields[index], file));
   });
 </script>
 

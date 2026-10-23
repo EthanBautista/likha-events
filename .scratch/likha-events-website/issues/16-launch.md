@@ -23,3 +23,4 @@
 
 - 2026-10-22: Cloudinary's Media Library window, which Sveltia CMS opens for photo fields, is hard to use on a phone. Accepted for launch. If the owner struggles to publish a Setup from their phone, consider moving photos to the repo with Sveltia's own picker and Netlify Image CDN, which would revise ADR 0002.
 - 2026-10-22: Photographers' photos are often over 10 MB, which Cloudinary's free plan refuses before the upload preset can shrink them. Decided to move Setup and Rental photos to the repo later, shrunk to 2500px WebP by Sveltia's own picker before upload, with Netlify Image CDN resizing them per screen. That fixes both this and the phone problem above. Needs its own ticket and a revised ADR 0002.
+- 2026-10-22: An Inquiry with big photos showed "sent" but never arrived: Netlify drops a form post over 8 MB without a word. Fixed by shrinking photos in the browser before sending, and refusing to send photos that are still too large (see ticket 08).

@@ -18,3 +18,4 @@
 
 - Netlify Forms takes only one file per field, so visitors pick their photos in one field and a script sends each in its own field (`inspiration-photo-1` to `-3`). The other two fields sit hidden in the form so Netlify finds them at build time. Without JavaScript, only the first photo is sent.
 - Netlify caps a form post at 8 MB, so three full-size phone photos could go over it. Worth checking when sending the real test Inquiry at launch (ticket 16).
+- 2026-10-22: The 8 MB cap is now handled. At launch a big-photo Inquiry showed the thank-you page but never reached Netlify, the inbox or the dashboard, as Netlify drops an oversized post without a word. The form now redraws each photo in the browser as a JPEG at most 2000px wide before sending (keeping a small one as it is when the JPEG would be bigger), and if the photos still come to more than 7.5 MB (such as HEIC photos the browser can't open), it isn't sent and says the photos are too large.

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import sharp from "sharp";
 import { eventTypesForForms } from "./event-types";
 
 // Each required field, a valid answer, and the message a visitor sees when it is left empty.
@@ -55,6 +56,26 @@ async function standInForNetlify(page: Page) {
 }
 
 const photo = (name: string) => ({ name, mimeType: "image/jpeg", buffer: Buffer.from(`photo ${name}`) });
+
+/**
+ * A real photo as big as a phone camera's: 6000 by 4000 pixels of noise, which shrinks poorly, so the JPEG
+ * is about 11 MB, more than Netlify takes in one post. Made once and shared by the tests that need it.
+ */
+let bigPhotoBytes: Promise<Buffer> | undefined;
+const bigPhoto = async (name: string) => {
+  bigPhotoBytes ??= sharp({
+    create: {
+      width: 6000,
+      height: 4000,
+      channels: 3,
+      background: "black",
+      noise: { type: "gaussian", mean: 128, sigma: 30 },
+    },
+  })
+    .jpeg({ quality: 85 })
+    .toBuffer();
+  return { name, mimeType: "image/jpeg", buffer: await bigPhotoBytes };
+};
 
 test.beforeEach(async ({ page }) => {
   await page.goto("/contact/");
@@ -229,6 +250,67 @@ test("the optional details and each inspiration photo are sent with the Inquiry"
   );
   expect(photos.map((files) => files.map((file) => file.name))).toEqual([["arch.jpg"], ["table.jpg"], ["cake.jpg"]]);
   expect(await photos[0][0].text()).toBe("photo arch.jpg");
+});
+
+test("a big photo is shrunk to at most 2000 pixels wide before it is sent", async ({ page }) => {
+  const sent = await standInForNetlify(page);
+  const original = await bigPhoto("IMG_2041.JPG");
+  await page.getByLabel("Inspiration photos").setInputFiles(original);
+  await fillIn(page, requiredFields);
+
+  await page.getByRole("button", { name: "Send inquiry" }).click();
+
+  await expect(page).toHaveURL("/contact/thanks/");
+  const posted = sent.form?.get("inspiration-photo-1") as File;
+  expect(posted.name).toBe("IMG_2041.jpg");
+  const bytes = Buffer.from(await posted.arrayBuffer());
+  const { width, height, format } = await sharp(bytes).metadata();
+  expect(format).toBe("jpeg");
+  expect(width).toBe(2000);
+  // Its shape is kept: 6000 by 4000 is 3 to 2.
+  expect(Math.abs(height! - 1333)).toBeLessThanOrEqual(1);
+  expect(bytes.length).toBeLessThan(original.buffer.length / 4);
+});
+
+test("pressing Send while a big photo is still shrinking sends the shrunk photo once it's ready", async ({ page }) => {
+  const sent = await standInForNetlify(page);
+  await fillIn(page, requiredFields);
+  const original = await bigPhoto("IMG_2041.JPG");
+  // Hold the shrinking back a moment, as on a slow phone, so Send is surely pressed before it's done.
+  await page.evaluate(() => {
+    const open = window.createImageBitmap;
+    window.createImageBitmap = (async (...args: Parameters<typeof open>) => {
+      await new Promise((resolve) => setTimeout(resolve, 1_000));
+      return open(...args);
+    }) as typeof open;
+  });
+
+  await page.getByLabel("Inspiration photos").setInputFiles(original);
+  await page.getByRole("button", { name: "Send inquiry" }).click();
+
+  await expect(page).toHaveURL("/contact/thanks/");
+  const posted = sent.form?.get("inspiration-photo-1") as File;
+  expect(posted.name).toBe("IMG_2041.jpg");
+  expect((await sharp(Buffer.from(await posted.arrayBuffer())).metadata()).width).toBe(2000);
+});
+
+test("an Inquiry whose photos are still too large for Netlify is not sent, and says why", async ({ page }) => {
+  const posts = watchPosts(page);
+  await fillIn(page, requiredFields);
+  const photos = page.getByLabel("Inspiration photos");
+  // Photos the browser can't open, such as HEIC outside Safari, can't be shrunk, and 3 MB each is 9 MB in all.
+  const unopenable = (name: string) => ({ name, mimeType: "image/heic", buffer: Buffer.alloc(3_000_000) });
+
+  await photos.setInputFiles([unopenable("1.heic"), unopenable("2.heic"), unopenable("3.heic")]);
+  await page.getByRole("button", { name: "Send inquiry" }).click();
+
+  const message = "These photos are too large to send together. Please choose fewer or smaller photos.";
+  await expect(page.getByRole("main")).toContainText(message);
+  await expect(photos).toBeFocused();
+  await expect(photos).toHaveAccessibleDescription(/too large to send/);
+  expect(await photos.evaluate((element: HTMLInputElement) => element.validationMessage)).toBe(message);
+  expect(posts).toEqual([]);
+  await expect(page).toHaveURL("/contact/");
 });
 
 test("the photo picker offers images only", async ({ page }) => {
