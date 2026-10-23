@@ -1,5 +1,6 @@
 ---
 import "../../styles/tokens.css";
+import AdminAppHead from "../../components/AdminAppHead.astro";
 import { siteName } from "../../site-settings";
 
 // The owner's editor page (ADR 0001): Sveltia CMS, bundled from npm so its version is pinned in
@@ -15,6 +16,7 @@ import { siteName } from "../../site-settings";
     <meta name="robots" content="noindex" />
     <title>Editor · {siteName}</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <AdminAppHead />
   </head>
   <body>
     <a class="inquiries-link" href="/admin/inquiries/">Inquiries</a>

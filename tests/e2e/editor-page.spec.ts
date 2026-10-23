@@ -23,6 +23,20 @@ test("the editor page links to the Inquiry dashboard", async ({ page }) => {
   await expect(link).toHaveAttribute("href", "/admin/inquiries/");
 });
 
+test("the editor page can be added to the home screen as an app", async ({ page, request }) => {
+  // The editor adds a manifest of its own after ours, but a browser uses only the first.
+  const href = await page.locator('link[rel="manifest"]').first().getAttribute("href");
+  const manifest = await (await request.get(href!)).json();
+
+  expect(manifest.start_url).toBe("/admin/");
+  expect(manifest.display).toBe("standalone");
+  for (const icon of manifest.icons) {
+    expect((await request.get(icon.src)).ok()).toBe(true);
+  }
+  const appleIcon = await page.locator('link[rel="apple-touch-icon"]').first().getAttribute("href");
+  expect((await request.get(appleIcon!)).ok()).toBe(true);
+});
+
 test("the editor page does not scroll sideways", async ({ page }) => {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
 

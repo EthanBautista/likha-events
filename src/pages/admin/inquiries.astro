@@ -9,6 +9,7 @@ import type { AmountField } from "../../inquiry-money";
 import { handAddedSources } from "../../inquiry-sources";
 import { inquiryStatuses } from "../../inquiry-statuses";
 import { siteName } from "../../site-settings";
+import AdminAppHead from "../../components/AdminAppHead.astro";
 
 const eventTypes = await getEventTypes();
 
@@ -35,6 +36,7 @@ const amountFields: [AmountField, string][] = [
     <meta name="robots" content="noindex" />
     <title>Inquiries · {siteName}</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <AdminAppHead />
   </head>
   <body>
     <header class="dashboard-bar">

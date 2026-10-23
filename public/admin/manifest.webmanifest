@@ -1,0 +1,14 @@
+{
+  "name": "Likha Events Admin",
+  "short_name": "Likha Admin",
+  "description": "Edit the Likha Events site and see Inquiries.",
+  "start_url": "/admin/",
+  "scope": "/admin/",
+  "display": "standalone",
+  "background_color": "#f8f6f1",
+  "theme_color": "#183828",
+  "icons": [
+    { "src": "/admin/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/admin/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
