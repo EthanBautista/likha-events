@@ -43,7 +43,10 @@ const amountFields: [AmountField, string][] = [
       <div class="container dashboard-bar-inner">
         <span class="dashboard-name">{siteName}</span>
         <nav aria-label="Owner pages" class="dashboard-nav">
-          <a class="link-line" href="/admin/">Editor</a>
+          <a class="pill pill-solid dashboard-editor" href="/admin/">
+            <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M10 3 5 8l5 5" /></svg>
+            Editor
+          </a>
           <button type="button" class="pill" data-sign-out hidden>Sign out</button>
         </nav>
       </div>
@@ -1490,11 +1493,21 @@ const amountFields: [AmountField, string][] = [
     display: none;
   }
 
-  .dashboard-nav a {
-    display: inline-flex;
-    align-items: center;
-    min-height: 2.75rem;
-    color: var(--color-text);
+  /* A solid button rather than a plain link: the app has no browser back button, so this is the only
+     way back to the editor and has to look like one. */
+  .dashboard-editor {
+    gap: 0.25rem;
+    padding-inline-start: var(--space-sm);
+  }
+
+  .dashboard-editor svg {
+    width: 1rem;
+    height: 1rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
   }
 
   .dashboard {
