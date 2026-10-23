@@ -24,6 +24,25 @@ import { siteName } from "../../site-settings";
     <script>
       import CMS from "@sveltia/cms";
 
+      // The editor shows Cloudinary's photo picker in a pop-up with no close button of its own: only
+      // the Escape key closes it, and a phone has none. So a Cancel button goes above the picker,
+      // which sends the pop-up the same cancel event Escape does. The editor keeps the pop-up once
+      // it has made it, so the button is added once.
+      const observer = new MutationObserver(() => {
+        const picker = document.querySelector("dialog > iframe#cloudinary-iframe");
+        if (!picker) return;
+        observer.disconnect();
+        const cancel = document.createElement("button");
+        cancel.type = "button";
+        cancel.className = "picker-cancel";
+        cancel.textContent = "Cancel";
+        cancel.addEventListener("click", () => {
+          picker.parentElement!.dispatchEvent(new Event("cancel", { cancelable: true }));
+        });
+        picker.before(cancel);
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+
       const response = await fetch("/admin/config.json");
       await CMS.init({ config: await response.json() });
     </script>
@@ -68,6 +87,41 @@ import { siteName } from "../../site-settings";
   }
 
   .inquiries-link:focus-visible {
+    outline: 2px solid var(--color-action);
+    outline-offset: 3px;
+  }
+</style>
+
+<!-- Global, as the Cancel button and the picker are made by script, outside this page's markup. -->
+<style is:global>
+  dialog:has(> #cloudinary-iframe) {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  /* The editor sizes the picker to fill the pop-up, less 16px a side; it gives up room for the button. */
+  dialog > #cloudinary-iframe {
+    height: calc(100% - 32px - 2.75rem - 0.5rem);
+  }
+
+  .picker-cancel {
+    align-self: flex-end;
+    margin-right: 16px;
+    min-height: 2.75rem;
+    padding: 0 1.25rem;
+    border-radius: 100vmax;
+    background: var(--color-action);
+    color: var(--color-on-action);
+    border: 1px solid var(--color-on-action);
+    font: 500 var(--text-sm) / 1 system-ui, sans-serif;
+    cursor: pointer;
+  }
+
+  .picker-cancel:hover {
+    background: var(--color-action-hover);
+  }
+
+  .picker-cancel:focus-visible {
     outline: 2px solid var(--color-action);
     outline-offset: 3px;
   }

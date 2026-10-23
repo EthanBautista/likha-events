@@ -31,6 +31,22 @@ test("the Inquiries link leaves the editor's bottom bar free on a phone", async 
   expect(box.y + box.height).toBeLessThanOrEqual(page.viewportSize()!.height - 56);
 });
 
+test("the Cloudinary photo picker can be cancelled without an Escape key", async ({ page }) => {
+  // Opening the real picker needs a sign-in, so this builds a pop-up shaped like the editor's.
+  await page.evaluate(() => {
+    const dialog = document.createElement("dialog");
+    dialog.innerHTML = '<iframe id="cloudinary-iframe"></iframe>';
+    dialog.addEventListener("cancel", () => dialog.close());
+    document.body.append(dialog);
+    dialog.showModal();
+  });
+  const cancel = page.getByRole("button", { name: "Cancel" });
+
+  await cancel.click();
+
+  await expect(cancel).toBeHidden();
+});
+
 test("the editor page can be added to the home screen as an app", async ({ page, request }) => {
   // The editor adds a manifest of its own after ours, but a browser uses only the first.
   const href = await page.locator('link[rel="manifest"]').first().getAttribute("href");
