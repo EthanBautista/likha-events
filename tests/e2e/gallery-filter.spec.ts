@@ -127,14 +127,17 @@ test("the filter works from the keyboard and announces how many Setups are shown
 
   await page.keyboard.press("Tab");
   await expect(filterButton(page, "All")).toBeFocused();
-  await page.keyboard.press("Tab");
-  await page.keyboard.press("Tab");
+  // The buttons go by how many Setups each Event type has, so Birthday's place follows the content.
+  const order = (await filter(page).getByRole("button").allTextContents()).map((name) => name.trim());
+  for (let step = 0; step < order.indexOf("Birthday"); step++) await page.keyboard.press("Tab");
+  await expect(filterButton(page, "Birthday")).toBeFocused();
   await page.keyboard.press("Enter");
   await expectOnlySetupsOf(page, "Birthday");
   await expect(page.getByRole("status")).toHaveText(showing("Birthday"));
 
+  const next = order[order.indexOf("Birthday") + 1];
   await page.keyboard.press("Tab");
   await page.keyboard.press("Space");
-  await expectOnlySetupsOf(page, "Other");
-  await expect(page.getByRole("status")).toHaveText(showing("Other"));
+  await expectOnlySetupsOf(page, next);
+  await expect(page.getByRole("status")).toHaveText(showing(next));
 });
