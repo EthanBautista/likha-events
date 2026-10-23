@@ -2,6 +2,10 @@
   "caption": "F1 Birthday Setup",
   "eventType": "Birthday",
   "coverPhoto": "https://res.cloudinary.com/wuutkvur/image/upload/v1792719629/wbvrdfvnxtnirjqykv7p.jpg",
+  "photos": [
+    "https://res.cloudinary.com/wuutkvur/image/upload/v1792721799/wuajkndnyejafkyty0wg.jpg",
+    "https://res.cloudinary.com/wuutkvur/image/upload/v1792721799/bc7satmtlsa5szfsl6tz.jpg"
+  ],
   "featured": true,
   "sample": false
 }
