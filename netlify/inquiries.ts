@@ -2,7 +2,7 @@ import { getStore, type Store } from "@netlify/blobs";
 import { randomUUID } from "node:crypto";
 import { inListOrder, torontoToday } from "../src/inquiry-dates";
 import { customerAnswers, maxPhotos, photoFields } from "../src/inquiry-form";
-import { amounts, costsTotal, owed, type AmountField, type Cost } from "../src/inquiry-money";
+import { amounts, costsTotal, owed, totals, type AmountField, type Cost } from "../src/inquiry-money";
 import { handAddedSources, type HandAddedSource, type InquirySource } from "../src/inquiry-sources";
 import { inquiryStatuses, type InquiryStatus } from "../src/inquiry-statuses";
 
@@ -11,8 +11,8 @@ import { inquiryStatuses, type InquiryStatus } from "../src/inquiry-statuses";
 // own, referenced from the record. Functions are thin layers over it.
 
 export type { Cost, HandAddedSource, InquirySource, InquiryStatus };
-// Owed and the Costs total are worked out the same way here and on the dashboard.
-export { costsTotal, owed };
+// Owed, the Costs total and the totals are worked out the same way here and on the dashboard.
+export { costsTotal, owed, totals };
 
 export interface Inquiry {
   id: string;

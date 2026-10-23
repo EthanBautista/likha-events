@@ -890,3 +890,113 @@ test("an Inquiry with money entered doesn't scroll sideways, and meets WCAG AA",
   expect(await overflow()).toBeLessThanOrEqual(0);
   expect((await axe()).violations).toEqual([]);
 });
+
+// Earned, Owed and Profit on events, by the month and year of each event.
+
+const totalsLink = (page: Page) => page.getByRole("link", { name: "Totals" });
+const year = (page: Page, year: string) => page.getByRole("region", { name: year, exact: true });
+const monthRow = (page: Page, inYear: string, month: string) =>
+  year(page, inYear)
+    .getByRole("row")
+    .filter({ has: page.getByRole("rowheader", { name: month, exact: true }) });
+
+/** Stores Inquiries with their money, each for an event on the date given, or with no event date. */
+/** An Inquiry added by hand and Booked, with the details given. */
+const inquiry = (id: string, name: string, details: Partial<Inquiry>): Inquiry => ({
+  id,
+  name,
+  status: "Booked",
+  source: "Instagram",
+  receivedAt: "2026-01-05T15:00:00.000Z",
+  contact: "@customer",
+  photos: [],
+  ...details,
+});
+
+async function inquiriesWithMoney() {
+  const store = local.store("inquiries");
+  await store.setJSON("a", inquiry("a", "March Customer", { status: "Done", eventDate: "2026-03-21", agreedPrice: 50_000, downPayment: 25_000, balance: 25_000 }));
+  await store.setJSON(
+    "b",
+    inquiry("b", "October Customer", { eventDate: "2026-10-10", agreedPrice: 80_000, downPayment: 40_000, costs: [{ description: "Flowers", amount: 12_000 }] }),
+  );
+  await store.setJSON("c", inquiry("c", "Declined Customer", { status: "Declined", eventDate: "2026-10-24", agreedPrice: 60_000, downPayment: 15_000 }));
+  await store.setJSON("d", inquiry("d", "Last Year's Customer", { status: "Done", eventDate: "2025-12-31", agreedPrice: 30_000, downPayment: 30_000 }));
+  await store.setJSON("e", inquiry("e", "Undated Customer", { downPayment: 10_000 }));
+}
+
+test("Totals show Earned, Owed and Profit on events for each year and month of the events", async ({ page, context }) => {
+  await inquiriesWithMoney();
+  await signIn(page, context, "push-token");
+  await totalsLink(page).click();
+
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Totals");
+  await expect(page.getByRole("region")).toHaveText([/2026/, /2025/]);
+
+  const thisYear = year(page, "2026");
+  // A Declined customer's Down payment still counts as Earned, though nothing is Owed on it.
+  await expect(thisYear.getByRole("definition")).toHaveText(["$1,050.00", "$400.00", "$930.00"]);
+  await expect(thisYear.getByRole("term")).toHaveText(["Earned", "Owed", "Profit on events"]);
+  await expect(monthRow(page, "2026", "March").getByRole("cell")).toHaveText(["$500.00", "$0.00", "$500.00"]);
+  await expect(monthRow(page, "2026", "October").getByRole("cell")).toHaveText(["$550.00", "$400.00", "$430.00"]);
+  await expect(year(page, "2026").getByRole("rowheader")).toHaveText(["March", "October"]);
+  await expect(monthRow(page, "2025", "December").getByRole("cell")).toHaveText(["$300.00", "$0.00", "$300.00"]);
+  await expect(year(page, "2026").getByRole("columnheader")).toHaveText(["Month", "Earned", "Owed", "Profit on events"]);
+
+  await expect(page.getByText("1 Inquiry has no event date, so it's left out of these totals.")).toBeVisible();
+});
+
+test("Totals follow money entered on an Inquiry, and All Inquiries returns to the list", async ({ page, context }) => {
+  await inquiriesArrive();
+  await setStatus("Maria Santos", "Booked");
+  await signIn(page, context, "push-token");
+
+  await totalsLink(page).click();
+  await expect(page.getByText("1 Inquiry has no event date, so it's left out of these totals.")).toBeVisible();
+  await page.getByRole("link", { name: "All Inquiries" }).click();
+  await expect(rows(page)).toHaveCount(4);
+
+  await rows(page).filter({ hasText: "Maria Santos" }).click();
+  await amountField(page, "Agreed price").fill("650");
+  await amountField(page, "Down payment received").fill("325");
+  await saveMoney(page).click();
+  await expect(says(page, "Money saved")).toBeVisible();
+  await page.getByRole("link", { name: "All Inquiries" }).click();
+  await totalsLink(page).click();
+
+  const maria = (await storedInquiry("Maria Santos")).eventDate!;
+  const month = new Date(`${maria}T12:00:00Z`).toLocaleDateString("en-CA", { month: "long", timeZone: "UTC" });
+  await expect(monthRow(page, maria.slice(0, 4), month).getByRole("cell")).toHaveText(["$325.00", "$325.00", "$325.00"]);
+
+  // Opened straight from its link, the page shows the totals too.
+  await page.reload();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Totals");
+  await expect(monthRow(page, maria.slice(0, 4), month).getByRole("cell")).toHaveText(["$325.00", "$325.00", "$325.00"]);
+});
+
+test("with no Inquiry dated yet, Totals say so, and how many are waiting on a date", async ({ page, context }) => {
+  await inquiryArrives({ name: "Undated Customer" });
+  await inquiryArrives({ name: "Another Undated Customer" });
+  await signIn(page, context, "push-token");
+  await totalsLink(page).click();
+
+  await expect(
+    page.getByText("Totals show once an Inquiry has an event date. 2 Inquiries have no event date, so they're left out of these totals."),
+  ).toBeVisible();
+  await expect(page.getByRole("region")).toHaveCount(0);
+});
+
+test("Totals don't scroll sideways, and meet WCAG AA", async ({ page, context }) => {
+  const axe = () => new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+  const overflow = () => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+  await inquiriesWithMoney();
+  await local
+    .store("inquiries")
+    .setJSON("f", inquiry("f", "Big Customer", { eventDate: "2026-09-12", agreedPrice: 12_345_678_90, downPayment: 1_234_567_89 }));
+  await signIn(page, context, "push-token");
+  await totalsLink(page).click();
+  await expect(year(page, "2026")).toBeVisible();
+
+  expect(await overflow()).toBeLessThanOrEqual(0);
+  expect((await axe()).violations).toEqual([]);
+});

@@ -55,3 +55,76 @@ export const dollars = (cents: number) =>
 
 /** The total of an Inquiry's Costs, in whole cents. */
 export const costsTotal = ({ costs = [] }: { costs?: Cost[] }) => costs.reduce((total, { amount }) => total + amount, 0);
+
+/** Money across Inquiries, in whole cents. */
+export interface MoneyTotals {
+  /** Down payments and Balances received, whatever each Inquiry's status. */
+  earned: number;
+  /** What's still Owed on Booked and Done Inquiries. */
+  owed: number;
+  /** Earned less the Costs of every Inquiry. Spending not tied to one event isn't in it. */
+  profitOnEvents: number;
+}
+
+/** A month's totals, the month as YYYY-MM. */
+export interface MonthTotals extends MoneyTotals {
+  month: string;
+}
+
+/** A year's totals, with those of each of its months that has an event. */
+export interface YearTotals extends MoneyTotals {
+  year: string;
+  months: MonthTotals[];
+}
+
+/** What the totals go by: an Inquiry's event date, as YYYY-MM-DD, its status, amounts and Costs. */
+interface TotalledInquiry extends WithAmounts {
+  eventDate?: string;
+  costs?: Cost[];
+}
+
+/**
+ * Earned, Owed and Profit on events, by the month and year of each Inquiry's event: the most recent
+ * year first, and its months in calendar order. Inquiries with no event date are left out of them, and
+ * counted as undated.
+ */
+export function totals(inquiries: TotalledInquiry[]): { years: YearTotals[]; undated: number } {
+  const months = new Map<string, MonthTotals>();
+  for (const inquiry of inquiries) {
+    if (!inquiry.eventDate) continue;
+    const month = inquiry.eventDate.slice(0, 7);
+    const totalled = months.get(month) ?? { month, ...noMoney() };
+    addTo(totalled, moneyOn(inquiry));
+    months.set(month, totalled);
+  }
+
+  const years = new Map<string, YearTotals>();
+  for (const totalled of [...months.values()].sort((a, b) => a.month.localeCompare(b.month))) {
+    const year = totalled.month.slice(0, 4);
+    const yearTotals = years.get(year) ?? { year, ...noMoney(), months: [] };
+    addTo(yearTotals, totalled);
+    yearTotals.months.push(totalled);
+    years.set(year, yearTotals);
+  }
+
+  return {
+    years: [...years.values()].sort((a, b) => b.year.localeCompare(a.year)),
+    undated: inquiries.filter(({ eventDate }) => !eventDate).length,
+  };
+}
+
+/** One Inquiry's part in the totals. */
+function moneyOn(inquiry: TotalledInquiry): MoneyTotals {
+  const earned = (inquiry.downPayment ?? 0) + (inquiry.balance ?? 0);
+  return { earned, owed: owed(inquiry) ?? 0, profitOnEvents: earned - costsTotal(inquiry) };
+}
+
+/** Totals with no money in them yet. */
+const noMoney = (): MoneyTotals => ({ earned: 0, owed: 0, profitOnEvents: 0 });
+
+/** Adds money into the totals it's part of, changing them in place. */
+function addTo(into: MoneyTotals, money: MoneyTotals) {
+  into.earned += money.earned;
+  into.owed += money.owed;
+  into.profitOnEvents += money.profitOnEvents;
+}

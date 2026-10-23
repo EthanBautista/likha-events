@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { Refused, costsTotal, owed, type FormSubmission, type Inquiry, type InquiryChanges, type NewInquiry } from "../../netlify/inquiries";
+import { Refused, costsTotal, owed, totals, type FormSubmission, type Inquiry, type InquiryChanges, type NewInquiry } from "../../netlify/inquiries";
 import { startLocalStore, type LocalStore } from "./local-store";
 
 // The Inquiries module, against a local Blobs store.
@@ -521,6 +521,94 @@ test("Owed is nothing once paid in full, never below zero, and unknown with no A
 test("an Inquiry's Costs add up to their total", () => {
   expect(costsTotal(maria)).toBe(0);
   expect(costsTotal({ ...maria, costs: [{ description: "Balloons", amount: 8_450 }, { description: "Printed sign", amount: 3_500 }] })).toBe(11_950);
+});
+
+// Earned, Owed and Profit on events, by the month and year of each event.
+
+test("a month's Earned, Owed and Profit on events add up its Inquiries", () => {
+  const paidHalf = stored({ id: "a", name: "Maria", status: "Booked", eventDate: "2026-11-14", agreedPrice: 65_000, downPayment: 32_500 });
+  const paidInFull = stored({
+    id: "b",
+    name: "Joy",
+    status: "Done",
+    eventDate: "2026-11-02",
+    agreedPrice: 40_000,
+    downPayment: 20_000,
+    balance: 20_000,
+    costs: [{ description: "Balloons", amount: 8_450 }],
+  });
+  const quoted = stored({
+    id: "c",
+    name: "Ana",
+    status: "Quoted",
+    eventDate: "2026-11-28",
+    agreedPrice: 90_000,
+    costs: [{ description: "Sample centrepiece", amount: 1_500 }],
+  });
+
+  expect(totals([paidHalf, paidInFull, quoted]).years[0].months).toEqual([
+    { month: "2026-11", earned: 72_500, owed: 32_500, profitOnEvents: 62_550 },
+  ]);
+});
+
+test("a Declined Inquiry's Down payment still counts as Earned, though nothing is Owed on it", () => {
+  const declined = stored({
+    id: "a",
+    name: "Maria",
+    status: "Declined",
+    eventDate: "2026-12-05",
+    agreedPrice: 65_000,
+    downPayment: 15_000,
+    costs: [{ description: "Fabric", amount: 4_000 }],
+  });
+
+  expect(totals([declined]).years).toEqual([
+    { year: "2026", earned: 15_000, owed: 0, profitOnEvents: 11_000, months: [{ month: "2026-12", earned: 15_000, owed: 0, profitOnEvents: 11_000 }] },
+  ]);
+});
+
+test("an Inquiry with no event date is left out of the totals, and counted as undated", () => {
+  const booked = stored({ id: "a", name: "Maria", status: "Booked", eventDate: "2026-11-14", agreedPrice: 65_000, downPayment: 32_500 });
+  const undated = stored({ id: "b", name: "Joy", status: "Booked", agreedPrice: 40_000, downPayment: 20_000 });
+  const undatedNew = stored({ id: "c", name: "Ana" });
+
+  const { years, undated: leftOut } = totals([booked, undated, undatedNew]);
+
+  expect(years).toEqual([
+    { year: "2026", earned: 32_500, owed: 32_500, profitOnEvents: 32_500, months: [{ month: "2026-11", earned: 32_500, owed: 32_500, profitOnEvents: 32_500 }] },
+  ]);
+  expect(leftOut).toBe(2);
+  expect(totals([booked]).undated).toBe(0);
+});
+
+test("a year's totals add up its months, the most recent year first and its months in calendar order", () => {
+  const march = stored({ id: "a", name: "Maria", status: "Done", eventDate: "2026-03-21", agreedPrice: 50_000, downPayment: 25_000, balance: 25_000 });
+  const october = stored({
+    id: "b",
+    name: "Joy",
+    status: "Booked",
+    eventDate: "2026-10-10",
+    agreedPrice: 80_000,
+    downPayment: 40_000,
+    costs: [{ description: "Flowers", amount: 12_000 }],
+  });
+  const lastYear = stored({ id: "c", name: "Ana", status: "Done", eventDate: "2025-12-31", agreedPrice: 30_000, downPayment: 30_000 });
+  const nextYear = stored({ id: "d", name: "Rosa", status: "Quoted", eventDate: "2027-02-13", agreedPrice: 70_000 });
+
+  expect(totals([october, lastYear, nextYear, march]).years).toEqual([
+    { year: "2027", earned: 0, owed: 0, profitOnEvents: 0, months: [{ month: "2027-02", earned: 0, owed: 0, profitOnEvents: 0 }] },
+    {
+      year: "2026",
+      earned: 90_000,
+      owed: 40_000,
+      profitOnEvents: 78_000,
+      months: [
+        { month: "2026-03", earned: 50_000, owed: 0, profitOnEvents: 50_000 },
+        { month: "2026-10", earned: 40_000, owed: 40_000, profitOnEvents: 28_000 },
+      ],
+    },
+    { year: "2025", earned: 30_000, owed: 0, profitOnEvents: 30_000, months: [{ month: "2025-12", earned: 30_000, owed: 0, profitOnEvents: 30_000 }] },
+  ]);
 });
 
 test("deleting an Inquiry whose photo couldn't be saved removes it, and one that isn't there deletes nothing", async () => {

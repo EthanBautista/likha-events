@@ -4,10 +4,10 @@
 
 **Blocked by:** 06
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Earned = Down payments + Balances received on every Inquiry, whatever its status
-- [ ] Owed = the sum of Owed on Booked and Done Inquiries
-- [ ] Profit on events = Earned − Costs of every Inquiry, labelled "Profit on events"
-- [ ] Grouped by the month and year of the event date. Undated Inquiries are left out, and the dashboard says how many
-- [ ] Tests: a month with several Inquiries, a Declined Inquiry with a Down payment, an undated Inquiry, a year total
+- [x] Earned = Down payments + Balances received on every Inquiry, whatever its status
+- [x] Owed = the sum of Owed on Booked and Done Inquiries
+- [x] Profit on events = Earned − Costs of every Inquiry, labelled "Profit on events"
+- [x] Grouped by the month and year of the event date. Undated Inquiries are left out, and the dashboard says how many
+- [x] Tests: a month with several Inquiries, a Declined Inquiry with a Down payment, an undated Inquiry, a year total

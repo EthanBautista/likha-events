@@ -63,7 +63,10 @@ const amountFields: [AmountField, string][] = [
       <p data-view="loading" class="dashboard-quiet" hidden>Loading Inquiries…</p>
 
       <section data-view="list" hidden>
-        <a class="pill pill-solid inquiry-add" href="?add" data-add>Add Inquiry</a>
+        <div class="inquiry-add">
+          <a class="pill pill-solid" href="?add" data-add>Add Inquiry</a>
+          <a class="pill" href="?totals" data-totals-link>Totals</a>
+        </div>
         <p role="status" class="inquiry-saved" data-list-saved></p>
         <div data-empty class="dashboard-empty" hidden>
           <p class="dashboard-empty-title">No Inquiries yet</p>
@@ -89,6 +92,16 @@ const amountFields: [AmountField, string][] = [
         </div>
         <div data-groups></div>
       </section>
+
+      <div data-view="totals" class="inquiry-totals" hidden>
+        <p class="dashboard-quiet inquiry-totals-hint">
+          Each Inquiry's money is counted in the month of its event. Earned is the Down payments and Balances
+          received, whatever the Inquiry status. Owed is what's still to be paid on Booked and Done Inquiries.
+          Profit on events is Earned less each event's Costs, so it leaves out spending not tied to one event.
+        </p>
+        <p class="dashboard-quiet" data-undated></p>
+        <div data-years></div>
+      </div>
 
       <article data-view="detail" class="inquiry" hidden>
         <p class="inquiry-received" data-received></p>
@@ -295,7 +308,7 @@ const amountFields: [AmountField, string][] = [
       import type { Inquiry, InquiryChanges, InquiryPhoto, NewInquiry } from "../../../netlify/inquiries";
       import { eventTiming, inListOrder, torontoToday, type EventTiming } from "../../inquiry-dates";
       import { customerAnswers } from "../../inquiry-form";
-      import { amounts, asEntered, centsIn, costsTotal, dollars, owed, owedStatuses, type AmountField, type Cost } from "../../inquiry-money";
+      import { amounts, asEntered, centsIn, costsTotal, dollars, owed, owedStatuses, totals, type AmountField, type Cost, type MoneyTotals } from "../../inquiry-money";
       import { inquiryStatuses } from "../../inquiry-statuses";
 
       /** Netlify's OAuth provider, which the editor signs in through too. */
@@ -326,6 +339,9 @@ const amountFields: [AmountField, string][] = [
       const saveNotesButton = document.querySelector<HTMLButtonElement>("[data-save-notes]")!;
       const notesSaved = document.querySelector<HTMLElement>("[data-notes-saved]")!;
       const addLink = document.querySelector<HTMLAnchorElement>("[data-add]")!;
+      const totalsLink = document.querySelector<HTMLAnchorElement>("[data-totals-link]")!;
+      const undated = document.querySelector<HTMLElement>("[data-undated]")!;
+      const years = document.querySelector<HTMLElement>("[data-years]")!;
       const detailsSaved = document.querySelector<HTMLElement>("[data-details-saved]")!;
       const answersHeading = document.querySelector<HTMLElement>("[data-answers-heading]")!;
       const editLink = document.querySelector<HTMLAnchorElement>("[data-edit]")!;
@@ -378,7 +394,7 @@ const amountFields: [AmountField, string][] = [
       let token: string | undefined;
       let inquiries: Inquiry[] | undefined;
 
-      function show(view: "signed-out" | "loading" | "list" | "detail" | "form" | "nothing") {
+      function show(view: "signed-out" | "loading" | "list" | "totals" | "detail" | "form" | "nothing") {
         for (const element of views) element.hidden = element.dataset.view !== view;
         signOutButton.hidden = view === "signed-out";
       }
@@ -597,6 +613,70 @@ const amountFields: [AmountField, string][] = [
         // On a phone the chips are one row that swipes sideways, so the chosen one is brought to its middle.
         const pressed = filterButtons.find((button) => button.getAttribute("aria-pressed") === "true")!;
         filterRow.scrollTo({ left: pressed.offsetLeft - (filterRow.clientWidth - pressed.offsetWidth) / 2 });
+      }
+
+      /** The three totals, in the order they're shown, under the labels they're shown with. */
+      const totalNames: [keyof MoneyTotals, string][] = [
+        ["earned", "Earned"],
+        ["owed", "Owed"],
+        ["profitOnEvents", "Profit on events"],
+      ];
+
+      /**
+       * Earned, Owed and Profit on events for each year of the events, the most recent first, with each of
+       * its months under it. Inquiries with no event date are left out, and it says how many.
+       */
+      function showTotals(list: Inquiry[]) {
+        heading.textContent = "Totals";
+        document.title = `Totals · ${pageTitle}`;
+        const { years: byYear, undated: leftOut } = totals(list);
+        const leftOutLine =
+          leftOut === 1
+            ? "1 Inquiry has no event date, so it's left out of these totals."
+            : `${leftOut} Inquiries have no event date, so they're left out of these totals.`;
+        if (!byYear.length) undated.textContent = `Totals show once an Inquiry has an event date.${leftOut ? ` ${leftOutLine}` : ""}`;
+        else if (leftOut) undated.textContent = leftOutLine;
+        else undated.textContent = "";
+
+        years.replaceChildren(
+          ...byYear.map((yearTotals) => {
+            const section = element("section", "inquiry-year");
+            const title = element("h2", undefined, yearTotals.year);
+            title.id = `year-${yearTotals.year}`;
+            section.setAttribute("aria-labelledby", title.id);
+
+            const figures = element("dl", "inquiry-year-totals");
+            for (const [total, name] of totalNames) {
+              const figure = element("div");
+              figure.append(element("dt", undefined, name), element("dd", "inquiry-figure", dollars(yearTotals[total])));
+              figures.append(figure);
+            }
+
+            const table = element("table", "inquiry-months");
+            const caption = element("caption", "visually-hidden", `${yearTotals.year} by month`);
+            const header = element("tr");
+            for (const name of ["Month", ...totalNames.map(([, name]) => name)]) {
+              const cell = element("th", undefined, name);
+              cell.scope = "col";
+              header.append(cell);
+            }
+            const body = element("tbody");
+            for (const monthTotals of yearTotals.months) {
+              const row = element("tr");
+              const month = element("th", undefined, day(`${monthTotals.month}-01`, { month: "long" }));
+              month.scope = "row";
+              row.append(month, ...totalNames.map(([total]) => element("td", undefined, dollars(monthTotals[total]))));
+              body.append(row);
+            }
+            const head = element("thead");
+            head.append(header);
+            table.append(caption, head, body);
+
+            section.append(title, figures, table);
+            return section;
+          }),
+        );
+        show("totals");
       }
 
       /** A way to reach the customer, as a link to call or email them when it is a phone number or an email. */
@@ -1094,7 +1174,10 @@ const amountFields: [AmountField, string][] = [
         return editing ? { editing } : undefined;
       }
 
-      /** Shows what the address asks for: the list, one Inquiry, or the form. */
+      /** Whether the address asks for the totals. */
+      const totalsAsked = () => new URLSearchParams(location.search).has("totals");
+
+      /** Shows what the address asks for: the list, the totals, one Inquiry, or the form. */
       function showPage() {
         saveNotes();
         saveMoney();
@@ -1102,12 +1185,13 @@ const amountFields: [AmountField, string][] = [
         moneyFor = undefined;
         const opened = openedId();
         const asked = formAsked();
-        back.hidden = (!opened && !asked) || !token;
+        back.hidden = (!opened && !asked && !totalsAsked()) || !token;
         heading.textContent = "Inquiries";
         document.title = pageTitle;
         if (!token) return show("signed-out");
         if (!inquiries) return;
 
+        if (totalsAsked()) return showTotals(inquiries);
         if (asked && "adding" in asked) return showForm();
         const inquiry = inquiryById(opened ?? (asked && asked.editing));
         if (!opened && !asked) return showList(inquiries);
@@ -1146,6 +1230,12 @@ const amountFields: [AmountField, string][] = [
         if (!opensHere(event)) return;
         event.preventDefault();
         openHere(addLink.href, { fromList: true });
+      });
+
+      totalsLink.addEventListener("click", (event) => {
+        if (!opensHere(event)) return;
+        event.preventDefault();
+        openHere(totalsLink.href, { fromList: true });
       });
 
       editLink.addEventListener("click", (event) => {
@@ -2009,9 +2099,112 @@ const amountFields: [AmountField, string][] = [
     white-space: nowrap;
   }
 
-  /* Add Inquiry, above the list, and Edit details, under an added Inquiry's details. */
+  /* Add Inquiry and Totals, side by side above the list. */
   .inquiry-add {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-xs);
     margin-block-end: var(--space-lg);
+  }
+
+  /* Totals: what they count, then each year's three figures as prices, and its months in a table. */
+  .inquiry-totals {
+    display: grid;
+    gap: var(--space-lg);
+    max-width: 44rem;
+  }
+
+  .inquiry-totals > p {
+    margin: 0;
+  }
+
+  .inquiry-totals-hint {
+    font-size: var(--text-sm);
+  }
+
+  .inquiry-totals > p:empty {
+    display: none;
+  }
+
+  [data-years] {
+    display: grid;
+    gap: var(--space-xl);
+  }
+
+  .inquiry-year h2 {
+    margin-block: 0 var(--space-sm);
+    font-family: var(--font-heading);
+    font-size: var(--text-xl);
+  }
+
+  .inquiry-year-totals {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-sm);
+    margin: 0 0 var(--space-md);
+    padding-block: var(--space-sm);
+    border-block: 1px solid var(--color-line);
+  }
+
+  .inquiry-year-totals dt {
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+  }
+
+  .inquiry-year-totals dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  /* Fixed columns, so every year's months line up under each other. */
+  .inquiry-months {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .inquiry-months th,
+  .inquiry-months td {
+    padding: var(--space-xs) 0 var(--space-xs) var(--space-xs);
+    border-block-end: 1px solid var(--color-line);
+    text-align: end;
+    vertical-align: top;
+    overflow-wrap: anywhere;
+  }
+
+  .inquiry-months th:first-child {
+    width: 28%;
+    padding-inline-start: 0;
+    text-align: start;
+  }
+
+
+  .inquiry-months thead th {
+    color: var(--color-text-muted);
+    font-weight: 400;
+  }
+
+  /* A month's name stays whole; only an amount too long for its column wraps. */
+  .inquiry-months tbody th {
+    font-weight: 500;
+    overflow-wrap: normal;
+    white-space: nowrap;
+  }
+
+  /* On a phone the year's three figures stack, each label beside its figure, as Owed reads on an Inquiry. */
+  @media (max-width: 29.99rem) {
+    .inquiry-year-totals {
+      grid-template-columns: 1fr;
+    }
+
+    .inquiry-year-totals > div {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: var(--space-sm);
+    }
   }
 
   /* That the details were saved shows as the Inquiry opens, never while it's open, so it takes no room until then. */
