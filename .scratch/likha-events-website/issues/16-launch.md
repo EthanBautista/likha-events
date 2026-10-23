@@ -9,7 +9,7 @@
 - [x] Confirm `likhaevents.ca` is available, and register it (optionally also `likhaevents.com`) in the owner's name with likhaproductions25@gmail.com
 - [ ] The developer sits with the owner to create a free GitHub account for them and add it as a collaborator on the private repo (EthanBautista), see ADR 0003. The owner isn't technical, so in the same sitting log in to `/admin` and to Cloudinary on the owner's phone, so both logins are remembered
 - [ ] A Cloudinary account is created with likhaproductions25@gmail.com, two-factor login is turned on, the developer is added as a user, and the upload preset from ticket 11 is created (see `docs/cloudinary-upload-preset.md`)
-- [ ] The Cloudinary account's cloud name and API key (never the API secret) replace the `set-at-launch` placeholders in `src/editor-config.ts`
+- [x] The Cloudinary account's cloud name and API key (never the API secret) replace the `set-at-launch` placeholders in `src/editor-config.ts`
 - [ ] The owner has the guide `docs/owner-guide-adding-a-setup.md`
 - [ ] The repo is connected to the developer's Netlify account, and the custom domain and HTTPS work
 - [x] Netlify OAuth is set up so the owner can log in to `/admin`

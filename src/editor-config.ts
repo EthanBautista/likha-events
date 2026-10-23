@@ -10,9 +10,9 @@ import { siteRepo } from "./site-settings";
 
 /**
  * The business's Cloudinary account (ADR 0003). The API key is public, used by Cloudinary's Media
- * Library to log the owner in; the API secret never goes in the site. Set both at launch.
+ * Library to log the owner in; the API secret never goes in the site.
  */
-const cloudinaryAccount = { cloudName: "set-at-launch", apiKey: "set-at-launch" };
+const cloudinaryAccount = { cloudName: "wuutkvur", apiKey: "779581795881557" };
 
 /**
  * The display order a new Package, Wedding Package or Rental starts with, so the owner never has to
