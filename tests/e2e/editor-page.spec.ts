@@ -23,6 +23,14 @@ test("the editor page links to the Inquiry dashboard", async ({ page }) => {
   await expect(link).toHaveAttribute("href", "/admin/inquiries/");
 });
 
+test("the Inquiries link leaves the editor's bottom bar free on a phone", async ({ page, isMobile }) => {
+  test.skip(!isMobile, "the editor only has a bottom bar below 768px");
+  // Signing in is needed to see the bar, so this checks the link against its height: 56px.
+  const box = (await page.getByRole("link", { name: "Inquiries" }).boundingBox())!;
+
+  expect(box.y + box.height).toBeLessThanOrEqual(page.viewportSize()!.height - 56);
+});
+
 test("the editor page can be added to the home screen as an app", async ({ page, request }) => {
   // The editor adds a manifest of its own after ours, but a browser uses only the first.
   const href = await page.locator('link[rel="manifest"]').first().getAttribute("href");

@@ -5,7 +5,8 @@ import { siteName } from "../../site-settings";
 
 // The owner's editor page (ADR 0001): Sveltia CMS, bundled from npm so its version is pinned in
 // package-lock.json. It loads its configuration from /admin/config.json. The editor has no place for
-// a link of our own, so the link to the Inquiry dashboard floats in a corner its screens leave empty.
+// a link of our own, so the link to the Inquiry dashboard floats in a corner its screens leave empty, above
+// the bottom bar it shows on a phone.
 ---
 
 <!doctype html>
@@ -46,6 +47,14 @@ import { siteName } from "../../site-settings";
     /* The editor page loads no brand fonts, so the link takes the system's, like the editor around it. */
     font: 500 var(--text-sm) / 1 system-ui, sans-serif;
     text-decoration: none;
+  }
+
+  /* Below 768px the editor puts its page buttons in a 56px bar along the bottom, Contents first, on the
+     left. The link sits above the bar, or it would cover that button and trap the owner on a page. */
+  @media (width < 768px) {
+    .inquiries-link {
+      bottom: calc(56px + 1rem);
+    }
   }
 
   .inquiries-link:hover {
