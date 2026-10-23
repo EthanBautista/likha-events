@@ -87,7 +87,7 @@ A four-page website for Likha Events (Home, Gallery, Packages & Rentals, Contact
 ### Owner and developer: ownership and maintenance
 
 55. As the owner, I want the domain and the photo storage in my business's name, so that the business always keeps its address and its photos.
-56. As the developer, I want the code (in a private repo) and the hosting on my own accounts, so that I can maintain the site and fix problems without asking for access.
+56. As the developer, I want the code (in a public repo, see ADR 0003) and the hosting on my own accounts, so that I can maintain the site and fix problems without asking for access.
 57. As the developer, I want the sample Setups, Packages and Rentals to be clearly labelled "sample", so that nobody mistakes them for real content before launch.
 58. As the developer, I want the site to fail to build if any content is invalid, so that broken content never goes live.
 59. As the developer, I want automated browser tests that check the pages, filter, form and links, so that changes don't silently break the site.
@@ -97,7 +97,7 @@ A four-page website for Likha Events (Home, Gallery, Packages & Rentals, Contact
 
 - **Stack** (see ADR 0001): a static Astro 7 site with no server code. Text content lives as files in the repo, and Netlify hosts it on the free tier.
 - **Photos** (see ADR 0002): Setup and Rental photos are stored on Cloudinary. Content files hold each photo's Cloudinary URL, not the image itself.
-- **Accounts** (see ADR 0003): the code is in a private repo under the developer's GitHub account (EthanBautista), and hosting is on the developer's Netlify account. Cloudinary and the domain are owned by the business's email.
+- **Accounts** (see ADR 0003): the code is in a public repo under the developer's GitHub account (EthanBautista), and hosting is on the developer's Netlify account. Cloudinary and the domain are owned by the business's email.
 - **Content model**: three content collections, each validated by a schema at build time.
   - **Setup**:
     - caption (required, short text),
@@ -138,7 +138,7 @@ A four-page website for Likha Events (Home, Gallery, Packages & Rentals, Contact
   - It uses the GitHub backend, with login through Netlify's OAuth provider.
   - It edits only the three collections. Each save becomes a commit, which triggers a Netlify rebuild.
   - Photo fields use the editor's Cloudinary media library, so phone uploads go straight to Cloudinary. A Cloudinary upload preset shrinks each photo to about 2500px wide.
-  - The owner logs in with their own GitHub account, which is added as a collaborator on the private repo.
+  - The owner logs in with their own GitHub account, which is added as a collaborator on the repo.
   - Its field definitions mirror the content schemas: the same required fields, the same limits (8 additional photos) and the same Event type options.
 - **Contact form**:
   - It's a Netlify Form, detected at build time.
